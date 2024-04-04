@@ -19,9 +19,11 @@ powdr-executor = { path = "../executor" }
 
 strum = { version = "0.24.1", features = ["derive"] }
 log = "0.4.17"
+serde = "1.0"
 serde_json = "1.0"
 thiserror = "1.0.43"
 starky = { git = "https://github.com/0xEigenLabs/eigen-zkvm.git", rev = "59d2152" }
+fields = { git = "https://github.com/0xEigenLabs/eigen-zkvm.git", rev = "59d2152" }
 
 [dev-dependencies]
 mktemp = "0.5.0"

@@ -65,12 +65,21 @@ pub fn verify_pipeline(
 
 pub fn gen_estark_proof(file_name: &str, inputs: Vec<GoldilocksField>) {
     let tmp_dir = mktemp::Temp::new_dir().unwrap();
-    let mut pipeline = Pipeline::default()
+    let pipeline = Pipeline::default()
         .with_tmp_output(&tmp_dir)
         .from_file(resolve_test_file(file_name))
-        .with_prover_inputs(inputs)
-        .with_backend(powdr_backend::BackendType::EStarkStarky);
+        .with_prover_inputs(inputs);
 
+    // If enabled, prove with EStarkPolygon backend.
+    #[cfg(feature = "estark-polygon")]
+    pipeline
+        .clone()
+        .with_backend(powdr_backend::BackendType::EStarkPolygon)
+        .compute_proof()
+        .unwrap();
+
+    // Prove with EStarkStarky backend.
+    let mut pipeline = pipeline.with_backend(powdr_backend::BackendType::EStarkStarky);
     pipeline.clone().compute_proof().unwrap();
 
     // Repeat the proof generation, but with an externally generated verification key

@@ -11,7 +11,7 @@ namespace Sum(N);
 
     pol fixed ISLAST(i) { if i == last_row { 1 } else { 0 } };
     pol fixed ISALMOSTLAST(i) { if i == last_row - 1 { 1 } else { 0 } };
-    pol fixed ISFIRST = [ 1, 0 ] + [0]*;
+    pol fixed ISFIRST(i) { if i == 0 { 1 } else { 0 } };
 
     col witness input(i) query match i {
         // A non-exhaustive match statement is the only way to return "None"

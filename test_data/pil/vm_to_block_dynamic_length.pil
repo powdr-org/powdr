@@ -1,6 +1,83 @@
 // This an adjusted copy of the optimized PIL coming out of `test_data/asm/vm_to_block_different_length.asm`.
 // We can remove this once the linker allows us to specify a machine with a variable degree.
 
+namespace std::array;
+    let<T1, T2> fold: T1[], T2, (T2, T1 -> T2) -> T2 = (|arr, initial, folder| std::utils::fold::<T1, T2>(std::array::len::<T1>(arr), (|i| arr[i]), initial, folder));
+    let<T> len: T[] -> int = [];
+namespace std::check;
+    let panic: string -> ! = [];
+namespace std::expand_fixed;
+    enum ArrayTerm {
+        Repeat(int[]),
+        Once(int[]),
+    }
+    let MORE_THAN_ONE_REPEATED_ERROR: string = "unsolvable because more than one term is repeated";
+    let NON_REPEATED_SIZE_EXCEEDS_DEGREE_ERROR: string = "non repeated array terms do not fit in degree";
+    let compute_length_of_repeated_part: std::expand_fixed::ArrayTerm[], (-> int) -> std::result::Result<int, string> = (|terms, degree| {
+        let (_, res): (bool, std::result::Result<int, string>) = std::array::fold::<std::expand_fixed::ArrayTerm, ((bool, std::result::Result<int, string>))>(terms, (std::prelude::false, std::result::Result::Ok::<int, string>(0)), (|(found_repeated, l), term| { match l {
+            std::result::Result::Err(e) => (found_repeated, std::result::Result::Err::<int, string>(e)),
+            std::result::Result::Ok(len) => match term {
+                std::expand_fixed::ArrayTerm::Repeat([]) => (found_repeated, std::result::Result::Ok::<int, string>(len)),
+                std::expand_fixed::ArrayTerm::Repeat(a) => { if found_repeated { (std::prelude::true, std::result::Result::Err::<int, string>(std::expand_fixed::MORE_THAN_ONE_REPEATED_ERROR)) } else { (std::prelude::true, std::result::Result::Ok::<int, string>(len)) } },
+                std::expand_fixed::ArrayTerm::Once(a) => (found_repeated, std::result::Result::Ok::<int, string>(len + std::array::len::<int>(a))),
+            },
+        } }));
+        match res {
+            std::result::Result::Ok(total_size_of_non_repeated) => if total_size_of_non_repeated <= degree() { std::result::Result::Ok::<int, string>(degree() - total_size_of_non_repeated) } else { std::result::Result::Err::<int, string>(std::expand_fixed::NON_REPEATED_SIZE_EXCEEDS_DEGREE_ERROR) },
+            std::result::Result::Err(e) => std::result::Result::Err::<int, string>(e),
+        }
+    });
+    let expand: std::expand_fixed::ArrayTerm[], (-> int) -> std::result::Result<(int -> int), string> = (|terms, degree| {
+        let (constant_value, found_repeated_item): (std::result::Result<(std::prelude::Option<int>), ()>, std::result::Result<bool, string>) = std::array::fold::<std::expand_fixed::ArrayTerm, ((std::result::Result<(std::prelude::Option<int>), ()>, std::result::Result<bool, string>))>(terms, (std::result::Result::Ok::<(std::prelude::Option<int>), ()>(std::prelude::Option::None::<int>), std::result::Result::Ok::<bool, string>(std::prelude::false)), (|(r, found), term| {
+            let (a, is_repeated): (int[], bool) = match term {
+                std::expand_fixed::ArrayTerm::Once(a) => (a, std::prelude::false),
+                std::expand_fixed::ArrayTerm::Repeat(a) => (a, std::array::len::<int>(a) > 0),
+            };
+            (match r {
+                std::result::Result::Ok(c) => { std::array::fold::<int, (std::result::Result<(std::prelude::Option<int>), ()>)>(a, std::result::Result::Ok::<(std::prelude::Option<int>), ()>(c), (|e, value| { match e {
+                    std::result::Result::Ok(std::prelude::Option::None) => std::result::Result::Ok::<(std::prelude::Option<int>), ()>(std::prelude::Option::Some::<int>(value)),
+                    std::result::Result::Ok(std::prelude::Option::Some(prev_value)) => if value == prev_value { std::result::Result::Ok::<(std::prelude::Option<int>), ()>(std::prelude::Option::Some::<int>(value)) } else { std::result::Result::Err::<(std::prelude::Option<int>), ()>(()) },
+                    std::result::Result::Err(()) => std::result::Result::Err::<(std::prelude::Option<int>), ()>(()),
+                } })) },
+                std::result::Result::Err(()) => std::result::Result::Err::<(std::prelude::Option<int>), ()>(()),
+            }, match found {
+                std::result::Result::Ok(v) => if v && is_repeated { std::result::Result::Err::<bool, string>(std::expand_fixed::MORE_THAN_ONE_REPEATED_ERROR) } else { std::result::Result::Ok::<bool, string>(v || is_repeated) },
+                std::result::Result::Err(e) => std::result::Result::Err::<bool, string>(e),
+            })
+        }));
+        match (constant_value, found_repeated_item) {
+            (_, std::result::Result::Err(s)) => std::result::Result::Err::<(int -> int), string>(s),
+            (std::result::Result::Ok(std::prelude::Option::Some(v)), _) => std::result::Result::Ok::<(int -> int), string>((|_| v)),
+            _ => { match std::expand_fixed::compute_length_of_repeated_part(terms, degree) {
+                std::result::Result::Ok(size_of_repeated) => { std::result::Result::Ok::<(int -> int), string>((|i| {
+                    let (_, res): (int, int) = std::array::fold::<std::expand_fixed::ArrayTerm, (int, int)>(terms, (0, 0), (|(offset, res), term| {
+                        let (a, len): (int[], int) = match term {
+                            std::expand_fixed::ArrayTerm::Repeat([]) => ([], 0),
+                            std::expand_fixed::ArrayTerm::Repeat(a) => (a, size_of_repeated),
+                            std::expand_fixed::ArrayTerm::Once(a) => (a, std::array::len::<int>(a)),
+                        };
+                        let index: int = i - offset;
+                        (offset + len, if 0 <= index && index < len { res + a[index % std::array::len::<int>(a)] } else { res })
+                    }));
+                    res
+                })) },
+                std::result::Result::Err(e) => std::result::Result::Err::<(int -> int), string>(e),
+            } },
+        }
+    });
+    let expand_unwrapped: std::expand_fixed::ArrayTerm[], (-> int) -> (int -> int) = (|terms, degree| { match std::expand_fixed::expand(terms, degree) {
+        std::result::Result::Ok(r) => r,
+        std::result::Result::Err(e) => std::check::panic(e),
+    } });
+    let once: int[] -> std::expand_fixed::ArrayTerm = (|a| std::expand_fixed::ArrayTerm::Once(a));
+    let repeat: int[] -> std::expand_fixed::ArrayTerm = (|a| std::expand_fixed::ArrayTerm::Repeat(a));
+namespace std::prelude;
+    enum Option<T> {
+        None,
+        Some(T),
+    }
+    let false: bool = !std::prelude::true;
+    let true: bool = "" == "";
 namespace std::prover;
     enum Query {
         Input(int),
@@ -9,9 +86,17 @@ namespace std::prover;
         DataIdentifier(int, int),
         None,
     }
-namespace main(256);
+    let degree: -> int = [];
+namespace std::result;
+    enum Result<V, E> {
+        Ok(V),
+        Err(E),
+    }
+namespace std::utils;
+    let<T1, T2> fold: int, (int -> T1), T2, (T2, T1 -> T2) -> T2 = (|length, f, initial, folder| if length <= 0 { initial } else { folder(std::utils::fold::<T1, T2>(length - 1, f, initial, folder), f(length - 1)) });
+namespace main(16);
     col witness _operation_id(i) query std::prover::Query::Hint(6);
-    col fixed _block_enforcer_last_step = [0]* + [1];
+    let _block_enforcer_last_step: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::repeat([0]), std::expand_fixed::once([1])], std::prover::degree);
     (1 - main._block_enforcer_last_step) * (1 - main.instr_return) * (main._operation_id' - main._operation_id) = 0;
     col witness pc;
     col witness X;
@@ -34,30 +119,31 @@ namespace main(256);
     main.Y = main.Y_const;
     col witness Z_read_free;
     main.Z = main.Z_read_free * main.Z_free_value;
-    col fixed first_step = [1] + [0]*;
+    let first_step: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([1]), std::expand_fixed::repeat([0])], std::prover::degree);
     main.A' = main.reg_write_Z_A * main.Z + (1 - (main.reg_write_Z_A + main.instr__reset)) * main.A;
-    col pc_update = main.instr__jump_to_operation * main._operation_id + main.instr__loop * main.pc + (1 - (main.instr__jump_to_operation + main.instr__loop + main.instr_return)) * (main.pc + 1);
+    col witness pc_update;
+    main.pc_update = main.instr__jump_to_operation * main._operation_id + main.instr__loop * main.pc + (1 - (main.instr__jump_to_operation + main.instr__loop + main.instr_return)) * (main.pc + 1);
     main.pc' = (1 - main.first_step') * main.pc_update;
     col witness Z_free_value;
     [main.pc, main.reg_write_Z_A, main.instr_add, main.instr_mul, main.instr_assert_eq, main.instr__jump_to_operation, main.instr__reset, main.instr__loop, main.instr_return, main.X_const, main.read_X_A, main.Y_const, main.Z_read_free] in [main__rom.p_line, main__rom.p_reg_write_Z_A, main__rom.p_instr_add, main__rom.p_instr_mul, main__rom.p_instr_assert_eq, main__rom.p_instr__jump_to_operation, main__rom.p_instr__reset, main__rom.p_instr__loop, main__rom.p_instr_return, main__rom.p_X_const, main__rom.p_read_X_A, main__rom.p_Y_const, main__rom.p_Z_read_free];
     main.instr_add $ [0, main.X, main.Y, main.Z] in [main_arith.operation_id, main_arith.x[0], main_arith.x[1], main_arith.y];
     main.instr_mul $ [1, main.X, main.Y, main.Z] in [main_arith.operation_id, main_arith.x[0], main_arith.x[1], main_arith.y];
-    col fixed _linker_first_step = [1] + [0]*;
+    let _linker_first_step: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([1]), std::expand_fixed::repeat([0])], std::prover::degree);
     main._linker_first_step * (main._operation_id - 2) = 0;
-namespace main__rom(256);
-    col fixed p_line = [0, 1, 2, 3, 4, 5, 6] + [6]*;
-    col fixed p_X_const = [0, 0, 2, 0, 0, 0, 0] + [0]*;
-    col fixed p_Y_const = [0, 0, 1, 9, 27, 0, 0] + [0]*;
-    col fixed p_Z_read_free = [0, 0, 1, 1, 0, 0, 0] + [0]*;
-    col fixed p_instr__jump_to_operation = [0, 1, 0, 0, 0, 0, 0] + [0]*;
-    col fixed p_instr__loop = [0, 0, 0, 0, 0, 0, 1] + [1]*;
-    col fixed p_instr__reset = [1, 0, 0, 0, 0, 0, 0] + [0]*;
-    col fixed p_instr_add = [0, 0, 1, 0, 0, 0, 0] + [0]*;
-    col fixed p_instr_assert_eq = [0, 0, 0, 0, 1, 0, 0] + [0]*;
-    col fixed p_instr_mul = [0, 0, 0, 1, 0, 0, 0] + [0]*;
-    col fixed p_instr_return = [0, 0, 0, 0, 0, 1, 0] + [0]*;
-    col fixed p_read_X_A = [0, 0, 0, 1, 1, 0, 0] + [0]*;
-    col fixed p_reg_write_Z_A = [0, 0, 1, 1, 0, 0, 0] + [0]*;
+namespace main__rom(16);
+    let p_line: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 1, 2, 3, 4, 5, 6]), std::expand_fixed::repeat([6])], std::prover::degree);
+    let p_X_const: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 0, 2, 0, 0, 0, 0]), std::expand_fixed::repeat([0])], std::prover::degree);
+    let p_Y_const: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 0, 1, 9, 27, 0, 0]), std::expand_fixed::repeat([0])], std::prover::degree);
+    let p_Z_read_free: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 0, 1, 1, 0, 0, 0]), std::expand_fixed::repeat([0])], std::prover::degree);
+    let p_instr__jump_to_operation: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 1, 0, 0, 0, 0, 0]), std::expand_fixed::repeat([0])], std::prover::degree);
+    let p_instr__loop: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 0, 0, 0, 0, 0, 1]), std::expand_fixed::repeat([1])], std::prover::degree);
+    let p_instr__reset: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([1, 0, 0, 0, 0, 0, 0]), std::expand_fixed::repeat([0])], std::prover::degree);
+    let p_instr_add: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 0, 1, 0, 0, 0, 0]), std::expand_fixed::repeat([0])], std::prover::degree);
+    let p_instr_assert_eq: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 0, 0, 0, 1, 0, 0]), std::expand_fixed::repeat([0])], std::prover::degree);
+    let p_instr_mul: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 0, 0, 1, 0, 0, 0]), std::expand_fixed::repeat([0])], std::prover::degree);
+    let p_instr_return: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 0, 0, 0, 0, 1, 0]), std::expand_fixed::repeat([0])], std::prover::degree);
+    let p_read_X_A: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 0, 0, 1, 1, 0, 0]), std::expand_fixed::repeat([0])], std::prover::degree);
+    let p_reg_write_Z_A: col = std::expand_fixed::expand_unwrapped([std::expand_fixed::once([0, 0, 1, 1, 0, 0, 0]), std::expand_fixed::repeat([0])], std::prover::degree);
 
 // CHANGED HERE: The degree of this namespace is None, meaning that this machine has a variable size.
 namespace main_arith;

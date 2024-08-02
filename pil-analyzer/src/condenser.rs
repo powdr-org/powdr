@@ -322,7 +322,7 @@ impl<'a, T: FieldElement> SymbolLookup<'a, T> for Condenser<'a, T> {
         if let Some(v) = self.symbol_values.get(&cache_key) {
             return Ok(v.clone());
         }
-        let value = Definitions::lookup_with_symbols(self.symbols, name, type_args, self)?;
+        let value = Definitions::lookup_with_symbols(self.symbols, name, &type_args, self)?;
         self.symbol_values
             .entry(cache_key)
             .or_insert_with(|| value.clone());

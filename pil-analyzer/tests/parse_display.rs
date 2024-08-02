@@ -20,7 +20,7 @@ namespace std::prover(65536);
 namespace std::convert(65536);
     let int = [];
 namespace T(65536);
-    col fixed first_step = [1] + [0]*;
+    col fixed first_step(i) { if i == 0 { 1 } else { 0 } };
     col fixed line(i) { i };
     let ops: int -> bool = (|i| i < 7 && 6 >= -i);
     col witness pc;
@@ -54,13 +54,13 @@ namespace T(65536);
         7 => std::prover::Query::Input(0),
         _ => std::prover::Query::None,
     };
-    col fixed p_X_const = [0, 0, 0, 0, 0, 0, 0, 0, 0] + [0]*;
-    col fixed p_X_read_free = [1, 0, 0, 1, 0, 0, 0, -1, 0] + [0]*;
-    col fixed p_read_X_A = [0, 0, 0, 1, 0, 0, 0, 1, 1] + [0]*;
-    col fixed p_read_X_CNT = [0, 0, 1, 0, 0, 0, 0, 0, 0] + [0]*;
-    col fixed p_read_X_pc = [0, 0, 0, 0, 0, 0, 0, 0, 0] + [0]*;
-    col fixed p_reg_write_X_A = [0, 0, 0, 1, 0, 0, 0, 1, 0] + [0]*;
-    col fixed p_reg_write_X_CNT = [1, 0, 0, 0, 0, 0, 0, 0, 0] + [0]*;
+    col fixed p_X_const(i) { 0 };
+    col fixed p_X_read_free(i) { 0 };
+    col fixed p_read_X_A(i) { 0 };
+    col fixed p_read_X_CNT(i) { 0 };
+    col fixed p_read_X_pc(i) { 0 };
+    col fixed p_reg_write_X_A(i) { 0 };
+    col fixed p_reg_write_X_CNT(i) { 0 };
     [T.pc, T.reg_write_X_A, T.reg_write_X_CNT] in 1 - T.first_step $ [T.line, T.p_reg_write_X_A, T.p_reg_write_X_CNT];
 "#;
     let formatted = analyze_string::<GoldilocksField>(input).to_string();
@@ -178,12 +178,12 @@ fn namespaced_call() {
 #[test]
 fn if_expr() {
     let input = r#"namespace Assembly(2);
-    col fixed A = [0]*;
+    col fixed A(_) { 0 };
     let c = (|i| if (i < 3) { i } else { (i + 9) });
     col fixed D(i) { if (Assembly.c(i) != 0) { 3 } else { 2 } };
 "#;
     let expected = r#"namespace Assembly(2);
-    col fixed A = [0]*;
+    col fixed A(_) { 0 };
     let c: int -> int = (|i| if i < 3 { i } else { i + 9 });
     col fixed D(i) { if Assembly.c(i) != 0 { 3 } else { 2 } };
 "#;
@@ -448,7 +448,7 @@ namespace Main(8);
 fn challenges() {
     let input = "
     namespace Main(8);
-        col fixed first = [1] + [0]*;
+        col fixed first(i) { if i == 0 { 1 } else { 0 } };
         col witness x;
         col witness stage(2) y;
         let a: expr = challenge(2, 1);
@@ -458,7 +458,7 @@ fn challenges() {
     ";
     let formatted = analyze_string::<GoldilocksField>(input).to_string();
     let expected = r#"namespace Main(8);
-    col fixed first = [1] + [0]*;
+    col fixed first(i) { if i == 0 { 1 } else { 0 } };
     col witness x;
     col witness stage(2) y;
     col a = std::prelude::challenge(2, 1);

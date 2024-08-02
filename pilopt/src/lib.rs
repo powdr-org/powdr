@@ -2,22 +2,30 @@
 #![deny(clippy::print_stdout)]
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::iter::once;
+use std::sync::{Arc, RwLock};
 
 use powdr_ast::analyzed::{
     AlgebraicBinaryOperation, AlgebraicBinaryOperator, AlgebraicExpression, AlgebraicReference,
     AlgebraicUnaryOperation, AlgebraicUnaryOperator, Analyzed, Expression, FunctionValueDefinition,
-    IdentityKind, PolyID, PolynomialReference, Reference, SymbolKind, TypedExpression,
+    IdentityKind, PolyID, PolynomialReference, Reference, Symbol, SymbolKind, TypedExpression,
 };
 use powdr_ast::parsed::types::Type;
 use powdr_ast::parsed::visitor::{AllChildren, Children, ExpressionVisitable};
-use powdr_ast::parsed::{EnumDeclaration, Number};
+use powdr_ast::parsed::{
+    BlockExpression, EnumDeclaration, FunctionCall, FunctionKind, LambdaExpression, Number, Pattern,
+};
 use powdr_number::{BigUint, FieldElement};
+
+use powdr_pil_analyzer::evaluator::{
+    self, evaluate, evaluate_function_call, Closure, Definitions, SymbolLookup, Value,
+};
 
 pub fn optimize<T: FieldElement>(mut pil_file: Analyzed<T>) -> Analyzed<T> {
     let col_count_pre = (pil_file.commitment_count(), pil_file.constant_count());
     remove_unreferenced_definitions(&mut pil_file);
+    simplify_lambdas(&mut pil_file);
     remove_constant_fixed_columns(&mut pil_file);
     simplify_identities(&mut pil_file);
     extract_constant_lookups(&mut pil_file);
@@ -36,6 +44,60 @@ pub fn optimize<T: FieldElement>(mut pil_file: Analyzed<T>) -> Analyzed<T> {
         col_count_post.1
     );
     pil_file
+}
+
+/// Replace `|_| { e }` by `|_| e`
+/// Replace `|i0, ..., in| f(i0, ..., in)` by `f` for pure functions
+fn simplify_lambdas<T: FieldElement>(pil_file: &mut Analyzed<T>) {
+    pil_file.post_visit_expressions_in_definitions_mut(&mut |e| {
+        if let Expression::LambdaExpression(_, LambdaExpression { body, .. }) = e {
+            match body.as_mut() {
+                Expression::BlockExpression(
+                    _,
+                    BlockExpression {
+                        statements,
+                        expr: Some(expr),
+                    },
+                ) if statements.is_empty() => {
+                    *body = (*expr).clone();
+                }
+                _ => {}
+            }
+        }
+    });
+    pil_file.post_visit_expressions_in_definitions_mut(&mut |e| {
+        if let Expression::LambdaExpression(
+            _,
+            LambdaExpression {
+                kind: FunctionKind::Pure,
+                params,
+                body,
+                ..
+            },
+        ) = e
+        {
+            match body.as_mut() {
+                Expression::FunctionCall(
+                    _,
+                    FunctionCall {
+                        function,
+                        arguments,
+                    },
+                ) if params.len() == arguments.len()
+                    && params.iter().zip(arguments.iter()).all(|(p, a)| {
+                        matches!((p, a),
+                    (
+                        Pattern::Variable(_, name),
+                        Expression::Reference(_, Reference::LocalVar(_, arg_name)),
+                    ) if name == arg_name)
+                    }) =>
+                {
+                    *e = *(*function).clone();
+                }
+                _ => {}
+            }
+        }
+    });
 }
 
 /// Removes all definitions that are not referenced by an identity, public declaration
@@ -194,13 +256,18 @@ fn collect_required_names<'a, T: FieldElement>(
 /// Identifies fixed columns that only have a single value, replaces every
 /// reference to this column by the value and deletes the column.
 fn remove_constant_fixed_columns<T: FieldElement>(pil_file: &mut Analyzed<T>) {
+    let mut symbols = CachedSymbols {
+        symbols: &pil_file.definitions,
+        cache: Arc::new(RwLock::new(SymbolCache::<T>::default())),
+    };
+
     let constant_polys = pil_file
         .constant_polys_in_source_order()
         .iter()
         .filter(|(p, _)| !p.is_array())
         .filter_map(|(poly, definition)| {
             let definition = definition.as_ref()?;
-            let value = constant_value(definition)?;
+            let value = constant_value(&mut symbols, definition)?;
             log::debug!(
                 "Determined fixed column {} to be constant {value}. Removing.",
                 poly.absolute_name
@@ -212,30 +279,74 @@ fn remove_constant_fixed_columns<T: FieldElement>(pil_file: &mut Analyzed<T>) {
     substitute_polynomial_references(pil_file, &constant_polys);
 }
 
+type SymbolCache<'a, T> = BTreeMap<(String, Option<Vec<Type>>), Arc<Value<'a, T>>>;
+
+#[derive(Clone)]
+pub struct CachedSymbols<'a, T> {
+    symbols: &'a HashMap<String, (Symbol, Option<FunctionValueDefinition>)>,
+    cache: Arc<RwLock<SymbolCache<'a, T>>>,
+}
+
+impl<'a, T: FieldElement> SymbolLookup<'a, T> for CachedSymbols<'a, T> {
+    fn lookup(
+        &mut self,
+        name: &'a str,
+        type_args: Option<Vec<Type>>,
+    ) -> Result<Arc<Value<'a, T>>, evaluator::EvalError> {
+        let cache_key = (name.to_string(), type_args.clone());
+        if let Some(v) = self.cache.read().unwrap().get(&cache_key) {
+            return Ok(v.clone());
+        }
+        let result = Definitions::lookup_with_symbols(self.symbols, name, &type_args, self)?;
+        self.cache
+            .write()
+            .unwrap()
+            .entry(cache_key)
+            .or_insert_with(|| result.clone());
+        Ok(result)
+    }
+}
+
 /// Checks if a fixed column defined through a function has a constant
 /// value and returns it in that case.
-fn constant_value(function: &FunctionValueDefinition) -> Option<BigUint> {
+fn constant_value<'a, 'b: 'a, T: FieldElement>(
+    symbols: &'a mut CachedSymbols<'b, T>,
+    function: &'b FunctionValueDefinition,
+) -> Option<BigUint> {
     match function {
-        FunctionValueDefinition::Array(expressions) => {
-            // TODO use a proper evaluator at some point,
-            // combine with constant_evaluator
-            let mut values = expressions
-                .iter()
-                .filter(|e| !e.is_empty())
-                .flat_map(|e| e.pattern().iter())
-                .map(|e| match e {
-                    Expression::Number(_, Number { value: n, .. }) => Some(n),
-                    _ => None,
-                });
-            let first = values.next()??;
-            if values.all(|x| x == Some(first)) {
-                Some(first.clone())
-            } else {
-                None
+        FunctionValueDefinition::Expression(e) => {
+            match evaluate(&e.e, symbols) {
+                // in particular, we can hit an error if we're accessing the degree
+                Err(_) => None,
+                Ok(v) => {
+                    match v.as_ref() {
+                        // pattern match to detect (|_| c)
+                        Value::Closure(Closure {
+                            lambda,
+                            environment: _,
+                            ..
+                        }) if lambda
+                            .params
+                            .iter()
+                            .all(|p| matches!(p, Pattern::CatchAll(..))) =>
+                        {
+                            // the lambda only takes `_` as input, so we can evaluate it with any arguments, in this case `int(0)`.
+                            let arguments = lambda
+                                .params
+                                .iter()
+                                .map(|_| Arc::new(Value::Integer(0u32.into())))
+                                .collect();
+                            evaluate_function_call(v, arguments, symbols)
+                                .ok()
+                                .and_then(|value| value.try_to_field_element().ok())
+                                .map(|v| v.to_arbitrary_integer())
+                        }
+                        _ => None,
+                    }
+                }
             }
         }
-        FunctionValueDefinition::Expression(_)
-        | FunctionValueDefinition::TypeDeclaration(_)
+        FunctionValueDefinition::TypeDeclaration(_)
         | FunctionValueDefinition::TypeConstructor(_, _)
         | FunctionValueDefinition::TraitDeclaration(_)
         | FunctionValueDefinition::TraitFunction(_, _) => None,
@@ -572,8 +683,8 @@ mod test {
     #[test]
     fn replace_fixed() {
         let input = r#"namespace N(65536);
-    col fixed one = [1]*;
-    col fixed zero = [0]*;
+    col fixed one(_) { 1 };
+    col fixed zero(_) { 0 };
     col witness X;
     col witness Y;
     X * one = X * zero - zero + Y;
@@ -592,9 +703,9 @@ mod test {
     #[test]
     fn replace_lookup() {
         let input = r#"namespace N(65536);
-    col fixed one = [1]*;
-    col fixed zero = [0]*;
-    col fixed two = [2]*;
+    col fixed one(_) { 1 };
+    col fixed zero(_) { 0 };
+    col fixed two(_) { 2 };
     col fixed cnt(i) { i };
     col witness X;
     col witness Y;
@@ -709,7 +820,7 @@ namespace N(65536);
     "#;
         let expectation = r#"namespace N(65536);
     col witness x;
-    col fixed cnt(i) { N.inc(i) };
+    let cnt: col = N.inc;
     let inc: int -> int = (|x| x + 1);
     [N.x] in [N.cnt];
 "#;
@@ -766,6 +877,33 @@ namespace N(65536);
     col fixed f(i) { if i == 0 { N.t([]) } else { (|x| 1)(N::Y::F([])) } };
     col witness x;
     N.x = N.f;
+"#;
+        let optimized = optimize(analyze_string::<GoldilocksField>(input)).to_string();
+        assert_eq!(optimized, expectation);
+    }
+
+    #[test]
+    fn simplify_lambdas() {
+        let input = r#"namespace N(65536);
+        let f: int, int -> int = |i, j| i + j;
+        let g: int, int -> int = |i, j| f(i, j);
+
+        col fixed F(i) { g(1, i) };
+
+        let h: int -> fe = |i| 42;
+
+        col fixed G(i) { h(i) };
+        let x;
+        x = F + G;
+    "#;
+        let expectation = r#"namespace N(65536);
+    let f: int, int -> int = (|i, j| i + j);
+    let g: int, int -> int = N.f;
+    col fixed F(i) { N.g(1, i) };
+    let h: int -> fe = (|i| 42);
+    let G: col = N.h;
+    col witness x;
+    N.x = N.F + N.G;
 "#;
         let optimized = optimize(analyze_string::<GoldilocksField>(input)).to_string();
         assert_eq!(optimized, expectation);

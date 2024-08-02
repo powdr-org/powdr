@@ -33,6 +33,6 @@ namespace SimpleDiv(N);
     [ R_b2 ] in [ BYTE ];
 
     // now the check:
-    col fixed CHECK = [0, 0, 0, 0, 0] + [1] + [0]*;
+    col fixed CHECK(i) { if i == 5 { 1 } else { 0 } };
     CHECK * (X - 4) = 0;
     CHECK * (R - 1) = 0;

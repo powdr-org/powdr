@@ -3,7 +3,7 @@ let N: int = 16;
 namespace main(N);
 
     // This column is not needed, but currently Powdr fails if there isn't at least one fied column
-    col fixed L1 = [1] + [0]*;
+    col fixed L1(i) { if i == 0 { 1 } else { 0 } };
 
     col witness a, b;
     // Note that by itself this constraint system is under-constrained and can't be

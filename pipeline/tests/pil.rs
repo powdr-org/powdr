@@ -269,14 +269,6 @@ fn two_block_machine_functions() {
 }
 
 #[test]
-fn fixed_columns() {
-    let f = "pil/fixed_columns.pil";
-    let pipeline = make_simple_prepared_pipeline(f);
-    test_pilcom(pipeline);
-    // Starky requires at least one witness column, this test has none.
-}
-
-#[test]
 fn witness_via_let() {
     let f = "pil/witness_via_let.pil";
     let pipeline = make_simple_prepared_pipeline(f);

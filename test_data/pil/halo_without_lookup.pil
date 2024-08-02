@@ -1,5 +1,5 @@
 // There is a bug in halo2 that makes it fail if we do not have at least one lookup.
 namespace Assembly(4);
-    col fixed C = [0, 1, 2, 3];
+    col fixed C(i) { i & 3 };
     col witness w;
     w = C;

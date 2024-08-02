@@ -236,8 +236,8 @@ mod tests {
             let N: int = 8;
 
             namespace Fibonacci(N);
-                col fixed ISFIRST = [1] + [0]*;
-                col fixed ISLAST = [0]* + [1];
+                col fixed ISFIRST(i) { if i == 0 { 1 } else { 0 } };
+                col fixed ISLAST(i) { if i == N - 1 { 1 } else { 0 } };
                 col witness x, y;
 
                 // Start with 1, 1

@@ -529,18 +529,6 @@ where
                     type_scheme,
                 })
             }
-            FunctionDefinition::Array(value) => {
-                let size = value.solve(self.degree.unwrap());
-                let expression = self
-                    .expression_processor(&Default::default())
-                    .process_array_expression(value, size);
-                assert_eq!(
-                    expression.iter().map(|e| e.size()).sum::<DegreeType>(),
-                    self.degree.unwrap()
-                );
-                assert!(type_scheme.is_none() || type_scheme == Some(Type::Col.into()));
-                FunctionValueDefinition::Array(expression)
-            }
             FunctionDefinition::TypeDeclaration(_) | FunctionDefinition::TraitDeclaration(_) => {
                 unreachable!()
             }

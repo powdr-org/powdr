@@ -2,6 +2,7 @@ pub mod asm;
 pub mod build;
 pub mod display;
 pub mod folder;
+pub mod sugar;
 pub mod types;
 pub mod visitor;
 
@@ -14,7 +15,7 @@ use std::{
 
 use auto_enums::auto_enum;
 use derive_more::Display;
-use powdr_number::{BigInt, BigUint, DegreeType};
+use powdr_number::{BigInt, BigUint};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -1146,8 +1147,6 @@ impl<E> Children<E> for LetStatementInsideBlock<E> {
 /// The definition of a function (excluding its name):
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum FunctionDefinition {
-    /// Array expression.
-    Array(ArrayExpression),
     /// Generic expression
     Expression(Expression),
     /// A type declaration.
@@ -1156,10 +1155,15 @@ pub enum FunctionDefinition {
     TraitDeclaration(TraitDeclaration<Expression>),
 }
 
+impl From<Expression> for FunctionDefinition {
+    fn from(value: Expression) -> Self {
+        Self::Expression(value)
+    }
+}
+
 impl Children<Expression> for FunctionDefinition {
     fn children(&self) -> Box<dyn Iterator<Item = &Expression> + '_> {
         match self {
-            FunctionDefinition::Array(ae) => ae.children(),
             FunctionDefinition::Expression(e) => Box::new(once(e)),
             FunctionDefinition::TypeDeclaration(_enum_declaration) => todo!(),
             FunctionDefinition::TraitDeclaration(trait_declaration) => trait_declaration.children(),
@@ -1168,112 +1172,10 @@ impl Children<Expression> for FunctionDefinition {
 
     fn children_mut(&mut self) -> Box<dyn Iterator<Item = &mut Expression> + '_> {
         match self {
-            FunctionDefinition::Array(ae) => ae.children_mut(),
             FunctionDefinition::Expression(e) => Box::new(once(e)),
             FunctionDefinition::TypeDeclaration(_enum_declaration) => todo!(),
             FunctionDefinition::TraitDeclaration(trait_declaration) => {
                 trait_declaration.children_mut()
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum ArrayExpression {
-    Value(Vec<Expression>),
-    RepeatedValue(Vec<Expression>),
-    Concat(Box<ArrayExpression>, Box<ArrayExpression>),
-}
-
-impl ArrayExpression {
-    pub fn value(v: Vec<Expression>) -> Self {
-        Self::Value(v)
-    }
-
-    pub fn repeated_value(v: Vec<Expression>) -> Self {
-        Self::RepeatedValue(v)
-    }
-
-    pub fn concat(self, other: Self) -> Self {
-        Self::Concat(Box::new(self), Box::new(other))
-    }
-
-    fn pad_with(self, pad: Expression) -> Self {
-        Self::concat(self, Self::repeated_value(vec![pad]))
-    }
-
-    pub fn pad_with_zeroes(self) -> Self {
-        self.pad_with(0u32.into())
-    }
-
-    fn last(&self) -> Option<&Expression> {
-        match self {
-            ArrayExpression::Value(v) => v.last(),
-            ArrayExpression::RepeatedValue(v) => v.last(),
-            ArrayExpression::Concat(_, right) => right.last(),
-        }
-    }
-
-    // return None if `self` is empty
-    pub fn pad_with_last(self) -> Option<Self> {
-        self.last().cloned().map(|last| self.pad_with(last))
-    }
-}
-
-impl ArrayExpression {
-    /// solve for `*`
-    pub fn solve(&self, degree: DegreeType) -> DegreeType {
-        assert!(
-            self.number_of_repetitions() <= 1,
-            "`*` can be used only once in rhs of array definition"
-        );
-        let len = self.constant_length();
-        assert!(
-            len <= degree,
-            "Array literal is too large ({len}) for degree ({degree})."
-        );
-        // Fill up the remaining space with the repeated array
-        degree - len
-    }
-
-    /// The number of times the `*` operator is used
-    fn number_of_repetitions(&self) -> usize {
-        match self {
-            ArrayExpression::RepeatedValue(_) => 1,
-            ArrayExpression::Value(_) => 0,
-            ArrayExpression::Concat(left, right) => {
-                left.number_of_repetitions() + right.number_of_repetitions()
-            }
-        }
-    }
-
-    /// The combined length of the constant-size parts of the array expression.
-    fn constant_length(&self) -> DegreeType {
-        match self {
-            ArrayExpression::RepeatedValue(_) => 0,
-            ArrayExpression::Value(e) => e.len() as DegreeType,
-            ArrayExpression::Concat(left, right) => {
-                left.constant_length() + right.constant_length()
-            }
-        }
-    }
-}
-
-impl Children<Expression> for ArrayExpression {
-    fn children(&self) -> Box<dyn Iterator<Item = &Expression> + '_> {
-        match self {
-            ArrayExpression::Value(v) | ArrayExpression::RepeatedValue(v) => Box::new(v.iter()),
-            ArrayExpression::Concat(left, right) => {
-                Box::new(left.children().chain(right.children()))
-            }
-        }
-    }
-
-    fn children_mut(&mut self) -> Box<dyn Iterator<Item = &mut Expression> + '_> {
-        match self {
-            ArrayExpression::Value(v) | ArrayExpression::RepeatedValue(v) => Box::new(v.iter_mut()),
-            ArrayExpression::Concat(left, right) => {
-                Box::new(left.children_mut().chain(right.children_mut()))
             }
         }
     }

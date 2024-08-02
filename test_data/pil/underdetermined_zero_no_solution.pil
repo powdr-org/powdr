@@ -1,5 +1,5 @@
 namespace Test(16);
-    col fixed some = [0, 1]*;
+    col fixed some(i) { i & 1 };
     col witness x;
     col witness y;
     x * y = 1;

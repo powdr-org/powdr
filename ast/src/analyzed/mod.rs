@@ -458,7 +458,6 @@ pub fn type_from_definition(
 ) -> Option<TypeScheme> {
     if let Some(value) = value {
         match value {
-            FunctionValueDefinition::Array(_) => Some(Type::Col.into()),
             FunctionValueDefinition::Expression(TypedExpression { e: _, type_scheme }) => {
                 type_scheme.clone()
             }
@@ -578,7 +577,6 @@ pub enum SymbolKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub enum FunctionValueDefinition {
-    Array(Vec<RepeatedArray>),
     Expression(TypedExpression),
     TypeDeclaration(EnumDeclaration),
     TypeConstructor(Arc<EnumDeclaration>, EnumVariant),
@@ -591,9 +589,6 @@ impl Children<Expression> for FunctionValueDefinition {
         match self {
             FunctionValueDefinition::Expression(TypedExpression { e, type_scheme: _ }) => {
                 Box::new(iter::once(e))
-            }
-            FunctionValueDefinition::Array(array) => {
-                Box::new(array.iter().flat_map(|i| i.children()))
             }
             FunctionValueDefinition::TypeDeclaration(enum_declaration) => {
                 enum_declaration.children()
@@ -608,9 +603,6 @@ impl Children<Expression> for FunctionValueDefinition {
         match self {
             FunctionValueDefinition::Expression(TypedExpression { e, type_scheme: _ }) => {
                 Box::new(iter::once(e))
-            }
-            FunctionValueDefinition::Array(array) => {
-                Box::new(array.iter_mut().flat_map(|i| i.children_mut()))
             }
             FunctionValueDefinition::TypeDeclaration(enum_declaration) => {
                 enum_declaration.children_mut()

@@ -2,10 +2,10 @@ let N: int = 4;
 
 namespace main(N);
     col witness w;
-    col fixed s_w = [1, 0]*;
+    col fixed s_w(i) { (i + 1) & 1 };
 
     // t is essentially {2, 4}
-    col fixed t = [1, 2, 3, 4]*;
-    col fixed s_t = [0, 1]*;
+    col fixed t(i) { (i & 3) + 1 };
+    col fixed s_t(i) { i & 1 };
 
     s_w $ [w] in s_t $ [t];

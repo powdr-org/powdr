@@ -260,16 +260,6 @@ impl PILAnalyzer {
                     (_, value) => {
                         let type_scheme = type_from_definition(symbol, value);
 
-                        if let Some(FunctionValueDefinition::Array(items)) = value {
-                            // Expect all items in the arrays to be field elements.
-                            expressions.extend(
-                                items
-                                    .iter_mut()
-                                    .flat_map(|item| item.pattern_mut())
-                                    .map(|e| (e, Type::Fe.into())),
-                            );
-                        }
-
                         (type_scheme, None)
                     }
                 };

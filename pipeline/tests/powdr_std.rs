@@ -367,6 +367,12 @@ fn btree() {
     execute_test_file(f, Default::default(), vec![]).unwrap();
 }
 
+#[test]
+fn expand_fixed() {
+    let f = "std/expand_fixed.asm";
+    execute_test_file(f, Default::default(), vec![]).unwrap();
+}
+
 mod reparse {
 
     use powdr_pipeline::test_util::run_reparse_test_with_blacklist;

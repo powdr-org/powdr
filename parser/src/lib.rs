@@ -12,6 +12,7 @@ use powdr_parser_util::{handle_parse_error, Error, SourceRef};
 
 use std::sync::Arc;
 
+pub mod sugar;
 pub mod test_utils;
 
 lalrpop_mod!(

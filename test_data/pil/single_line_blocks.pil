@@ -15,7 +15,7 @@ namespace Main(N);
 
     // only make a call every other row, otherwise set `c` to 0
     // we do this to prevent running out of blocks in `Add`
-    col fixed CALL = [1, 0]*;
+    col fixed CALL(i) { (i + 1) & 1 };
     (1 - CALL) * c = 0;
 
     CALL $ [a, b, c] in [Add.A, Add.B, Add.C];

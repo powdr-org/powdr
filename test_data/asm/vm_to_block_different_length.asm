@@ -1,4 +1,4 @@
-machine Main with degree: 16 {
+machine Main {
     Arith arith;
 
     reg pc[@pc];

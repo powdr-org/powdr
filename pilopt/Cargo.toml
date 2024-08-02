@@ -10,6 +10,8 @@ repository = { workspace = true }
 [dependencies]
 powdr-ast.workspace = true
 powdr-number.workspace = true
+powdr-pil-analyzer.workspace = true
+powdr-parser-util.workspace = true
 
 log = "0.4.17"
 pretty_assertions = "1.4.0"

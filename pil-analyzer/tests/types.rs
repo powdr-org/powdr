@@ -245,7 +245,7 @@ fn type_check_arrays() {
         namespace X(2);
         let<T: FromLiteral + Mul + Add> bn: T, T -> T = |a, b| a * 0x100000000 + b;
     
-        pol fixed x = [bn(1, 2), bn(3, 4)]*;
+        pol fixed x(i) { match i { 0 => bn(1, 2), 1 => bn(3, 4) } };
         let t: int = bn(5, 6);
     ";
     type_check(input, &[]);

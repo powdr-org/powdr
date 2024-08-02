@@ -94,47 +94,18 @@ fn generate_values<T: FieldElement>(
             } else {
                 e
             };
+            let fun = evaluator::evaluate(e, &mut symbols.clone()).unwrap();
             (0..degree)
                 .into_par_iter()
                 .map(|i| {
-                    let mut symbols = symbols.clone();
-                    let fun = evaluator::evaluate(e, &mut symbols).unwrap();
                     evaluator::evaluate_function_call(
-                        fun,
+                        fun.clone(),
                         vec![Arc::new(Value::Integer(BigInt::from(i)))],
-                        &mut symbols,
+                        &mut symbols.clone(),
                     )
                     .and_then(|v| v.try_to_field_element())
                 })
                 .collect::<Result<Vec<_>, _>>()
-        }
-        FunctionValueDefinition::Array(values) => {
-            assert!(index.is_none());
-            values
-                .iter()
-                .map(|elements| {
-                    let items = elements
-                        .pattern()
-                        .iter()
-                        .map(|v| {
-                            let mut symbols = symbols.clone();
-                            evaluator::evaluate(v, &mut symbols)
-                                .and_then(|v| v.try_to_field_element())
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
-
-                    Ok(items
-                        .into_iter()
-                        .cycle()
-                        .take(elements.size() as usize)
-                        .collect::<Vec<_>>())
-                })
-                .collect::<Result<Vec<_>, _>>()
-                .map(|values| {
-                    let values: Vec<T> = values.into_iter().flatten().collect();
-                    assert_eq!(values.len(), degree as usize);
-                    values
-                })
         }
         FunctionValueDefinition::TypeDeclaration(_)
         | FunctionValueDefinition::TypeConstructor(_, _)
@@ -150,7 +121,7 @@ fn generate_values<T: FieldElement>(
     }
 }
 
-type SymbolCache<'a, T> = BTreeMap<(String, Option<Vec<Type>>), Arc<Value<'a, T>>>;
+type SymbolCache<'a, T> = BTreeMap<String, BTreeMap<Option<Vec<Type>>, Arc<Value<'a, T>>>>;
 
 #[derive(Clone)]
 pub struct CachedSymbols<'a, T> {
@@ -165,15 +136,22 @@ impl<'a, T: FieldElement> SymbolLookup<'a, T> for CachedSymbols<'a, T> {
         name: &'a str,
         type_args: Option<Vec<Type>>,
     ) -> Result<Arc<Value<'a, T>>, evaluator::EvalError> {
-        let cache_key = (name.to_string(), type_args.clone());
-        if let Some(v) = self.cache.read().unwrap().get(&cache_key) {
+        if let Some(v) = self
+            .cache
+            .read()
+            .unwrap()
+            .get(name)
+            .and_then(|map| map.get(&type_args))
+        {
             return Ok(v.clone());
         }
-        let result = Definitions::lookup_with_symbols(self.symbols, name, type_args, self)?;
+        let result = Definitions::lookup_with_symbols(self.symbols, name, &type_args, self)?;
         self.cache
             .write()
             .unwrap()
-            .entry(cache_key)
+            .entry(name.to_string())
+            .or_default()
+            .entry(type_args)
             .or_insert_with(|| result.clone());
         Ok(result)
     }
@@ -364,61 +342,6 @@ mod test {
     }
 
     #[test]
-    fn arrays() {
-        let src = r#"
-            let N: int = 10;
-            let n: fe = 10;
-            namespace F(N);
-            let f = |i| i  + 20;
-            col fixed alt = [0, 1, 0, 1, 0, 1] + [0]*;
-            col fixed empty = [] + [0]*;
-            col fixed ref_other = [n-1, f(1), 8] + [0]*;
-        "#;
-        let analyzed = analyze_string(src);
-        assert_eq!(analyzed.degree(), 10);
-        let constants = generate(&analyzed);
-        assert_eq!(constants.len(), 3);
-        assert_eq!(
-            constants[0],
-            (
-                "F.alt".to_string(),
-                convert([0i32, 1, 0, 1, 0, 1, 0, 0, 0, 0].to_vec())
-            )
-        );
-        assert_eq!(
-            constants[1],
-            ("F.empty".to_string(), convert([0i32; 10].to_vec()))
-        );
-        assert_eq!(
-            constants[2],
-            (
-                "F.ref_other".to_string(),
-                convert([9i32, 21, 8, 0, 0, 0, 0, 0, 0, 0].to_vec())
-            )
-        );
-    }
-
-    #[test]
-    fn repetition_front() {
-        let src = r#"
-            let N: int = 10;
-            namespace F(N);
-            col fixed arr = [0, 1, 2]* + [7];
-        "#;
-        let analyzed = analyze_string(src);
-        assert_eq!(analyzed.degree(), 10);
-        let constants = generate(&analyzed);
-        assert_eq!(constants.len(), 1);
-        assert_eq!(
-            constants[0],
-            (
-                "F.arr".to_string(),
-                convert([0i32, 1, 2, 0, 1, 2, 0, 1, 2, 7].to_vec())
-            )
-        );
-    }
-
-    #[test]
     fn comparisons() {
         let src = r#"
             let N: int = 6;
@@ -524,7 +447,7 @@ mod test {
             let N: int = 10;
             namespace F(N);
             let x: col = |i| y(i) + 1;
-            col fixed y = [1, 2, 3]*;
+            col fixed y(i) { i };
         "#;
         let analyzed = analyze_string::<GoldilocksField>(src);
         assert_eq!(analyzed.degree(), 10);

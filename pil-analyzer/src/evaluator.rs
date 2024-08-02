@@ -378,7 +378,7 @@ impl<'a, T: Display> Display for Value<'a, T> {
 pub struct Closure<'a, T> {
     pub lambda: &'a LambdaExpression<Expression>,
     pub environment: Vec<Arc<Value<'a, T>>>,
-    pub type_args: HashMap<String, Type>,
+    pub type_args: Arc<HashMap<String, Type>>,
 }
 
 impl<'a, T: Display> Display for Closure<'a, T> {
@@ -408,13 +408,11 @@ impl<'a> Definitions<'a> {
     pub fn lookup_with_symbols<T: FieldElement>(
         definitions: &'a HashMap<String, (Symbol, Option<FunctionValueDefinition>)>,
         name: &str,
-        type_args: Option<Vec<Type>>,
+        type_args: &Option<Vec<Type>>,
         symbols: &mut impl SymbolLookup<'a, T>,
     ) -> Result<Arc<Value<'a, T>>, EvalError> {
-        let name = name.to_string();
-
         let (symbol, value) = definitions
-            .get(&name)
+            .get(name)
             .ok_or_else(|| EvalError::SymbolNotFound(format!("Symbol {name} not found.")))?;
 
         Ok(if matches!(symbol.kind, SymbolKind::Poly(_)) {
@@ -433,7 +431,7 @@ impl<'a> Definitions<'a> {
                 Value::Array(items).into()
             } else {
                 Value::from(AlgebraicExpression::Reference(AlgebraicReference {
-                    name,
+                    name: name.to_string(),
                     poly_id: symbol.into(),
                     next: false,
                 }))
@@ -445,7 +443,7 @@ impl<'a> Definitions<'a> {
                     e: value,
                     type_scheme,
                 })) => {
-                    let type_args = type_arg_mapping(type_scheme, type_args);
+                    let type_args = type_arg_mapping(type_scheme, type_args.clone());
                     evaluate_generic(value, &type_args, symbols)?
                 }
                 Some(FunctionValueDefinition::TypeConstructor(_type_name, variant)) => {
@@ -469,7 +467,7 @@ impl<'a, T: FieldElement> SymbolLookup<'a, T> for Definitions<'a> {
         name: &str,
         type_args: Option<Vec<Type>>,
     ) -> Result<Arc<Value<'a, T>>, EvalError> {
-        Self::lookup_with_symbols(self.0, name, type_args, self)
+        Self::lookup_with_symbols(self.0, name, &type_args, self)
     }
 
     fn lookup_public_reference(&self, name: &str) -> Result<Arc<Value<'a, T>>, EvalError> {
@@ -585,7 +583,7 @@ enum Operation<'a, T> {
     /// Truncate the local variables to a given length
     TruncateLocals(usize),
     /// Replace the environment (local variables and type args).
-    SetEnvironment(Vec<Arc<Value<'a, T>>>, HashMap<String, Type>),
+    SetEnvironment(Vec<Arc<Value<'a, T>>>, Arc<HashMap<String, Type>>),
     /// Evaluate a let statement, adding matched pattern variables to the local variables.
     LetStatement(&'a LetStatementInsideBlock<Expression>),
     /// Add a constraint to the constraint set.
@@ -599,7 +597,7 @@ enum Operation<'a, T> {
 struct Evaluator<'a, 'b, T: FieldElement, S: SymbolLookup<'a, T>> {
     symbols: &'b mut S,
     local_vars: Vec<Arc<Value<'a, T>>>,
-    type_args: HashMap<String, Type>,
+    type_args: Arc<HashMap<String, Type>>,
     op_stack: Vec<Operation<'a, T>>,
     value_stack: Vec<Arc<Value<'a, T>>>,
 }
@@ -609,7 +607,7 @@ impl<'a, 'b, T: FieldElement, S: SymbolLookup<'a, T>> Evaluator<'a, 'b, T, S> {
         Self {
             symbols,
             local_vars: vec![],
-            type_args,
+            type_args: type_args.into(),
             op_stack: vec![],
             value_stack: vec![],
         }

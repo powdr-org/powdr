@@ -207,9 +207,6 @@ fn format_public_declaration(name: &str, decl: &PublicDeclaration) -> String {
 impl Display for FunctionValueDefinition {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            FunctionValueDefinition::Array(items) => {
-                write!(f, " = {}", items.iter().format(" + "))
-            }
             FunctionValueDefinition::Expression(TypedExpression {
                 e,
                 type_scheme: None,
@@ -243,7 +240,6 @@ fn try_to_simple_expression(
         return None;
     }
     match definition.as_ref()? {
-        FunctionValueDefinition::Array(_) => None,
         FunctionValueDefinition::Expression(TypedExpression {
             e: Expression::LambdaExpression(_, LambdaExpression { params, .. }),
             type_scheme,

@@ -18,6 +18,14 @@ fn slice_to_vec<T: FieldElement>(arr: &[i32]) -> Vec<T> {
 }
 
 #[test]
+fn fixed_columns() {
+    let f = "asm/fixed_columns.asm";
+    let pipeline = make_simple_prepared_pipeline(f);
+    test_pilcom(pipeline);
+    // Starky requires at least one witness column, this test has none.
+}
+
+#[test]
 fn sqrt_asm() {
     let f = "asm/sqrt.asm";
     let i = [3];

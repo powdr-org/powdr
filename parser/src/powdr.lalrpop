@@ -1,8 +1,8 @@
 use std::str::FromStr;
 use std::collections::BTreeSet;
-use powdr_ast::parsed::{*, asm::*, types::*};
+use powdr_ast::parsed::{*, asm::*, types::*, sugar::*};
 use powdr_number::{BigInt, BigUint};
-use crate::{ParserContext, unescape_string};
+use crate::{ParserContext, unescape_string, sugar::{desugar_array_literal_expression_with_sourceref}};
 use powdr_parser_util::Error;
 
 grammar(ctx: &ParserContext);
@@ -156,7 +156,7 @@ PolynomialConstantDeclaration: PilStatement = {
     <start:@L> PolCol ConstantFixed <list:PolynomialNameList> <end:@R> ";" => PilStatement::PolynomialConstantDeclaration(ctx.source_ref(start, end), list)
 }
 
-PolynomialConstantDefinition: PilStatement = {
+pub PolynomialConstantDefinition: PilStatement = {
     <start:@L> PolCol ConstantFixed <id:Identifier> <def:FunctionDefinition> <end:@R> ";"
         => PilStatement::PolynomialConstantDefinition(ctx.source_ref(start, end), id, def)
 }
@@ -169,14 +169,14 @@ FunctionDefinition: FunctionDefinition = {
             body,
             outer_var_references: Default::default()
         })),
-    <start:@L> "=" <array:ArrayLiteralExpression> <end:@R> => FunctionDefinition::Array(array),
+    <start:@L> "=" <array:ArrayLiteralExpression> <end:@R> => desugar_array_literal_expression_with_sourceref(ctx.source_ref(start, end), array).into(),
 }
 
 ParameterList: Vec<Pattern> = {
     PatternList
 }
 
-ArrayLiteralExpression: ArrayExpression = {
+pub ArrayLiteralExpression: ArrayExpression = {
     <ArrayLiteralExpression> "+" <ArrayLiteralTerm> => ArrayExpression::concat(<>),
     ArrayLiteralTerm,
 }

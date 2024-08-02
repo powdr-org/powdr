@@ -539,26 +539,9 @@ impl Display for PilStatement {
     }
 }
 
-impl Display for ArrayExpression {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        match self {
-            ArrayExpression::Value(expressions) => {
-                write!(f, "[{}]", format_list(expressions))
-            }
-            ArrayExpression::RepeatedValue(expressions) => {
-                write!(f, "[{}]*", format_list(expressions))
-            }
-            ArrayExpression::Concat(left, right) => write!(f, "{left} + {right}"),
-        }
-    }
-}
-
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            FunctionDefinition::Array(array_expression) => {
-                write!(f, " = {array_expression}")
-            }
             FunctionDefinition::Expression(Expression::LambdaExpression(_, lambda))
                 if lambda.params.len() == 1 =>
             {

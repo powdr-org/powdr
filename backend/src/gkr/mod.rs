@@ -9,7 +9,7 @@ use powdr_ast::analyzed::Analyzed;
 use powdr_executor::constant_evaluator::{get_uniquely_sized_cloned, VariablySizedColumn};
 use powdr_executor::witgen::WitgenCallback;
 use powdr_number::{DegreeType, FieldElement};
-use prover::{generate_setup, Halo2Prover};
+use prover::{generate_setup, GkrProver};
 
 use serde::de::{self, Deserializer};
 use serde::ser::Serializer;
@@ -20,8 +20,6 @@ mod circuit_builder;
 mod mock_prover;
 mod prover;
 
-use halo2_proofs::poly::commitment::Params;
-use halo2_proofs::SerdeFormat;
 
 pub(crate) struct GkrFactory;
 
@@ -48,7 +46,7 @@ impl From<BackendOptions> for ProofType {
     }
 }
 #[derive(Serialize, Deserialize)]
-struct Halo2Proof {
+struct GkrProof {
     #[serde(
         serialize_with = "serialize_as_hex",
         deserialize_with = "deserialize_from_hex"
@@ -101,8 +99,7 @@ impl<F: FieldElement> BackendFactory<F> for GkrFactory {
         size: DegreeType,
         mut output: &mut dyn io::Write,
     ) -> Result<(), Error> {
-        let setup = generate_setup(size);
-        Ok(setup.write(&mut output)?)
+        panic!("Function is not implemented yet")
     }
 }
 
@@ -112,21 +109,7 @@ fn fe_slice_to_string<F: FieldElement>(fe: &[F]) -> Vec<String> {
 
 impl<T: FieldElement> Backend<T> for GkrProver<T> {
     fn verify(&self, proof: &[u8], instances: &[Vec<T>]) -> Result<(), Error> {
-        let proof: Halo2Proof = bincode::deserialize(proof).unwrap();
-        // TODO should do a verification refactoring making it a 1d vec
-        assert!(instances.len() == 1);
-        if proof.publics != fe_slice_to_string(&instances[0]) {
-            return Err(Error::BackendError(format!(
-                "Invalid public inputs {:?} != {:?}",
-                proof.publics, instances[0]
-            )));
-        }
-        match self.proof_type() {
-            ProofType::Poseidon => Ok(self.verify_poseidon(&proof.proof, instances)?),
-            ProofType::SnarkSingle | ProofType::SnarkAggr => {
-                Ok(self.verify_snark(&proof.proof, instances)?)
-            }
-        }
+        panic!("Function is not implemented yet")
     }
 
     fn prove(
@@ -135,22 +118,7 @@ impl<T: FieldElement> Backend<T> for GkrProver<T> {
         prev_proof: Option<Proof>,
         witgen_callback: WitgenCallback<T>,
     ) -> Result<Proof, Error> {
-        let proof_and_publics = match self.proof_type() {
-            ProofType::Poseidon => self.prove_poseidon(witness, witgen_callback),
-            ProofType::SnarkSingle => self.prove_snark_single(witness, witgen_callback),
-            ProofType::SnarkAggr => match prev_proof {
-                Some(proof) => {
-                    let proof: Halo2Proof = bincode::deserialize(&proof).unwrap();
-                    self.prove_snark_aggr(witness, witgen_callback, proof.proof)
-                }
-                None => Err("Aggregated proof requires a previous proof".to_string()),
-            },
-        };
-        let (proof, publics) = proof_and_publics?;
-        let publics = fe_slice_to_string(&publics);
-        let proof = Halo2Proof { proof, publics };
-        let proof = bincode::serialize(&proof).unwrap();
-        Ok(proof)
+        panic!("Function is not implemented yet")
     }
 
     fn export_setup(&self, mut output: &mut dyn io::Write) -> Result<(), Error> {
@@ -158,8 +126,7 @@ impl<T: FieldElement> Backend<T> for GkrProver<T> {
     }
 
     fn verification_key_bytes(&self) -> Result<Vec<u8>, Error> {
-        let vk = self.verification_key()?;
-        Ok(vk.to_bytes(SerdeFormat::Processed))
+        panic!("Function is not implemented yet")
     }
 
     fn export_ethereum_verifier(&self, output: &mut dyn io::Write) -> Result<(), Error> {

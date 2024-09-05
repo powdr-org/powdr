@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::{Backend, BackendFactory, BackendOptions, Error, Proof};
+use expander_rs::gkr;
 use powdr_ast::analyzed::Analyzed;
 use powdr_executor::constant_evaluator::{get_uniquely_sized_cloned, VariablySizedColumn};
 use powdr_executor::witgen::WitgenCallback;
@@ -19,6 +20,7 @@ mod aggregation;
 mod circuit_builder;
 mod mock_prover;
 mod prover;
+mod gkr_circuit_builder;
 
 
 pub(crate) struct GkrFactory;
@@ -118,7 +120,12 @@ impl<T: FieldElement> Backend<T> for GkrProver<T> {
         prev_proof: Option<Proof>,
         witgen_callback: WitgenCallback<T>,
     ) -> Result<Proof, Error> {
-        panic!("Function is not implemented yet")
+        println!("backend prove function in mod.rs");
+        self.gkr_prove();
+        
+
+        let mut proof = vec![0u8; 10];
+        Ok(proof)
     }
 
     fn export_setup(&self, mut output: &mut dyn io::Write) -> Result<(), Error> {

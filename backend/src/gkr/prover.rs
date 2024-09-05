@@ -40,6 +40,8 @@ use halo2_solidity_verifier::{
     compile_solidity, encode_calldata, BatchOpenScheme, Evm, SolidityGenerator,
 };
 
+use crate::gkr::gkr_circuit_builder;
+
 use super::{
     aggregation,
     circuit_builder::{convert_field, PowdrCircuit},
@@ -116,47 +118,47 @@ impl<F: FieldElement> GkrProver<F> {
     }
 
     fn prove<
-        E: EncodedChallenge<G1Affine>,
-        TW: TranscriptWriterBuffer<Vec<u8>, G1Affine, E>,
-        TR: TranscriptReadBuffer<Cursor<Vec<u8>>, G1Affine, E>,
-    >(
-        &self,
-        witness: &[(String, Vec<F>)],
-        witgen_callback: WitgenCallback<F>,
-    ) -> Result<(Vec<u8>, Vec<Vec<Fr>>), String> {
-        log::info!("Starting proof generation...");
+    E: EncodedChallenge<G1Affine>,
+    TW: TranscriptWriterBuffer<Vec<u8>, G1Affine, E>,
+    TR: TranscriptReadBuffer<Cursor<Vec<u8>>, G1Affine, E>,
+>(
+    &self,
+    witness: &[(String, Vec<F>)],
+    witgen_callback: WitgenCallback<F>,
+) -> Result<(Vec<u8>, Vec<Vec<Fr>>), String> {
+    log::info!("Starting proof generation...");
 
-        let circuit = PowdrCircuit::new(self.analyzed.clone(), &self.fixed)
-            .with_witgen_callback(witgen_callback)
-            .with_witness(witness);
-        let publics = vec![circuit.instance_column()];
+    let circuit = PowdrCircuit::new(self.analyzed.clone(), &self.fixed)
+        .with_witgen_callback(witgen_callback)
+        .with_witness(witness);
+    let publics = vec![circuit.instance_column()];
 
-        log::info!("Generating PK for snark...");
-        let vk = match self.vkey {
-            Some(ref vk) => vk.clone(),
-            None => keygen_vk(&self.params, &circuit).unwrap(),
-        };
-        let pk = keygen_pk(&self.params, vk.clone(), &circuit).unwrap();
+    log::info!("Generating PK for snark...");
+    let vk = match self.vkey {
+        Some(ref vk) => vk.clone(),
+        None => keygen_vk(&self.params, &circuit).unwrap(),
+    };
+    let pk = keygen_pk(&self.params, vk.clone(), &circuit).unwrap();
 
-        log::info!("Generating proof...");
-        let start = Instant::now();
+    log::info!("Generating proof...");
+    let start = Instant::now();
 
-        let proof = gen_proof::<_, _, TW>(&self.params, &pk, circuit, &publics)?;
+    let proof = gen_proof::<_, _, TW>(&self.params, &pk, circuit, &publics)?;
 
-        let duration = start.elapsed();
-        log::info!("Time taken: {:?}", duration);
+    let duration = start.elapsed();
+    log::info!("Time taken: {:?}", duration);
 
-        match self.verify_inner::<_, TR>(&vk, &self.params, &proof, &publics) {
-            Ok(_) => {}
-            Err(e) => {
-                return Err(e.to_string());
-            }
+    match self.verify_inner::<_, TR>(&vk, &self.params, &proof, &publics) {
+        Ok(_) => {}
+        Err(e) => {
+            return Err(e.to_string());
         }
-
-        log::info!("Proof generation done.");
-
-        Ok((proof, publics))
     }
+
+    log::info!("Proof generation done.");
+
+    Ok((proof, publics))
+}
 
     /// Generate a single proof for a given PIL using Poseidon transcripts.
     /// One or more of these proofs can be aggregated by `prove_snark_aggr`.
@@ -223,99 +225,15 @@ impl<F: FieldElement> GkrProver<F> {
 
     /// Generate a recursive proof that compresses one or more Poseidon proofs.
     /// These proofs can be verified directly on Ethereum.
-    pub fn prove_snark_aggr(
-        &self,
-        witness: &[(String, Vec<F>)],
-        witgen_callback: WitgenCallback<F>,
-        proof: Vec<u8>,
-    ) -> Result<(Vec<u8>, Vec<F>), String> {
-        assert!(matches!(self.proof_type, ProofType::SnarkAggr));
-
-        log::info!("Starting proof aggregation...");
-
-        log::info!("Generating circuit for app snark...");
-
-        let circuit_app = PowdrCircuit::new(self.analyzed.clone(), &self.fixed)
-            .with_witgen_callback(witgen_callback)
-            .with_witness(witness);
-
-        // TODO Support publics in the app snark
-        if circuit_app.has_publics() {
-            unimplemented!("Public inputs are not supported yet");
-        }
-
-        log::info!("Generating VK for app snark...");
-
-        let mut params_app = self.params.clone();
-        params_app.downsize(degree_bits(self.analyzed.degree()));
-
-        log::info!("Generating circuit for compression snark...");
-        let protocol_app = compile(
-            &params_app,
-            self.vkey_app.as_ref().unwrap(),
-            // TODO change this once we accept publics in the app snark
-            Config::kzg().with_num_instance(vec![0]),
-        );
-        let empty_snark = aggregation::Snark::new_without_witness(protocol_app.clone());
-        let agg_circuit =
-            aggregation::AggregationCircuit::new_without_witness(&self.params, [empty_snark]);
-
-        log::info!("Generating VK and PK for compression snark...");
-        let vk_aggr = self.verification_key().unwrap();
-        let pk_aggr = keygen_pk(&self.params, vk_aggr.clone(), &agg_circuit).unwrap();
-
-        log::info!("Generating compressed snark verifier...");
-
-        let deployment_code = aggregation::gen_aggregation_evm_verifier(
-            &self.params,
-            &vk_aggr,
-            aggregation::AggregationCircuit::num_instance(),
-            aggregation::AggregationCircuit::accumulator_indices(),
-        );
-
-        log::info!("Generating aggregated proof...");
-        let start = Instant::now();
-
-        // TODO change this once we accept publics in the app snark
-        let snark = aggregation::Snark::new(protocol_app, vec![vec![]], proof);
-        let agg_circuit_with_proof = aggregation::AggregationCircuit::new(&self.params, [snark]);
-        let agg_instances = agg_circuit_with_proof.instances();
-        let proof = gen_proof::<_, _, EvmTranscript<G1Affine, _, _, _>>(
-            &self.params,
-            &pk_aggr,
-            agg_circuit_with_proof.clone(),
-            &agg_instances,
-        )?;
-        let duration = start.elapsed();
-        log::info!("Time taken: {:?}", duration);
-
-        match self.verify_inner::<_, EvmTranscript<G1Affine, _, _, _>>(
-            &vk_aggr,
-            &self.params,
-            &proof,
-            &agg_circuit_with_proof.instances(),
-        ) {
-            Ok(_) => {}
-            Err(e) => {
-                return Err(e.to_string());
-            }
-        }
-
-        log::info!("Verifying aggregated proof in the EVM...");
-        evm_verify(deployment_code, agg_instances.clone(), &proof);
-
-        // Our Halo2 integration always has one instance column `publics[0]`
-        // containing the public inputs.
-        let publics: Vec<F> = agg_instances[0]
-            .clone()
-            .into_iter()
-            .map(|x| F::from_bytes_le(&x.to_repr()))
-            .collect();
-
-        log::info!("Proof aggregation done.");
-
-        Ok((proof, publics))
+    pub fn gkr_prove(&self
+        
+    )  {
+      gkr_circuit_builder::convert_pil_to_gkr(self.analyzed.clone());
+      panic!("gkr prove not implemented")
     }
+
+     
+    
 
     pub fn add_verification_key(&mut self, mut vkey: &mut dyn io::Read) {
         let vkey = match self.proof_type {
@@ -534,10 +452,4 @@ fn gen_proof<
     };
 
     Ok(proof)
-}
-
-fn evm_verify(deployment_code: Vec<u8>, instances: Vec<Vec<Fr>>, proof: &[u8]) {
-    let calldata = encode_calldata_snark_verifier(&instances, proof);
-    let gas_cost = deploy_and_call(deployment_code, calldata).unwrap();
-    log::info!("Gas cost: {gas_cost}");
 }

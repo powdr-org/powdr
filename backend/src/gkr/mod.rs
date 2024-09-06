@@ -121,7 +121,7 @@ impl<T: FieldElement> Backend<T> for GkrProver<T> {
         witgen_callback: WitgenCallback<T>,
     ) -> Result<Proof, Error> {
         println!("backend prove function in mod.rs");
-        self.gkr_prove();
+        self.gkr_prove(witness,witgen_callback);
         
 
         let mut proof = vec![0u8; 10];

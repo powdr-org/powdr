@@ -19,7 +19,8 @@ use powdr_ast::analyzed::Analyzed;
 use powdr_executor::witgen::WitgenCallback;
 use powdr_number::{DegreeType, FieldElement, KnownField};
 
-use expander_rs::prover;
+use expander_rs::{prover, BN254ConfigKeccak, GKRConfig};
+use expander_rs::Config as ConfigGKR;
 
 // We use two different EVM verifier libraries.
 // 1. snark_verifier: supports single SNARK verification as well as aggregated proof verification.
@@ -127,6 +128,7 @@ impl<F: FieldElement> GkrProver<F> {
     witgen_callback: WitgenCallback<F>,
 ) -> Result<(Vec<u8>, Vec<Vec<Fr>>), String> {
     log::info!("Starting proof generation...");
+    println!("hjerasdfsssssssssssssssssssssss");
 
     let circuit = PowdrCircuit::new(self.analyzed.clone(), &self.fixed)
         .with_witgen_callback(witgen_callback)
@@ -160,80 +162,19 @@ impl<F: FieldElement> GkrProver<F> {
     Ok((proof, publics))
 }
 
-    /// Generate a single proof for a given PIL using Poseidon transcripts.
-    /// One or more of these proofs can be aggregated by `prove_snark_aggr`.
-    pub fn prove_poseidon(
-        &self,
-        witness: &[(String, Vec<F>)],
-        witgen_callback: WitgenCallback<F>,
-    ) -> Result<(Vec<u8>, Vec<F>), String> {
-        assert!(matches!(self.proof_type, ProofType::Poseidon));
-
-        let (proof, publics) = self.prove::<_, aggregation::PoseidonTranscript<NativeLoader, _>,  aggregation::PoseidonTranscript<NativeLoader, _>>(witness, witgen_callback)?;
-        // Our Halo2 integration always has one instance column `publics[0]`
-        // containing the public inputs.
-        let publics: Vec<F> = publics[0]
-            .clone()
-            .into_iter()
-            .map(|x| F::from_bytes_le(&x.to_repr()))
-            .collect();
-
-        Ok((proof, publics))
-    }
-
-    /// Generate a single proof for a given PIL using Keccak transcripts.
-    /// These proofs can be verified directly on Ethereum.
-    pub fn prove_snark_single(
-        &self,
-        witness: &[(String, Vec<F>)],
-        witgen_callback: WitgenCallback<F>,
-    ) -> Result<(Vec<u8>, Vec<F>), String> {
-        assert!(matches!(self.proof_type, ProofType::SnarkSingle));
-
-        let (proof, publics) = self
-            .prove::<_, EvmTranscript<_, _, _, _>, EvmTranscript<G1Affine, _, _, _>>(
-                witness,
-                witgen_callback,
-            )?;
-
-        log::info!("Verifying SNARK in the EVM...");
-
-        let verifier_solidity = self.ethereum_verifier_single_snark()?;
-
-        let verifier_creation_code = compile_solidity(verifier_solidity);
-
-        let mut evm = Evm::default();
-        let verifier_address = evm.create(verifier_creation_code);
-
-        let calldata = encode_calldata(None, &proof, &publics[0]);
-
-        let (_gas_cost, output) = evm.call(verifier_address, calldata);
-        assert_eq!(output, [vec![0; 31], vec![1]].concat());
-
-        log::info!("EVM verification done.");
-
-        // Our Halo2 integration always has one instance column `publics[0]`
-        // containing the public inputs.
-        let publics: Vec<F> = publics[0]
-            .clone()
-            .into_iter()
-            .map(|x| F::from_bytes_le(&x.to_repr()))
-            .collect();
-
-        Ok((proof, publics))
-    }
 
     /// Generate a recursive proof that compresses one or more Poseidon proofs.
     /// These proofs can be verified directly on Ethereum.
-    pub fn gkr_prove(&self
+    pub fn gkr_prove(
+        &self,
+        witness: &[(String, Vec<F>)],
+        witgen_callback: WitgenCallback<F>
         
     )  {
-      gkr_circuit_builder::convert_pil_to_gkr(self.analyzed.clone());
+      gkr_circuit_builder::convert_pil_to_gkr::<F,BN254ConfigKeccak>(self.analyzed.clone(),&self.fixed.clone(),witness,witgen_callback);
       panic!("gkr prove not implemented")
     }
 
-     
-    
 
     pub fn add_verification_key(&mut self, mut vkey: &mut dyn io::Read) {
         let vkey = match self.proof_type {

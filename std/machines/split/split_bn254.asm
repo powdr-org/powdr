@@ -20,7 +20,10 @@ machine SplitBN254(byte_compare: ByteCompare) with
     // A hint is provided because automatic witness generation does not
     // understand step 3 to figure out that the byte decomposition is unique.
     let select_byte: fe, int -> fe = |input, byte| std::convert::fe((std::convert::int(input) >> (byte * 8)) & 0xff);
-    col witness bytes(i) query Query::Hint(select_byte(std::prover::eval(in_acc'), (i + 1) % 32));
+    col witness bytes;
+    query |i| {
+        std::prover::provide_value(bytes, i, select_byte(std::prover::eval(in_acc'), (i + 1) % 32));
+    };
     // Puts the bytes together to form the input
     col witness in_acc;
     // Factors to multiply the bytes by

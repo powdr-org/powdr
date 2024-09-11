@@ -53,9 +53,13 @@ machine Arith with
 
     bus_receive(is_first, ARITH_INTERACTION_ID, [0, x, y, z], latch * used, [acc1, acc2], alpha, beta);
 
-    let hint = query |i| Query::Hint(compute_next_z_receive(is_first, ARITH_INTERACTION_ID, [0, x, y, z], latch * used, acc, alpha, beta)[i]);
-    col witness stage(1) acc1_next(i) query hint(0);
-    col witness stage(1) acc2_next(i) query hint(1);
+    col witness stage(1) acc1_next;
+    col witness stage(1) acc2_next;
+    query |i| {
+        let hint = compute_next_z_receive(is_first, ARITH_INTERACTION_ID, [0, x, y, z], latch * used, acc, alpha, beta);
+        std::prover::provide_value(acc1_next, i, hint[0]);
+        std::prover::provide_value(acc2_next, i, hint[1]);
+    };
 
     acc1' = acc1_next;
     acc2' = acc2_next;
@@ -116,9 +120,13 @@ machine Main with
 
     bus_send(is_first, ARITH_INTERACTION_ID, [0, x, y, z], instr_add, [acc1, acc2], alpha, beta);
 
-    let hint = query |i| Query::Hint(compute_next_z_send(is_first, ARITH_INTERACTION_ID, [0, x, y, z], instr_add, acc, alpha, beta)[i]);
-    col witness stage(1) acc1_next(i) query hint(0);
-    col witness stage(1) acc2_next(i) query hint(1);
+    col witness stage(1) acc1_next;
+    col witness stage(1) acc2_next;
+    query |i| {
+        let hint = compute_next_z_send(is_first, ARITH_INTERACTION_ID, [0, x, y, z], instr_add, acc, alpha, beta);
+        std::prover::provide_value(acc1_next, i, hint[0]);
+        std::prover::provide_value(acc2_next, i, hint[1]);
+    };
 
     acc1' = acc1_next;
     acc2' = acc2_next;

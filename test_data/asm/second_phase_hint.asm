@@ -11,7 +11,8 @@ machine Main with degree: 8 {
     (1 - is_first') * (count' - 1 - count) = 0;
 
     let alpha: expr = challenge(0, 3);
-    col witness stage(1) z(i) query Query::Hint(eval(count) + eval(alpha));
+    col witness stage(1) z;
+    query |i| std::prover::provide_value(z, i, eval(count) + eval(alpha));
 
     // Allow *both*: z = count + alpha and z = count + alpha + 1
     // Having a constraint ensures that the optimizer does not remove z.

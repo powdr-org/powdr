@@ -273,13 +273,18 @@ MachineStatement: MachineStatement = {
     RegisterDeclaration,
     InstructionDeclaration,
     LinkDeclarationStatement,
+    // TODO chaneg this to StatementInsideBlock
     PilStatementInMachine,
     FunctionDeclaration,
     OperationDeclaration,
 }
 
 PilStatementInMachine: MachineStatement = {
-    <start:@L> <stmt:PilStatement> <end:@R> => MachineStatement::Pil(ctx.source_ref(start, end), stmt)
+
+    <start:@L> <statement:StatementInsideBlock> <end:@R> => MachineStatement::Pil(ctx.source_ref(start, end), PilStatement::Expression(
+        ctx.source_ref(start, end),
+        *ctx.to_expr_with_source_ref(BlockExpression{statements: vec![statement], expr: None}, start, end)
+    ))
 }
 
 Submachine: MachineStatement = {

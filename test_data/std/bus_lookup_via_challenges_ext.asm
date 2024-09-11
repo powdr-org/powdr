@@ -21,9 +21,12 @@ machine Main with degree: 8 {
     col fixed a1 = [16, 20, 22, 17, 16, 20, 4, 1];
     col fixed a2 = [12, 5, 7, 2, 5, 5, 4, 1];
     col fixed a3 = [20, 36, 38, 33, 36, 36, 4, 3];
-    col witness b1(i) query Query::Hint(fe(i+16));
-    col witness b2(i) query Query::Hint(fe(i+1));
-    col witness b3(i) query Query::Hint(fe(i+32));
+    col witness b1, b2, b3;
+    query |i| {
+        std::prover::provide_value(b1, i, fe(i + 16));
+        std::prover::provide_value(b2, i, fe(i + 1));
+        std::prover::provide_value(b3, i, fe(i + 32));
+    };
     col fixed m = [0, 1, 0, 0, 2, 0, 1, 0];
 
     let lookup_constraint = Constr::Lookup(
@@ -44,16 +47,24 @@ machine Main with degree: 8 {
     let is_first: col = std::well_known::is_first;
     lookup(is_first, 1, [z1,z2], [u1, u2], alpha, beta, lookup_constraint, m);
 
-    let hint_send = query |i| Query::Hint(compute_next_z_send_lookup(is_first, 1, z, alpha, beta, lookup_constraint)[i]);
-    col witness stage(1) z1_next(i) query hint_send(0);
-    col witness stage(1) z2_next(i) query hint_send(1);
+    col witness stage(1) z1_next;
+    col witness stage(1) z2_next;
+    query |i| {
+        let hint_send = compute_next_z_send_lookup(is_first, 1, z, alpha, beta, lookup_constraint);
+        std::prover::provide_value(z1_next, i, hint_send[0]);
+        std::prover::provide_value(z2_next, i, hint_send[1]);
+    };
 
     z1' = z1_next;
     z2' = z2_next;
 
-    let hint_receive = query |i| Query::Hint(compute_next_z_receive_lookup(is_first, 1, u, alpha, beta, lookup_constraint, m)[i]);
-    col witness stage(1) u1_next(i) query hint_receive(0);
-    col witness stage(1) u2_next(i) query hint_receive(1);
+    col witness stage(1) u1_next;
+    col witness stage(1) u2_next;
+    query |i| {
+        let hint_receive = compute_next_z_receive_lookup(is_first, 1, u, alpha, beta, lookup_constraint, m);
+        std::prover::provide_value(u1_next, i, hint_receive[0]);
+        std::prover::provide_value(u2_next, i, hint_receive[1]);
+    };
 
     u1' = u1_next;
     u2' = u2_next;

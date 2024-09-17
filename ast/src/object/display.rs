@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::{
-    Link, LinkFrom, LinkTo, Location, Machine, Object, Operation, PILGraph, TypeOrExpression,
+    Link, LinkFrom, LinkTo, Location, Machine, Object, Operation, PILGraph, Type, TypeOrExpression,
 };
 
 impl Display for Location {
@@ -27,8 +27,11 @@ impl Display for PILGraph {
                         format_type_scheme_around_name(&name.to_string(), type_scheme)
                     )?;
                 }
-                TypeOrExpression::Type(enum_decl) => {
+                TypeOrExpression::Type(Type::Enum(enum_decl)) => {
                     writeln!(f, "{enum_decl}",)?;
+                }
+                TypeOrExpression::Type(Type::Struct(struct_decl)) => {
+                    writeln!(f, "{struct_decl}",)?;
                 }
             }
         }

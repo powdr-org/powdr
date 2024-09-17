@@ -14,7 +14,7 @@ use powdr_ast::{
         asm::{
             self, ASMModule, ASMProgram, AbsoluteSymbolPath, AssignmentRegister, FunctionStatement,
             Instruction, LinkDeclaration, MachineProperties, MachineStatement, ModuleStatement,
-            RegisterFlag, SymbolDefinition,
+            RegisterFlag, SymbolDefinition, TypeDeclaration,
         },
     },
 };
@@ -355,10 +355,16 @@ impl TypeChecker {
                         asm::SymbolValue::Expression(e) => {
                             res.insert(ctx.clone().with_part(&name), Item::Expression(e));
                         }
-                        asm::SymbolValue::TypeDeclaration(enum_decl) => {
+                        asm::SymbolValue::TypeDeclaration(TypeDeclaration::Enum(enum_decl)) => {
                             res.insert(
                                 ctx.clone().with_part(&name),
-                                Item::TypeDeclaration(enum_decl),
+                                Item::TypeDeclaration(enum_decl.into()),
+                            );
+                        }
+                        asm::SymbolValue::TypeDeclaration(TypeDeclaration::Struct(struct_decl)) => {
+                            res.insert(
+                                ctx.clone().with_part(&name),
+                                Item::TypeDeclaration(struct_decl.into()),
                             );
                         }
                         asm::SymbolValue::TraitDeclaration(trait_decl) => {

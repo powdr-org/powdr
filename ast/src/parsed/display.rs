@@ -68,6 +68,15 @@ impl Display for SymbolDefinition {
     }
 }
 
+impl Display for asm::TypeDeclaration {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            asm::TypeDeclaration::Enum(e) => write!(f, "{e}"),
+            asm::TypeDeclaration::Struct(s) => write!(f, "{s}"),
+        }
+    }
+}
+
 impl Display for Module {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
@@ -356,6 +365,16 @@ impl<E: Display> Display for IndexAccess<Expression<E>> {
     }
 }
 
+impl<E: Display> Display for FieldAccess<Expression<E>> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        if self.object.precedence().is_none() {
+            write!(f, "{}->{}", self.object, self.field)
+        } else {
+            write!(f, "({})->{}", self.object, self.field)
+        }
+    }
+}
+
 impl<E: Display> Display for FunctionCall<Expression<E>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         if self.function.precedence().is_none() {
@@ -524,6 +543,7 @@ impl Display for PilStatement {
             ),
             PilStatement::Expression(_, e) => write_indented_by(f, format!("{e};"), 1),
             PilStatement::EnumDeclaration(_, enum_decl) => write_indented_by(f, enum_decl, 1),
+            PilStatement::StructDeclaration(_, struct_decl) => write_indented_by(f, struct_decl, 1),
             PilStatement::TraitImplementation(_, trait_impl) => write_indented_by(f, trait_impl, 1),
             PilStatement::TraitDeclaration(_, trait_decl) => write_indented_by(f, trait_decl, 1),
         }
@@ -661,12 +681,6 @@ impl<Expr: Display> Display for SelectedExpressions<Expr> {
     }
 }
 
-impl<E: Display> Display for NamedExpression<E> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}: {}", self.name, self.body)
-    }
-}
-
 impl<E: Display> Display for EnumVariant<E> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "{}", self.name)?;
@@ -678,6 +692,55 @@ impl<E: Display> Display for EnumVariant<E> {
             )?;
         }
         Ok(())
+    }
+}
+
+impl<E: Display> Display for StructDeclaration<E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let name = self.name.to_string();
+        let type_vars = if self.type_vars.is_empty() {
+            Default::default()
+        } else {
+            format!("<{}>", self.type_vars)
+        };
+        write!(
+            f,
+            "struct {name}{type_vars} {{\n{}}}",
+            indent(
+                self.fields
+                    .iter()
+                    .map(|v| format!("{}: {},\n", v.0, v.1))
+                    .format(""),
+                1
+            )
+        )
+    }
+}
+
+impl<E: Display> Display for StructExpression<E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(
+            f,
+            "{}{}",
+            self.name,
+            if self.fields.is_empty() {
+                "".to_string()
+            } else {
+                format!(
+                    "{{ {} }}",
+                    self.fields
+                        .iter()
+                        .map(|named_expr| format!("{named_expr}"))
+                        .format(", ")
+                )
+            }
+        )
+    }
+}
+
+impl<E: Display> Display for NamedExpression<E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{}: {}", self.name, self.body)
     }
 }
 
@@ -702,6 +765,7 @@ impl<Ref: Display> Display for Expression<Ref> {
                 write!(f, "{unaryop}")
             }
             Expression::IndexAccess(_, index_access) => write!(f, "{index_access}"),
+            Expression::FieldAccess(_, field_access) => write!(f, "{field_access}"),
             Expression::FunctionCall(_, fun_call) => write!(f, "{fun_call}"),
             Expression::FreeInput(_, input) => write!(f, "${{ {input} }}"),
             Expression::MatchExpression(_, match_expr) => {
@@ -711,6 +775,7 @@ impl<Ref: Display> Display for Expression<Ref> {
             Expression::BlockExpression(_, block_expr) => {
                 write!(f, "{block_expr}")
             }
+            Expression::StructExpression(_, s) => write!(f, "{s}"),
         }
     }
 }

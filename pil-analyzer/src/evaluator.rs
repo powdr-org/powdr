@@ -11,14 +11,15 @@ use powdr_ast::{
     analyzed::{
         AlgebraicBinaryOperation, AlgebraicBinaryOperator, AlgebraicExpression, AlgebraicReference,
         AlgebraicUnaryOperation, AlgebraicUnaryOperator, Challenge, Expression,
-        FunctionValueDefinition, Reference, Symbol, SymbolKind, TypedExpression,
+        FunctionValueDefinition, Reference, Symbol, SymbolKind, TypeConstructor, TypedExpression,
     },
     parsed::{
         display::quote,
         types::{ArrayType, Type, TypeScheme},
-        ArrayLiteral, BinaryOperation, BinaryOperator, BlockExpression, FunctionCall, IfExpression,
-        IndexAccess, LambdaExpression, LetStatementInsideBlock, MatchArm, MatchExpression, Number,
-        Pattern, StatementInsideBlock, UnaryOperation, UnaryOperator,
+        ArrayLiteral, BinaryOperation, BinaryOperator, BlockExpression, FieldAccess, FunctionCall,
+        IfExpression, IndexAccess, LambdaExpression, LetStatementInsideBlock, MatchArm,
+        MatchExpression, NamedExpression, Number, Pattern, StatementInsideBlock, StructExpression,
+        UnaryOperation, UnaryOperator,
     },
 };
 use powdr_number::{BigInt, BigUint, FieldElement, LargeInt};
@@ -146,6 +147,7 @@ pub enum Value<'a, T> {
     Closure(Closure<'a, T>),
     TypeConstructor(&'a str),
     Enum(&'a str, Option<Vec<Arc<Self>>>),
+    Struct(&'a str, Vec<(&'a str, Arc<Self>)>),
     BuiltinFunction(BuiltinFunction),
     Expression(AlgebraicExpression<T>),
 }
@@ -222,7 +224,7 @@ impl<'a, T: FieldElement> Value<'a, T> {
             }
             Value::Closure(c) => c.type_formatted(),
             Value::TypeConstructor(name) => format!("{name}_constructor"),
-            Value::Enum(name, _) => name.to_string(),
+            Value::Enum(name, _) | Value::Struct(name, _) => name.to_string(),
             Value::BuiltinFunction(b) => format!("builtin_{b:?}"),
             Value::Expression(_) => "expr".to_string(),
         }
@@ -409,6 +411,13 @@ impl<'a, T: Display> Display for Value<'a, T> {
                 }
                 Ok(())
             }
+            Value::Struct(name, data) => {
+                write!(f, "{name} {{")?;
+                for (field, value) in data {
+                    write!(f, "{field}: {value}, ")?;
+                }
+                write!(f, "}}")
+            }
             Value::BuiltinFunction(b) => write!(f, "{b:?}"),
             Value::Expression(e) => write!(f, "{e}"),
         }
@@ -492,13 +501,20 @@ impl<'a> Definitions<'a> {
                     let type_args = type_arg_mapping(type_scheme, type_args);
                     evaluate_generic(value, &type_args, symbols)?
                 }
-                Some(FunctionValueDefinition::TypeConstructor(_type_name, variant)) => {
+                Some(FunctionValueDefinition::TypeConstructor(TypeConstructor::Enum(
+                    _type_name,
+                    variant,
+                ))) => {
                     if variant.fields.is_none() {
                         Value::Enum(&variant.name, None).into()
                     } else {
                         Value::TypeConstructor(&variant.name).into()
                     }
                 }
+                Some(FunctionValueDefinition::TypeConstructor(TypeConstructor::Struct(
+                    struct_decl,
+                    _fields,
+                ))) => Value::TypeConstructor(&struct_decl.name).into(),
                 Some(FunctionValueDefinition::TraitFunction(_, _)) => {
                     let type_arg = type_args.as_ref().unwrap();
                     let Expression::LambdaExpression(_, lambda) =
@@ -823,6 +839,10 @@ impl<'a, 'b, T: FieldElement, S: SymbolLookup<'a, T>> Evaluator<'a, 'b, T, S> {
                 self.op_stack.push(Operation::Expand(index));
                 self.expand(array)?;
             }
+            Expression::FieldAccess(_, FieldAccess { object, field: _ }) => {
+                self.op_stack.push(Operation::Combine(expr));
+                self.op_stack.push(Operation::Expand(object));
+            }
             Expression::FunctionCall(
                 _,
                 FunctionCall {
@@ -872,6 +892,21 @@ impl<'a, 'b, T: FieldElement, S: SymbolLookup<'a, T>> Evaluator<'a, 'b, T, S> {
             Expression::FreeInput(_, _) => Err(EvalError::Unsupported(
                 "Cannot evaluate free input.".to_string(),
             ))?,
+            Expression::StructExpression(_, StructExpression { name, fields }) => {
+                let mut exp_fields = Vec::new();
+                for NamedExpression { name, body } in fields.iter() {
+                    self.expand(body)?;
+
+                    let value = self.value_stack.pop().ok_or(EvalError::SymbolNotFound(
+                        "Symbol {name} not found".to_string(),
+                    ))?;
+
+                    exp_fields.push((name.as_str(), value));
+                }
+
+                self.value_stack
+                    .push(Value::Struct(name, exp_fields).into());
+            }
         };
         Ok(())
     }
@@ -1000,6 +1035,29 @@ impl<'a, 'b, T: FieldElement, S: SymbolLookup<'a, T>> Evaluator<'a, 'b, T, S> {
                     )))?,
                 }
             }
+            Expression::FieldAccess(_, FieldAccess { object: _, field }) => {
+                let object = self.value_stack.pop().unwrap();
+                match object.as_ref() {
+                    Value::Struct(_, fields) => fields
+                        .iter()
+                        .find_map(|(name, value)| {
+                            if name == field {
+                                Some(value.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .ok_or_else(|| {
+                            EvalError::SymbolNotFound(format!(
+                                "Field {field} not found in {object}"
+                            ))
+                        })?,
+                    _ => Err(EvalError::TypeError(format!(
+                        "Expected struct for field access but got {object}: {}",
+                        object.type_formatted()
+                    )))?,
+                }
+            }
             Expression::FunctionCall(_, FunctionCall { arguments, .. }) => {
                 let arguments = self
                     .value_stack
@@ -1038,7 +1096,9 @@ impl<'a, 'b, T: FieldElement, S: SymbolLookup<'a, T>> Evaluator<'a, 'b, T, S> {
                 let body = if *condition { body } else { else_body };
                 return self.expand(body);
             }
-
+            Expression::StructExpression(_, StructExpression { name: _, fields: _ }) => {
+                return self.expand(expr);
+            }
             _ => unreachable!(),
         };
         self.value_stack.push(value);

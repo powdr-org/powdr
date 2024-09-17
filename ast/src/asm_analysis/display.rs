@@ -21,7 +21,7 @@ use super::{
     DebugDirective, FunctionBody, FunctionStatement, FunctionStatements, Incompatible,
     IncompatibleSet, InstructionDefinitionStatement, InstructionStatement, Item, LabelStatement,
     LinkDefinition, Machine, MachineDegree, RegisterDeclarationStatement, RegisterTy, Return, Rom,
-    SubmachineDeclaration,
+    SubmachineDeclaration, TypeDeclaration,
 };
 
 impl Display for AnalysisASMFile {
@@ -57,8 +57,11 @@ impl Display for AnalysisASMFile {
                     ),
                     current_path.len(),
                 )?,
-                Item::TypeDeclaration(enum_decl) => {
+                Item::TypeDeclaration(TypeDeclaration::Enum(enum_decl)) => {
                     write_indented_by(f, enum_decl, current_path.len())?
+                }
+                Item::TypeDeclaration(TypeDeclaration::Struct(struct_decl)) => {
+                    write_indented_by(f, struct_decl, current_path.len())?
                 }
                 Item::TraitImplementation(trait_impl) => {
                     write_indented_by(f, trait_impl, current_path.len())?

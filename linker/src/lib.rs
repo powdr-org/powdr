@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use powdr_analysis::utils::parse_pil_statement;
 use powdr_ast::{
     asm_analysis::{combine_flags, MachineDegree},
-    object::{Link, Location, PILGraph, TypeOrExpression},
+    object::{Link, Location, PILGraph, Type, TypeOrExpression},
     parsed::{
         asm::{AbsoluteSymbolPath, SymbolPath},
         build::{index_access, lookup, namespaced_reference, permutation, selected},
@@ -132,8 +132,11 @@ fn process_definitions(
                         Some(e),
                     )
                 }
-                TypeOrExpression::Type(enum_decl) => {
+                TypeOrExpression::Type(Type::Enum(enum_decl)) => {
                     PilStatement::EnumDeclaration(SourceRef::unknown(), enum_decl)
+                }
+                TypeOrExpression::Type(Type::Struct(struct_decl)) => {
+                    PilStatement::StructDeclaration(SourceRef::unknown(), struct_decl)
                 }
             };
 

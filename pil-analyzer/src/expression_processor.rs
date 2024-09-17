@@ -4,8 +4,9 @@ use powdr_ast::{
     parsed::{
         self, asm::SymbolPath, types::Type, ArrayExpression, ArrayLiteral, BinaryOperation,
         BlockExpression, IfExpression, LambdaExpression, LetStatementInsideBlock, MatchArm,
-        MatchExpression, NamespacedPolynomialReference, Number, Pattern, SelectedExpressions,
-        StatementInsideBlock, SymbolCategory, UnaryOperation,
+        MatchExpression, NamedExpression, NamespacedPolynomialReference, Number, Pattern,
+        SelectedExpressions, StatementInsideBlock, StructExpression, SymbolCategory,
+        UnaryOperation,
     },
 };
 
@@ -144,6 +145,13 @@ impl<'a, D: AnalysisDriver> ExpressionProcessor<'a, D> {
                     index: Box::new(self.process_expression(*index_access.index)),
                 },
             ),
+            PExpression::FieldAccess(src, field_access) => Expression::FieldAccess(
+                src,
+                parsed::FieldAccess {
+                    object: Box::new(self.process_expression(*field_access.object)),
+                    field: field_access.field,
+                },
+            ),
             PExpression::FunctionCall(src, c) => Expression::FunctionCall(
                 src,
                 parsed::FunctionCall {
@@ -188,6 +196,21 @@ impl<'a, D: AnalysisDriver> ExpressionProcessor<'a, D> {
                 self.process_block_expression(statements, expr, src)
             }
             PExpression::FreeInput(_, _) => panic!(),
+            PExpression::StructExpression(src, StructExpression { name, fields }) => {
+                Expression::StructExpression(
+                    src,
+                    StructExpression {
+                        name: self.driver.resolve_decl(&name),
+                        fields: fields
+                            .into_iter()
+                            .map(|named_expr| NamedExpression {
+                                name: named_expr.name,
+                                body: Box::new(self.process_expression(*named_expr.body)),
+                            })
+                            .collect(),
+                    },
+                )
+            }
         }
     }
 

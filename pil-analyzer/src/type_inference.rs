@@ -1,15 +1,19 @@
-use std::collections::{BTreeSet, HashMap};
+use std::{
+    collections::{BTreeSet, HashMap},
+    str::FromStr,
+};
 
 use itertools::Itertools;
 use powdr_ast::{
     analyzed::{Expression, PolynomialReference, Reference},
     parsed::{
+        asm::SymbolPath,
         display::format_type_scheme_around_name,
         types::{ArrayType, FunctionType, TupleType, Type, TypeBounds, TypeScheme},
         visitor::ExpressionVisitable,
-        ArrayLiteral, BinaryOperation, BlockExpression, FunctionCall, FunctionKind, IndexAccess,
-        LambdaExpression, LetStatementInsideBlock, MatchArm, MatchExpression, Number, Pattern,
-        SourceReference, StatementInsideBlock, UnaryOperation,
+        ArrayLiteral, BinaryOperation, BlockExpression, FieldAccess, FunctionCall, FunctionKind,
+        IndexAccess, LambdaExpression, LetStatementInsideBlock, MatchArm, MatchExpression, Number,
+        Pattern, SourceReference, StatementInsideBlock, UnaryOperation,
     },
 };
 use powdr_parser_util::{Error, SourceRef};
@@ -639,6 +643,18 @@ impl TypeChecker {
                 self.expect_type(&Type::Int, index)?;
                 result
             }
+            Expression::FieldAccess(_, FieldAccess { object, field }) => {
+                let object_type = self.infer_type_of_expression(object)?;
+                let inferred_type = self.type_into_substituted(object_type.clone());
+                match inferred_type {
+                    Type::NamedType(name, _) => {
+                        let access_name = name.join(SymbolPath::from_identifier(field.to_string()));
+                        let field_type = self.declared_types[&access_name.to_string()].1.clone();
+                        field_type.ty
+                    }
+                    _ => self.unifier.new_type_var(),
+                }
+            }
             Expression::FunctionCall(
                 source_ref,
                 FunctionCall {
@@ -713,6 +729,26 @@ impl TypeChecker {
 
                 self.local_var_types.truncate(original_var_count);
                 result?
+            }
+            Expression::StructExpression(sr, struct_expr) => {
+                for named_expr in struct_expr.fields.iter_mut() {
+                    let name = format!("{}::{}", struct_expr.name, named_expr.name);
+                    let expr_ty = match self.declared_types.get(&name) {
+                        Some(declared_type) => declared_type.1.ty.clone(),
+                        None => {
+                            return Err(sr.with_error(format!(
+                                "Struct {} has not been declared or has not a field {}.",
+                                struct_expr.name, named_expr.name
+                            )));
+                        }
+                    };
+                    self.expect_type(&expr_ty, named_expr.body.as_mut())?;
+                }
+
+                match SymbolPath::from_str(&struct_expr.name) {
+                    Ok(named_type) => Ok(Type::NamedType(named_type, None)),
+                    Err(err) => Err(sr.with_error(err))?,
+                }?
             }
         })
     }

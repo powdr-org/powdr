@@ -110,6 +110,7 @@ impl ClearSourceRefs for PilStatement {
             | PilStatement::PolynomialCommitDeclaration(s, _, _, _)
             | PilStatement::Expression(s, _)
             | PilStatement::EnumDeclaration(s, _)
+            | PilStatement::StructDeclaration(s, _)
             | PilStatement::TraitDeclaration(s, _)
             | PilStatement::TraitImplementation(s, _) => *s = SourceRef::unknown(),
         }
@@ -130,9 +131,11 @@ impl<R> ClearSourceRefs for Expression<R> {
             | Expression::UnaryOperation(_, _)
             | Expression::BinaryOperation(_, _)
             | Expression::IndexAccess(_, _)
+            | Expression::FieldAccess(_, _)
             | Expression::FunctionCall(_, _)
             | Expression::FreeInput(_, _)
-            | Expression::IfExpression(_, _) => {}
+            | Expression::IfExpression(_, _)
+            | Expression::StructExpression(_, _) => {}
             Expression::BlockExpression(_, b) => b.clear_source_refs(),
             Expression::MatchExpression(_, m) => m.clear_source_refs(),
             Expression::LambdaExpression(_, l) => l.clear_source_refs(),

@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet};
 use powdr_ast::parsed::{*, asm::*, types::*};
 use powdr_number::{BigInt, BigUint};
 use crate::{ParserContext, unescape_string};
@@ -32,7 +32,11 @@ ModuleStatement: ModuleStatement = {
     <LetStatementAtModuleLevel> => ModuleStatement::SymbolDefinition(<>),
     <EnumDeclaration> => ModuleStatement::SymbolDefinition(SymbolDefinition {
             name: <>.name.clone(),
-            value: SymbolValue::TypeDeclaration(<>),
+            value: <>.into(),
+        }),
+    <StructDeclaration> => ModuleStatement::SymbolDefinition(SymbolDefinition {
+            name: <>.name.clone(),
+            value: <>.into(),
         }),
     <TraitImplementation> => ModuleStatement::TraitImplementation(<>),
     <TraitDeclaration> => ModuleStatement::SymbolDefinition(SymbolDefinition {
@@ -120,6 +124,7 @@ pub PilStatement = {
     PolynomialConstantDefinition,
     PolynomialCommitDeclaration,
     <start:@L> <decl:EnumDeclaration> <end:@R> => PilStatement::EnumDeclaration(ctx.source_ref(start, end), decl),
+    <start:@L> <decl:StructDeclaration> <end:@R> => PilStatement::StructDeclaration(ctx.source_ref(start, end), decl),
     <start:@L> <impl_:TraitImplementation> <end:@R> => PilStatement::TraitImplementation(ctx.source_ref(start, end), impl_),
     <start:@L> <decl:TraitDeclaration> <end:@R> => PilStatement::TraitDeclaration(ctx.source_ref(start, end), decl),
     ExpressionStatement,
@@ -595,6 +600,7 @@ TermWithoutStruct: Box<Expression> = {
 
 TermCommon<StructOption>: Box<Expression> = {
     <start:@L> <i:IndexAccess<StructOption>> <end:@R> => ctx.to_expr_with_source_ref(i, start, end),
+    <start:@L> <fa:FieldAccess<StructOption>> <end:@R> => ctx.to_expr_with_source_ref(fa, start, end),
     <start:@L> <f:FunctionCall<StructOption>> <end:@R> => ctx.to_expr_with_source_ref(f, start, end),
     <start:@L> <i:ConstantIdentifier> <end:@R> => ctx.to_expr_with_source_ref(NamespacedPolynomialReference::from_identifier(i), start, end),
     <start:@L> <g:GenericReference> <end:@R> => ctx.to_expr_with_source_ref(g, start, end),
@@ -613,6 +619,10 @@ TermCommon<StructOption>: Box<Expression> = {
 
 IndexAccess<StructOption>: IndexAccess = {
     <array:Term<StructOption>> "[" <index:BoxedExpression> "]" => IndexAccess{<>},
+}
+
+FieldAccess<StructOption>: FieldAccess = {
+    <object:Term<StructOption>> "->" <field:Identifier> => FieldAccess{object, field},
 }
 
 FunctionCall<StructOption>: FunctionCall = {
@@ -639,7 +649,7 @@ MatchArms: Vec<MatchArm> = {
 }
 
 MatchArm: MatchArm = {
-    <pattern:Pattern> "=>" <value: RestrictedExpression> => MatchArm{pattern, value},
+    <pattern:Pattern> "=>" <value:Expression> => MatchArm{pattern, value},
 }
 
 IfExpression: Box<Expression> = {
@@ -648,6 +658,10 @@ IfExpression: Box<Expression> = {
         "else"
         <else_body:BlockExpression>
         <end:@R> => ctx.to_expr_with_source_ref(IfExpression{condition, body, else_body}, start, end),
+}
+
+StructExpression: Box<Expression> = {
+    <start:@L> <name:Identifier> "{" <fields:NamedExpressions> "}" <end:@R> => ctx.to_expr_with_source_ref(StructExpression{name, fields}, start, end),
 }
 
 BlockExpression: Box<Expression> = {
@@ -659,19 +673,13 @@ StatementInsideBlock: StatementInsideBlock = {
     <Expression> ";" => StatementInsideBlock::Expression(<>),
 }
 
-
-// This rules are placeholder to test the parser. Structs are not implemented yet.
-StructExpression: Box<Expression> = {
-    <start:@L> <name:Identifier> "{" <fields:NamedExpressions> "}" <end:@R> => Box::new(Expression::Tuple(ctx.source_ref(start, end), vec![])),
-}
-
-NamedExpressions: Vec<NamedExpression<Expression>> = {
+NamedExpressions: Vec<NamedExpression<Box<Expression>>> = {
     => vec![],
     <mut list:( <NamedExpression> "," )*> <end:NamedExpression> ","?  => { list.push(end); list }
 }
 
-NamedExpression: NamedExpression<Expression> = {
-    <name:Identifier> ":" <body:Expression> => NamedExpression { name, body }
+NamedExpression: NamedExpression<Box<Expression>> = {
+    <name:Identifier> ":" <body:BoxedExpression> => NamedExpression { name, body }
 }
 
 // ---------------------------- Pattern -----------------------------
@@ -769,6 +777,23 @@ EnumVariants: Vec<EnumVariant<Expression>> = {
 
 EnumVariant: EnumVariant<Expression> = {
     <name:Identifier> <fields:("(" <TypeTermList<Expression>> ")")?> => EnumVariant{<>}
+}
+
+StructDeclaration: StructDeclaration<Expression> = {
+    "struct" <name:Identifier> <type_vars:("<" <TypeVarBounds> ">")?> "{" <fields:StructFields> "}"
+        => StructDeclaration{name, type_vars: type_vars.unwrap_or_default(), fields}
+}
+
+StructFields: Vec<(String, Type<Expression>)> = {
+    => Vec::new(),
+    <mut fields:(<StructField> "," )*> <end:StructField> ","? => {
+        fields.push(end);
+        fields
+    }
+}
+
+StructField: (String, Type<Expression>) = {
+    <name:Identifier> ":" <type_:TypeTerm<Expression>> => (name, type_)
 }
 
 // ---------------------------- Type Names -----------------------------

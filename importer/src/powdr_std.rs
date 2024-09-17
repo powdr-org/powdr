@@ -6,7 +6,7 @@ use std::{
 use powdr_ast::parsed::{
     asm::{
         ASMModule, ASMProgram, Import, Module, ModuleStatement, Part, SymbolDefinition, SymbolPath,
-        SymbolValue,
+        SymbolValue, TypeDeclaration,
     },
     folder::Folder,
 };
@@ -92,8 +92,11 @@ impl Folder for StdAdder {
                     }
                     SymbolValue::Module(module) => self.fold_module(module).map(From::from),
                     SymbolValue::Expression(e) => Ok(SymbolValue::Expression(e)),
-                    SymbolValue::TypeDeclaration(ty) => {
-                        self.fold_type_declaration(ty).map(From::from)
+                    SymbolValue::TypeDeclaration(TypeDeclaration::Enum(enum_decl)) => {
+                        self.fold_enum_declaration(enum_decl).map(From::from)
+                    }
+                    SymbolValue::TypeDeclaration(TypeDeclaration::Struct(struct_decl)) => {
+                        self.fold_struct_declaration(struct_decl).map(From::from)
                     }
                     SymbolValue::TraitDeclaration(trait_decl) => {
                         self.fold_trait_declaration(trait_decl).map(From::from)

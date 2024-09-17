@@ -5,21 +5,25 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use powdr_ast::analyzed::{DegreeRange, TypedExpression};
+use powdr_ast::analyzed::{
+    Expression, TypeConstructor, TypeDeclaration as TypeDeclarationAnalyzed,
+};
 use powdr_ast::parsed::asm::SymbolPath;
 use powdr_ast::parsed::types::TupleType;
 use powdr_ast::parsed::{
     self,
     types::{ArrayType, Type, TypeScheme},
     ArrayLiteral, EnumDeclaration, EnumVariant, FunctionDefinition, FunctionKind, LambdaExpression,
-    PilStatement, PolynomialName, SelectedExpressions, TraitDeclaration, TraitFunction,
+    PilStatement, PolynomialName, SelectedExpressions, StructDeclaration, TraitDeclaration,
+    TraitFunction, TypeDeclaration as TypeDeclarationParsed,
 };
 use powdr_ast::parsed::{ArrayExpression, NamedExpression, SymbolCategory, TraitImplementation};
 use powdr_parser_util::SourceRef;
 use std::str::FromStr;
 
 use powdr_ast::analyzed::{
-    Expression, FunctionValueDefinition, Identity, IdentityKind, PolynomialType, PublicDeclaration,
-    Symbol, SymbolKind,
+    FunctionValueDefinition, Identity, IdentityKind, PolynomialType, PublicDeclaration, Symbol,
+    SymbolKind,
 };
 
 use crate::type_processor::TypeProcessor;
@@ -194,7 +198,18 @@ where
                     None,
                     None,
                     Some(FunctionDefinition::TypeDeclaration(
-                        enum_declaration.clone(),
+                        TypeDeclarationParsed::Enum(enum_declaration.clone()),
+                    )),
+                ),
+            PilStatement::StructDeclaration(source, struct_declaration) => self
+                .handle_symbol_definition(
+                    source,
+                    struct_declaration.name.clone(),
+                    SymbolKind::Other(),
+                    None,
+                    None,
+                    Some(FunctionDefinition::TypeDeclaration(
+                        TypeDeclarationParsed::Struct(struct_declaration.clone()),
                     )),
                 ),
             PilStatement::TraitDeclaration(source, trait_decl) => self.handle_symbol_definition(
@@ -427,9 +442,15 @@ where
         };
 
         match value {
-            Some(FunctionDefinition::TypeDeclaration(enum_decl)) => {
+            Some(FunctionDefinition::TypeDeclaration(TypeDeclarationParsed::Enum(enum_decl))) => {
                 assert_eq!(symbol_kind, SymbolKind::Other());
                 self.process_enum_declaration(source, name, symbol, enum_decl)
+            }
+            Some(FunctionDefinition::TypeDeclaration(TypeDeclarationParsed::Struct(
+                struct_decl,
+            ))) => {
+                assert_eq!(symbol_kind, SymbolKind::Other());
+                self.process_struct_declaration(source, name, symbol, struct_decl)
             }
             Some(FunctionDefinition::TraitDeclaration(trait_decl)) => {
                 self.process_trait_declaration(source, name, symbol, trait_decl)
@@ -442,6 +463,58 @@ where
             }
             None => vec![PILItem::Definition(symbol, None)],
         }
+    }
+
+    fn process_struct_declaration(
+        &mut self,
+        source: SourceRef,
+        name: String,
+        symbol: Symbol,
+        struct_decl: StructDeclaration<parsed::Expression>,
+    ) -> Vec<PILItem> {
+        let type_vars = struct_decl.type_vars.vars().collect();
+        let fields = struct_decl
+            .fields
+            .into_iter()
+            .map(|v| {
+                (
+                    v.0.to_string(),
+                    self.type_processor(&type_vars).process_type(v.1),
+                )
+            })
+            .collect();
+        let struct_decl = StructDeclaration {
+            name: self.driver.resolve_decl(&struct_decl.name),
+            type_vars: struct_decl.type_vars,
+            fields,
+        };
+
+        let inner_items = struct_decl
+            .fields
+            .iter()
+            .map(|(field_name, ty)| {
+                (
+                    self.driver
+                        .resolve_namespaced_decl(&[&name, &field_name])
+                        .relative_to(&Default::default())
+                        .to_string(),
+                    FunctionValueDefinition::TypeConstructor(TypeConstructor::Struct(
+                        Arc::new(struct_decl.clone()),
+                        (field_name.clone(), ty.clone()),
+                    )),
+                )
+            })
+            .collect();
+        let field_items = self.process_inner_definitions(source, inner_items);
+
+        iter::once(PILItem::Definition(
+            symbol,
+            Some(FunctionValueDefinition::TypeDeclaration(
+                TypeDeclarationAnalyzed::Struct(struct_decl.clone()),
+            )),
+        ))
+        .chain(field_items)
+        .collect()
     }
 
     fn process_trait_declaration(
@@ -639,10 +712,10 @@ where
                         .resolve_namespaced_decl(&[&name, &variant.name])
                         .relative_to(&Default::default())
                         .to_string(),
-                    FunctionValueDefinition::TypeConstructor(
+                    FunctionValueDefinition::TypeConstructor(TypeConstructor::Enum(
                         Arc::new(enum_decl.clone()),
                         variant.clone(),
-                    ),
+                    )),
                 )
             })
             .collect();
@@ -650,7 +723,9 @@ where
 
         iter::once(PILItem::Definition(
             symbol,
-            Some(FunctionValueDefinition::TypeDeclaration(enum_decl.clone())),
+            Some(FunctionValueDefinition::TypeDeclaration(
+                TypeDeclarationAnalyzed::Enum(enum_decl.clone()),
+            )),
         ))
         .chain(var_items)
         .collect()

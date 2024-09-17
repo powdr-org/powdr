@@ -774,6 +774,7 @@ impl<T: FieldElement> VMConverter<T> {
         match value {
             Expression::PublicReference(_, _) => panic!(),
             Expression::IndexAccess(_, _) => panic!(),
+            Expression::FieldAccess(_, _) => panic!(),
             Expression::FunctionCall(_, _) => panic!(),
             Expression::Reference(_, reference) => {
                 // TODO check it actually is a register
@@ -866,6 +867,7 @@ impl<T: FieldElement> VMConverter<T> {
                 assert!(op == UnaryOperator::Minus);
                 self.negate_assignment_value(self.process_assignment_value(*expr))
             }
+            Expression::StructExpression(_, _) => panic!(),
         }
     }
 

@@ -129,7 +129,7 @@ fn generate_values<T: FieldElement>(
                 })
         }
         FunctionValueDefinition::TypeDeclaration(_)
-        | FunctionValueDefinition::TypeConstructor(_, _)
+        | FunctionValueDefinition::TypeConstructor(_)
         | FunctionValueDefinition::TraitDeclaration(_)
         | FunctionValueDefinition::TraitFunction(_, _) => panic!(),
     };
@@ -697,6 +697,27 @@ mod test {
         assert_eq!(
             constants[0],
             ("N::g".to_string(), convert([0, 1, 2, 3].to_vec()))
+        );
+    }
+    #[test]
+    fn basic_struct_with_field_access() {
+        let input = r#"
+            namespace std::convert(4);
+                let fe = || fe();
+            namespace F(4);
+                struct S {
+                    a: int,
+                    b: int,
+                }
+                let s: S = S{ a: 1, b: 2 };
+                let x: col = |i| std::convert::fe(s->a) + std::convert::fe(i);
+        "#;
+        let analyzed = analyze_string::<GoldilocksField>(input);
+        assert_eq!(analyzed.degree(), 4);
+        let constants = generate(&analyzed);
+        assert_eq!(
+            constants[0],
+            ("F::x".to_string(), convert([1, 2, 3, 4].to_vec()))
         );
     }
 }

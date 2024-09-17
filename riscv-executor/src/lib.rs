@@ -1310,6 +1310,7 @@ impl<'a, 'b, F: FieldElement> Executor<'a, 'b, F> {
             Expression::IfExpression(_, _) => panic!(),
             Expression::BlockExpression(_, _) => panic!(),
             Expression::IndexAccess(_, _) => todo!(),
+            Expression::StructExpression(_, _) => todo!(),
         }
     }
 }

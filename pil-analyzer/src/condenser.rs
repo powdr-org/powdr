@@ -25,7 +25,7 @@ use powdr_ast::{
         types::{ArrayType, Type},
         visitor::{AllChildren, ExpressionVisitable},
         ArrayLiteral, BlockExpression, FunctionKind, LambdaExpression, LetStatementInsideBlock,
-        Number, Pattern, TypedExpression, UnaryOperation,
+        NamedExpression, Number, Pattern, StructExpression, TypedExpression, UnaryOperation,
     },
 };
 use powdr_number::{BigUint, FieldElement};
@@ -956,6 +956,23 @@ fn try_value_to_expression<T: FieldElement>(value: &Value<'_, T>) -> Result<Expr
                 "Builtin function as captured value not supported.".to_string(),
             ))
         }
+        Value::Struct(name, fields) => StructExpression {
+            name: name.to_string(),
+            fields: fields
+                .iter()
+                .map(|(name, value)| {
+                    let body = match try_value_to_expression(value) {
+                        Ok(expr) => expr,
+                        Err(e) => return Err(e),
+                    };
+                    Ok(NamedExpression {
+                        name: name.to_string(),
+                        body: Box::new(body),
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+        }
+        .into(),
         Value::Expression(e) => match e {
             AlgebraicExpression::Reference(AlgebraicReference {
                 name,

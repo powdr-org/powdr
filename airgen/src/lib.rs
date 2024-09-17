@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 
 use powdr_ast::{
-    asm_analysis::{self, combine_flags, AnalysisASMFile, Item, LinkDefinition},
+    asm_analysis::{self, combine_flags, AnalysisASMFile, Item, LinkDefinition, TypeDeclaration},
     object::{
         Link, LinkFrom, LinkTo, Location, Machine, Object, Operation, PILGraph, TypeOrExpression,
     },
@@ -184,7 +184,12 @@ fn utility_functions(asm_file: AnalysisASMFile) -> BTreeMap<AbsoluteSymbolPath, 
         .into_iter()
         .filter_map(|(n, v)| match v {
             Item::Expression(e) => Some((n, TypeOrExpression::Expression(e))),
-            Item::TypeDeclaration(type_decl) => Some((n, TypeOrExpression::Type(type_decl))),
+            Item::TypeDeclaration(TypeDeclaration::Enum(enum_decl)) => {
+                Some((n, TypeOrExpression::Type(enum_decl.into())))
+            }
+            Item::TypeDeclaration(TypeDeclaration::Struct(struct_decl)) => {
+                Some((n, TypeOrExpression::Type(struct_decl.into())))
+            }
             _ => None,
         })
         .collect()

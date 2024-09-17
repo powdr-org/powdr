@@ -9,15 +9,16 @@ use powdr_ast::parsed::{
     asm::{
         parse_absolute_path, ASMModule, ASMProgram, AbsoluteSymbolPath, Import, Machine,
         MachineStatement, Module, ModuleRef, ModuleStatement, SymbolDefinition, SymbolPath,
-        SymbolValue, SymbolValueRef,
+        SymbolValue, SymbolValueRef, TypeDeclaration,
     },
     folder::Folder,
     types::{Type, TypeScheme},
     visitor::{Children, ExpressionVisitable},
     ArrayLiteral, BinaryOperation, BlockExpression, EnumDeclaration, EnumVariant, Expression,
     FunctionCall, IndexAccess, LambdaExpression, LetStatementInsideBlock, MatchArm,
-    MatchExpression, Pattern, PilStatement, StatementInsideBlock, TraitDeclaration, TraitFunction,
-    TypedExpression, UnaryOperation,
+    MatchExpression, NamedExpression, Pattern, PilStatement, StatementInsideBlock,
+    StructDeclaration, StructExpression, TraitDeclaration, TraitFunction, TypedExpression,
+    UnaryOperation,
 };
 use powdr_parser_util::{Error, SourceRef};
 
@@ -90,7 +91,7 @@ impl<'a> Folder for Canonicalizer<'a> {
                                 canonicalize_inside_expression(&mut exp.e, &self.path, self.paths);
                                 Some(Ok(SymbolValue::Expression(exp)))
                             }
-                            SymbolValue::TypeDeclaration(mut enum_decl) => {
+                            SymbolValue::TypeDeclaration(TypeDeclaration::Enum(mut enum_decl)) => {
                                 let type_vars = enum_decl.type_vars.vars().collect();
                                 for variant in &mut enum_decl.variants {
                                     if let Some(fields) = &mut variant.fields {
@@ -101,7 +102,22 @@ impl<'a> Folder for Canonicalizer<'a> {
                                         }
                                     }
                                 }
-                                Some(Ok(SymbolValue::TypeDeclaration(enum_decl)))
+                                Some(Ok(SymbolValue::TypeDeclaration(TypeDeclaration::Enum(
+                                    enum_decl,
+                                ))))
+                            }
+                            SymbolValue::TypeDeclaration(TypeDeclaration::Struct(
+                                mut struct_decl,
+                            )) => {
+                                let type_vars = struct_decl.type_vars.vars().collect();
+                                for (_, ty) in struct_decl.fields.iter_mut() {
+                                    canonicalize_inside_type(
+                                        ty, &type_vars, &self.path, self.paths,
+                                    );
+                                }
+                                Some(Ok(SymbolValue::TypeDeclaration(TypeDeclaration::Struct(
+                                    struct_decl,
+                                ))))
                             }
                             SymbolValue::TraitDeclaration(mut trait_decl) => {
                                 let type_vars = trait_decl.type_vars.iter().collect();
@@ -220,6 +236,7 @@ fn free_inputs_in_expression<'a>(
         Expression::MatchExpression(_, _) => todo!(),
         Expression::IfExpression(_, _) => todo!(),
         Expression::BlockExpression(_, _) => todo!(),
+        Expression::StructExpression(_, _) => todo!(),
     }
 }
 
@@ -260,6 +277,7 @@ fn free_inputs_in_expression_mut<'a>(
         Expression::MatchExpression(_, _) => todo!(),
         Expression::IfExpression(_, _) => todo!(),
         Expression::BlockExpression(_, _) => todo!(),
+        Expression::StructExpression(_, _) => todo!(),
     }
 }
 
@@ -502,7 +520,7 @@ fn check_path_internal<'a>(
                         )
                     }
                     // enums expose symbols
-                    SymbolValueRef::TypeDeclaration(enum_decl) => enum_decl
+                    SymbolValueRef::TypeDeclaration(TypeDeclaration::Enum(enum_decl)) => enum_decl
                         .variants
                         .iter()
                         .find(|variant| variant.name == member)
@@ -514,6 +532,9 @@ fn check_path_internal<'a>(
                                 chain,
                             )
                         }),
+                    SymbolValueRef::TypeDeclaration(TypeDeclaration::Struct(_)) => {
+                        Ok((location.with_part(member), value, chain))
+                    }
                 }
             },
         )
@@ -603,8 +624,11 @@ fn check_module(
                     .unwrap_or_default();
                 check_expression(&location, e, state, &type_vars, &HashSet::default())?
             }
-            SymbolValue::TypeDeclaration(enum_decl) => {
-                check_type_declaration(&location, enum_decl, state)?
+            SymbolValue::TypeDeclaration(TypeDeclaration::Enum(enum_decl)) => {
+                check_enum_declaration(&location, enum_decl, state)?
+            }
+            SymbolValue::TypeDeclaration(TypeDeclaration::Struct(struct_decl)) => {
+                check_struct_declaration(&location, struct_decl, state)?
             }
             SymbolValue::TraitDeclaration(trait_decl) => {
                 check_trait_declaration(&location, trait_decl, state)?
@@ -842,6 +866,11 @@ fn check_expression(
                 None => Ok(()),
             }
         }
+        Expression::StructExpression(_, StructExpression { name: _, fields }) => fields
+            .iter()
+            .try_for_each(|NamedExpression { name: _, body }| {
+                check_expression(location, body, state, type_vars, local_variables)
+            }),
     }
 }
 
@@ -899,7 +928,7 @@ fn check_patterns<'b>(
     Ok(result)
 }
 
-fn check_type_declaration(
+fn check_enum_declaration(
     location: &AbsoluteSymbolPath,
     enum_decl: &EnumDeclaration<Expression>,
     state: &mut State<'_>,
@@ -923,6 +952,28 @@ fn check_type_declaration(
         .flat_map(|v| v.fields.iter())
         .flat_map(|v| v.iter())
         .try_for_each(|ty| check_type(location, ty, state, &type_vars, &Default::default()))
+}
+
+fn check_struct_declaration(
+    location: &AbsoluteSymbolPath,
+    struct_decl: &StructDeclaration<Expression>,
+    state: &mut State<'_>,
+) -> Result<(), Error> {
+    struct_decl
+        .fields
+        .iter()
+        .try_fold(BTreeSet::default(), |mut acc, (name, _)| {
+            acc.insert(name.clone())
+                .then_some(acc)
+                .ok_or(format!("Duplicate field `{name}` in struct `{location}`"))
+        })
+        .map_err(|e| SourceRef::default().with_error(e))?;
+
+    let type_vars = struct_decl.type_vars.vars().collect::<HashSet<_>>();
+
+    struct_decl.fields.iter().try_for_each(|(_name, ty)| {
+        check_type(location, ty, state, &type_vars, &Default::default())
+    })
 }
 
 fn check_type_scheme(

@@ -395,6 +395,44 @@ namespace N(2);
     }
 
     #[test]
+    fn struct_decls() {
+        let input = r#"
+namespace N(2);
+    struct X {
+    }
+    struct Y {
+        a: int,
+        b: fe,
+        c: fe[3],
+        d: (int -> fe),
+        e: (int, int -> fe),
+        f: ((int, fe), fe[2] -> (fe -> int)),
+        g: ((int -> fe) -> int),
+        h: (int -> (fe -> int)),
+    }
+"#;
+
+        let expected = r#"
+namespace N(2);
+    struct X {
+    }
+    struct Y {
+        a: int,
+        b: fe,
+        c: fe[3],
+        d: int -> fe,
+        e: int, int -> fe,
+        f: (int, fe), fe[2] -> (fe -> int),
+        g: (int -> fe) -> int,
+        h: int -> (fe -> int),
+    }
+"#;
+
+        let printed = format!("{}", parse(Some("input"), input).unwrap());
+        assert_eq!(expected.trim(), printed.trim());
+    }
+
+    #[test]
     fn patterns() {
         let input = r#"
 namespace N(2);

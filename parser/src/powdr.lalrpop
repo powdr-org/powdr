@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet};
 use powdr_ast::parsed::{*, asm::*, types::*};
 use powdr_number::{BigInt, BigUint};
 use crate::{ParserContext, unescape_string};
@@ -32,7 +32,11 @@ ModuleStatement: ModuleStatement = {
     <LetStatementAtModuleLevel> => ModuleStatement::SymbolDefinition(<>),
     <EnumDeclaration> => ModuleStatement::SymbolDefinition(SymbolDefinition {
             name: <>.name.clone(),
-            value: SymbolValue::TypeDeclaration(<>),
+            value: <>.into(),
+        }),
+    <StructDeclaration> => ModuleStatement::SymbolDefinition(SymbolDefinition {
+            name: <>.name.clone(),
+            value: <>.into(),
         }),
     <TraitImplementation> => ModuleStatement::TraitImplementation(<>),
     <TraitDeclaration> => ModuleStatement::SymbolDefinition(SymbolDefinition {
@@ -120,6 +124,7 @@ pub PilStatement = {
     PolynomialConstantDefinition,
     PolynomialCommitDeclaration,
     <start:@L> <decl:EnumDeclaration> <end:@R> => PilStatement::EnumDeclaration(ctx.source_ref(start, end), decl),
+    <start:@L> <decl:StructDeclaration> <end:@R> => PilStatement::StructDeclaration(ctx.source_ref(start, end), decl),
     <start:@L> <impl_:TraitImplementation> <end:@R> => PilStatement::TraitImplementation(ctx.source_ref(start, end), impl_),
     <start:@L> <decl:TraitDeclaration> <end:@R> => PilStatement::TraitDeclaration(ctx.source_ref(start, end), decl),
     ExpressionStatement,
@@ -639,7 +644,7 @@ MatchArms: Vec<MatchArm> = {
 }
 
 MatchArm: MatchArm = {
-    <pattern:Pattern> "=>" <value: RestrictedExpression> => MatchArm{pattern, value},
+    <pattern:Pattern> "=>" <value:Expression> => MatchArm{pattern, value},
 }
 
 IfExpression: Box<Expression> = {
@@ -648,6 +653,10 @@ IfExpression: Box<Expression> = {
         "else"
         <else_body:BlockExpression>
         <end:@R> => ctx.to_expr_with_source_ref(IfExpression{condition, body, else_body}, start, end),
+}
+
+StructExpression: Box<Expression> = {
+    <start:@L> <name:Identifier> "{" <fields:NamedExpressions> "}" <end:@R> => ctx.to_expr_with_source_ref(StructExpression{name, fields}, start, end),
 }
 
 BlockExpression: Box<Expression> = {
@@ -659,19 +668,13 @@ StatementInsideBlock: StatementInsideBlock = {
     <Expression> ";" => StatementInsideBlock::Expression(<>),
 }
 
-
-// This rules are placeholder to test the parser. Structs are not implemented yet.
-StructExpression: Box<Expression> = {
-    <start:@L> <name:Identifier> "{" <fields:NamedExpressions> "}" <end:@R> => Box::new(Expression::Tuple(ctx.source_ref(start, end), vec![])),
-}
-
-NamedExpressions: Vec<NamedExpression<Expression>> = {
+NamedExpressions: Vec<NamedExpression<Box<Expression>>> = {
     => vec![],
     <mut list:( <NamedExpression> "," )*> <end:NamedExpression> ","?  => { list.push(end); list }
 }
 
-NamedExpression: NamedExpression<Expression> = {
-    <name:Identifier> ":" <body:Expression> => NamedExpression { name, body }
+NamedExpression: NamedExpression<Box<Expression>> = {
+    <name:Identifier> ":" <body:BoxedExpression> => NamedExpression { name, body }
 }
 
 // ---------------------------- Pattern -----------------------------
@@ -690,6 +693,7 @@ Pattern: Pattern = {
     // to allow `match x { (y, None) => ... }` to bind the first component
     // to `y` and match the enum variant `None` at the same time.
     EnumPattern,
+    StructPattern,
 }
 
 PatternIncludingEllipsis: Pattern = {
@@ -709,6 +713,25 @@ ArrayPattern: Pattern = {
 
 EnumPattern: Pattern = {
     <start:@L> <n:SymbolPath> <items:( "(" <PatternList> ")" )?> <end:@R> => Pattern::Enum(ctx.source_ref(start, end), n, items)
+}
+
+StructPattern: Pattern = {
+    <start:@L> <sp:SymbolPath> "{" <fields:StructPatternList?> "}" <end:@R> => Pattern::Struct(ctx.source_ref(start, end), sp, fields),
+}
+
+StructPatternList: Vec<(Option<String>, Pattern)> = {
+    <mut list:(<NamedPattern> ",")*> <start:@L> ".." <end:@R> => {
+        list.push((None, Pattern::Ellipsis(ctx.source_ref(start, end))));
+        list
+    },
+    <mut list:(<NamedPattern> ",")*> <last:NamedPattern> => {
+        list.push(last);
+        list
+    },
+}
+
+NamedPattern: (Option<String>, Pattern) = {
+    <name:( <Identifier> ":")?> <pattern:Pattern> => (name, pattern)
 }
 
 PatternList: Vec<Pattern> = {
@@ -769,6 +792,23 @@ EnumVariants: Vec<EnumVariant<Expression>> = {
 
 EnumVariant: EnumVariant<Expression> = {
     <name:Identifier> <fields:("(" <TypeTermList<Expression>> ")")?> => EnumVariant{<>}
+}
+
+StructDeclaration: StructDeclaration<Expression> = {
+    "struct" <name:Identifier> <type_vars:("<" <TypeVarBounds> ">")?> "{" <fields:StructFields> "}"
+        => StructDeclaration{name, type_vars: type_vars.unwrap_or_default(), fields}
+}
+
+StructFields: Vec<(String, Type<Expression>)> = {
+    => Vec::new(),
+    <mut fields:(<StructField> "," )*> <end:StructField> ","? => {
+        fields.push(end);
+        fields
+    }
+}
+
+StructField: (String, Type<Expression>) = {
+    <name:Identifier> ":" <type_:TypeTerm<Expression>> => (name, type_)
 }
 
 // ---------------------------- Type Names -----------------------------

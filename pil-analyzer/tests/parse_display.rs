@@ -882,6 +882,57 @@ fn reparse_type_args_generic_enum() {
     let<T> consume: T -> () = |_| { };
     let p: int -> () = |i| X::consume::<(X::Option<int>)>(X::Option::Some::<int>(i));
 "#;
+
+    let formatted = analyze_string(input).to_string();
+    assert_eq!(formatted, input);
+}
+
+#[test]
+fn simple_struct() {
+    let input = "    struct Point {
+        x: int,
+        y: int,
+    }
+    let f: int -> Point = |i| Point{ x: 0, y: i };
+    let x: Point = f(0);
+";
+    let formatted = analyze_string(input).to_string();
+    assert_eq!(formatted, input);
+}
+
+#[test]
+fn struct_as_pattern() {
+    let input = "    struct Point {
+        x: int,
+        y: int,
+    }
+    let v: Point -> int = |p| match p {
+        Point{ x: 1, y: 0 } => 1,
+        Point{ x: 2, .. } => 2,
+        _ => 0,
+    };
+    let p: Point = Point{ x: 1, y: 0 };
+    let y: int = v(p);
+";
+
+    let formatted = analyze_string(input).to_string();
+    assert_eq!(formatted, input);
+}
+
+#[test]
+#[should_panic = "Error checking pattern:\\nExpected type: int\\nInferred type: (T1, T2)"]
+fn struct_invalid_pattern() {
+    let input = "    struct Point {
+        x: int,
+        y: int,
+    }
+    let v: Point -> int = (|p| match p {
+        Point{ x: 1, y: 0 } => 1,
+        Point{ x: (2,5), .. } => 2,
+        _ => 0,
+    });
+";
+
     let formatted = analyze_string(input).to_string();
     assert_eq!(formatted, input);
 }

@@ -16,7 +16,7 @@ use crate::parsed::{BinaryOperation, BinaryOperator};
 
 use super::{
     visitor::Children, EnumDeclaration, EnumVariant, Expression, PilStatement, SourceReference,
-    TraitDeclaration, TraitImplementation, TypedExpression,
+    StructDeclaration, TraitDeclaration, TraitImplementation, TypedExpression,
 };
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
@@ -69,8 +69,8 @@ pub enum SymbolValue {
     Module(Module),
     /// A generic symbol / function.
     Expression(TypedExpression),
-    /// A type declaration (currently only enums)
-    TypeDeclaration(EnumDeclaration<Expression>),
+    /// A type declaration (currently only enums or structs)
+    TypeDeclaration(TypeDeclaration),
     /// A trait declaration
     TraitDeclaration(TraitDeclaration<Expression>),
 }
@@ -98,12 +98,52 @@ pub enum SymbolValueRef<'a> {
     Module(ModuleRef<'a>),
     /// A generic symbol / function.
     Expression(&'a TypedExpression),
-    /// A type declaration (currently only enums)
-    TypeDeclaration(&'a EnumDeclaration<Expression>),
+    /// A type declaration (currently only enums or structs)
+    TypeDeclaration(&'a TypeDeclaration),
     /// A type constructor of an enum.
     TypeConstructor(&'a EnumVariant<Expression>),
     /// A trait declaration
     TraitDeclaration(&'a TraitDeclaration<Expression>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeDeclaration {
+    Enum(EnumDeclaration<Expression>),
+    Struct(StructDeclaration<Expression>),
+}
+
+impl From<EnumDeclaration<Expression>> for SymbolValue {
+    fn from(value: EnumDeclaration<Expression>) -> Self {
+        SymbolValue::TypeDeclaration(TypeDeclaration::Enum(value))
+    }
+}
+
+impl From<StructDeclaration<Expression>> for SymbolValue {
+    fn from(value: StructDeclaration<Expression>) -> Self {
+        SymbolValue::TypeDeclaration(TypeDeclaration::Struct(value))
+    }
+}
+
+impl Children<Expression> for TypeDeclaration {
+    fn children(&self) -> Box<dyn Iterator<Item = &Expression> + '_> {
+        match self {
+            TypeDeclaration::Enum(e) => Box::new(e.variants.iter().flat_map(|v| v.children())),
+            TypeDeclaration::Struct(s) => {
+                Box::new(s.fields.iter().flat_map(|(_f, ty)| ty.children()))
+            }
+        }
+    }
+
+    fn children_mut(&mut self) -> Box<dyn Iterator<Item = &mut Expression> + '_> {
+        match self {
+            TypeDeclaration::Enum(e) => {
+                Box::new(e.variants.iter_mut().flat_map(|v| v.children_mut()))
+            }
+            TypeDeclaration::Struct(s) => {
+                Box::new(s.fields.iter_mut().flat_map(|(_f, ty)| ty.children_mut()))
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, From)]

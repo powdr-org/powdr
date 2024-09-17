@@ -1,9 +1,9 @@
 use super::{
     asm::{
         ASMModule, ASMProgram, Import, Machine, Module, ModuleStatement, SymbolDefinition,
-        SymbolValue,
+        SymbolValue, TypeDeclaration,
     },
-    EnumDeclaration, Expression, TraitDeclaration, TraitImplementation,
+    EnumDeclaration, Expression, StructDeclaration, TraitDeclaration, TraitImplementation,
 };
 
 pub trait Folder {
@@ -25,8 +25,11 @@ pub trait Folder {
                     SymbolValue::Import(import) => self.fold_import(import).map(From::from),
                     SymbolValue::Module(module) => self.fold_module(module).map(From::from),
                     SymbolValue::Expression(e) => Ok(SymbolValue::Expression(e)),
-                    SymbolValue::TypeDeclaration(ty) => {
-                        self.fold_type_declaration(ty).map(From::from)
+                    SymbolValue::TypeDeclaration(TypeDeclaration::Enum(enum_decl)) => {
+                        self.fold_enum_declaration(enum_decl).map(From::from)
+                    }
+                    SymbolValue::TypeDeclaration(TypeDeclaration::Struct(struct_decl)) => {
+                        self.fold_struct_declaration(struct_decl).map(From::from)
                     }
                     SymbolValue::TraitDeclaration(trait_decl) => {
                         self.fold_trait_declaration(trait_decl).map(From::from)
@@ -57,10 +60,17 @@ pub trait Folder {
         Ok(import)
     }
 
-    fn fold_type_declaration(
+    fn fold_enum_declaration(
         &mut self,
         ty: EnumDeclaration<Expression>,
     ) -> Result<EnumDeclaration<Expression>, Self::Error> {
+        Ok(ty)
+    }
+
+    fn fold_struct_declaration(
+        &mut self,
+        ty: StructDeclaration<Expression>,
+    ) -> Result<StructDeclaration<Expression>, Self::Error> {
         Ok(ty)
     }
 

@@ -637,3 +637,21 @@ fn test_trait_function_call_cross_impl() {
 
     assert_eq!(parse_and_evaluate_symbol(input, "F::r"), "6".to_string());
 }
+
+#[test]
+pub fn match_struct() {
+    let src = r#"
+            struct S3 {
+                a: int,
+                b: int,
+                c: int,
+            }
+            let f: S3 -> int = |s| match s {
+                S3{ a: 1, b: 2, c } => 1,
+                S3{ a: 1, b: 4, c } => 2 + c,
+                S3{ a, b, c } => a + b + c,
+            };
+            let t = [f(S3{ a: 1, b: 2, c: 3 }), f(S3{ a: 1, b: 4, c: 4 }), f(S3{ a: 1, b: 3, c: 5 })];
+        "#;
+    assert_eq!(parse_and_evaluate_symbol(src, "t"), "[1, 6, 9]".to_string());
+}

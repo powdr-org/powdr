@@ -866,6 +866,7 @@ impl<T: FieldElement> VMConverter<T> {
                 assert!(op == UnaryOperator::Minus);
                 self.negate_assignment_value(self.process_assignment_value(*expr))
             }
+            Expression::StructExpression(_, _) => panic!(),
         }
     }
 

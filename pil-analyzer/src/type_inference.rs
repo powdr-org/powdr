@@ -1,9 +1,13 @@
-use std::collections::{BTreeSet, HashMap};
+use std::{
+    collections::{BTreeSet, HashMap},
+    str::FromStr,
+};
 
 use itertools::Itertools;
 use powdr_ast::{
     analyzed::{Expression, PolynomialReference, Reference},
     parsed::{
+        asm::SymbolPath,
         display::format_type_scheme_around_name,
         types::{ArrayType, FunctionType, TupleType, Type, TypeBounds, TypeScheme},
         visitor::ExpressionVisitable,
@@ -714,6 +718,26 @@ impl TypeChecker {
                 self.local_var_types.truncate(original_var_count);
                 result?
             }
+            Expression::StructExpression(sr, struct_expr) => {
+                for named_expr in struct_expr.fields.iter_mut() {
+                    let name = format!("{}::{}", struct_expr.name, named_expr.name);
+                    let expr_ty = match self.declared_types.get(&name) {
+                        Some(declared_type) => declared_type.1.ty.clone(),
+                        None => {
+                            return Err(sr.with_error(format!(
+                                "Struct {} has not been declared or has not a field {}.",
+                                struct_expr.name, named_expr.name
+                            )));
+                        }
+                    };
+                    self.expect_type(&expr_ty, named_expr.body.as_mut())?;
+                }
+
+                match SymbolPath::from_str(&struct_expr.name) {
+                    Ok(named_type) => Ok(Type::NamedType(named_type, None)),
+                    Err(err) => Err(sr.with_error(err))?,
+                }?
+            }
         })
     }
 
@@ -884,6 +908,38 @@ impl TypeChecker {
                         }
                     }
                 }
+            }
+            Pattern::Struct(_source_ref, name, fields) => {
+                match fields {
+                    Some(fields) => {
+                        for f in fields {
+                            if let Pattern::Ellipsis(_) = f.1 {
+                                break;
+                            }
+
+                            match &f.0 {
+                                Some(field_name) => {
+                                    let fname = format!("{name}::{field_name}");
+
+                                    let (ty, _generic_args) = self
+                                        .unifier
+                                        .instantiate_scheme(self.declared_types[&fname].1.clone());
+                                    let ty = type_for_reference(&ty);
+
+                                    self.expect_type_of_pattern(&ty, &f.1)?;
+                                }
+                                None => {
+                                    let ty = self.unifier.new_type_var();
+                                    self.expect_type_of_pattern(&ty, &f.1)?;
+                                    self.local_var_types.push(ty.clone());
+                                }
+                            }
+                        }
+                    }
+                    None => {}
+                }
+
+                Type::NamedType(SymbolPath::from_identifier(name.to_string()), None)
             }
         })
     }

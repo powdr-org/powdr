@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fmt::{Debug, Display, Formatter};
 use std::{cmp, ops};
 
@@ -38,6 +39,10 @@ impl<T: FieldElement> RangeConstraint<T> {
             min: T::zero(),
             max,
         }
+    }
+
+    pub fn from_set(set: BTreeSet<T>) -> Option<Self> {
+        Some(RangeConstraint::from_mask(mask_from_set(set)?))
     }
 
     /// Constraint that only allows this exact value.
@@ -181,6 +186,42 @@ fn mask_from_bits<T: FieldElement>(bits: usize) -> T::Integer {
     }
 }
 
+fn mask_from_set<T: FieldElement>(set: BTreeSet<T>) -> Option<T::Integer> {
+    // set length must be a power of 2
+    if set.len() < 2 || (set.len() & (set.len() - 1)) != 0 {
+        return None;
+    }
+
+    // The max value can be the mask
+    let mask = set.iter().next_back()?;
+
+    let mut _mask = mask.to_integer();
+    let mut mask_n_bits = 0;
+
+    // while _mask is not zero
+    while !_mask.is_zero() {
+        if (_mask & T::Integer::one()).is_one() {
+            mask_n_bits += 1;
+        }
+        _mask = _mask >> 1;
+    }
+
+    if set.len() != (1usize << mask_n_bits) {
+        return None;
+    }
+
+    let _mask_negated = !mask.to_integer();
+
+    if set
+        .iter()
+        .all(|x| (x.to_integer() & _mask_negated).is_zero())
+    {
+        return Some(mask.to_integer());
+    }
+
+    None
+}
+
 fn range_multiple<T: FieldElement>(min: T, max: T, factor: T) -> (T, T) {
     // This is correct by iterated addition.
     if range_width(min, max).to_arbitrary_integer() * factor.to_arbitrary_integer()
@@ -290,6 +331,29 @@ mod test {
                 mask: u64::MAX.into()
             }
         );
+    }
+
+    #[test]
+    fn mask_from_set() {
+        let mut set: BTreeSet<GoldilocksField> = [0, 1, 2, 3, 3, 2]
+            .iter()
+            .map(|x| GoldilocksField::from(*x))
+            .collect();
+        assert_eq!(RCg::from_set(set), Some(RCg::from_mask(0x3u32)));
+
+        // Sparce set
+        set = [0, 1, 2u32.pow(30), 2u32.pow(30) + 1]
+            .iter()
+            .map(|x| GoldilocksField::from(*x))
+            .collect();
+        assert_eq!(RCg::from_set(set), Some(RCg::from_mask(0x40000001u32)));
+
+        // Not complete range
+        set = [0, 1, 9]
+            .iter()
+            .map(|x| GoldilocksField::from(*x))
+            .collect();
+        assert!(RCg::from_set(set).is_none());
     }
 
     #[test]

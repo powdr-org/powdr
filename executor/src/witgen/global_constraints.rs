@@ -215,10 +215,8 @@ fn propagate_constraints<T: FieldElement>(
     let mut remove = false;
     match identity.kind {
         IdentityKind::Polynomial => {
-            if let Some(p) = is_binary_constraint(identity.expression_for_poly_id()) {
-                assert!(known_constraints
-                    .insert(p, RangeConstraint::from_max_bit(0))
-                    .is_none());
+            if let Some((p, constraint)) = is_binary_constraint(identity.expression_for_poly_id()) {
+                assert!(known_constraints.insert(p, constraint).is_none());
                 remove = true;
             } else {
                 for (p, c) in
@@ -269,8 +267,67 @@ fn propagate_constraints<T: FieldElement>(
     (known_constraints, remove)
 }
 
+/// Get simple expression roots for a given expression.
+///
+/// This function recursively evaluates an algebraic expression and attempts
+/// to extract roots from it. The roots are returned as a vector of evaluation
+/// values containing references to algebraic expressions and field elements.
+///
+/// # Parameters
+///
+/// - `expr`: A reference to an `Expression` of type `T`.
+///
+/// # Returns
+///
+/// An `Option` containing a vector of `EvalValue<&AlgebraicReference, T>`
+/// if the roots can be successfully extracted, otherwise `None`.
+pub fn find_roots<T: FieldElement>(
+    expr: &Expression<T>,
+) -> Option<Vec<crate::witgen::EvalValue<&AlgebraicReference, T>>> {
+    match expr {
+        Expression::BinaryOperation(AlgebraicBinaryOperation {
+            left,
+            op: AlgebraicBinaryOperator::Mul,
+            right,
+        }) => {
+            let right_root = find_roots(right)?;
+            let mut left_roots = find_roots(left)?;
+
+            if !left_roots.is_empty() && !right_root.is_empty() {
+                if let ([(id1, Constraint::Assignment(_))], [(id2, Constraint::Assignment(_))]) = (
+                    &left_roots[0].constraints[..],
+                    &right_root[0].constraints[..],
+                ) {
+                    if id1 != id2 {
+                        return None;
+                    }
+                }
+            }
+
+            left_roots.extend(right_root);
+            Some(left_roots)
+        }
+        Expression::Number(_) => Some(vec![]),
+        _ => {
+            let symbolic_ev = SymbolicEvaluator;
+            let root = ExpressionEvaluator::new(symbolic_ev)
+                .evaluate(expr)
+                .ok()
+                .and_then(|l| l.solve().ok())?;
+
+            match root.constraints[..] {
+                [] => Some(vec![]),
+                [(id, Constraint::Assignment(_))] if id.is_witness() => Some(vec![root]),
+                _ => None,
+            }
+        }
+    }
+}
+
 /// Tries to find "X * (1 - X) = 0"
-fn is_binary_constraint<T: FieldElement>(expr: &Expression<T>) -> Option<PolyID> {
+fn is_binary_constraint<T: FieldElement>(
+    expr: &Expression<T>,
+) -> Option<(PolyID, RangeConstraint<T>)> {
     // TODO Write a proper pattern matching engine.
     if let Expression::BinaryOperation(AlgebraicBinaryOperation {
         left,
@@ -284,28 +341,25 @@ fn is_binary_constraint<T: FieldElement>(expr: &Expression<T>) -> Option<PolyID>
             }
         }
     } else if let Expression::BinaryOperation(AlgebraicBinaryOperation {
-        left,
+        left: _,
         op: AlgebraicBinaryOperator::Mul,
-        right,
+        right: _,
     }) = expr
     {
-        let symbolic_ev = SymbolicEvaluator;
-        let left_root = ExpressionEvaluator::new(symbolic_ev.clone())
-            .evaluate(left)
-            .ok()
-            .and_then(|l| l.solve().ok())?;
-        let right_root = ExpressionEvaluator::new(symbolic_ev)
-            .evaluate(right)
-            .ok()
-            .and_then(|r| r.solve().ok())?;
-        if let ([(id1, Constraint::Assignment(value1))], [(id2, Constraint::Assignment(value2))]) =
-            (&left_root.constraints[..], &right_root.constraints[..])
-        {
-            if id1 != id2 || !id2.is_witness() {
-                return None;
-            }
-            if (value1.is_zero() && value2.is_one()) || (value1.is_one() && value2.is_zero()) {
-                return Some(id1.poly_id);
+        if let Some(roots) = find_roots(expr) {
+            // For setting mask range constaints at least two roots is needed.
+            if roots.len() > 1 {
+                let poly_id = roots[0].constraints[0].0.poly_id;
+                let mut root_values: BTreeSet<T> = BTreeSet::new();
+                for root in roots {
+                    if let (_, Constraint::Assignment(value)) = root.constraints[0] {
+                        root_values.insert(value);
+                    } else {
+                        return None;
+                    }
+                }
+
+                return Some((poly_id, RangeConstraint::from_set(root_values)?));
             }
         }
     }
@@ -360,6 +414,7 @@ fn smallest_period_candidate<T: FieldElement>(fixed: &[T]) -> Option<u64> {
 mod test {
     use std::collections::BTreeMap;
 
+    use itertools::Itertools;
     use powdr_ast::analyzed::{PolyID, PolynomialType};
     use powdr_number::GoldilocksField;
     use pretty_assertions::assert_eq;
@@ -484,6 +539,40 @@ namespace Global(2**20);
                 (constant_poly_id(1), RangeConstraint::from_max_bit(15)),
                 // Global.SHIFTED
                 (constant_poly_id(2), RangeConstraint::from_mask(0xff0_u32)),
+            ]
+            .into_iter()
+            .collect::<BTreeMap<_, _>>()
+        );
+    }
+
+    #[test]
+    fn constraints_propagation_2() {
+        let pil_source = r"
+namespace Global(2**20);
+    col witness Y;
+    col witness Z;
+    Y * (Y - 1) * (Y - 4) * (Y * 3) * (Y - 5) * (Y - 4)  = 0;
+    Z * (Z - 2 ** 30) * (Z - 2 ** 31) * (Z - (2 ** 30 + 2 ** 31)) = 0;
+";
+        let analyzed = powdr_pil_analyzer::analyze_string::<GoldilocksField>(pil_source);
+        let mut known_constraints: BTreeMap<PolyID, RangeConstraint<GoldilocksField>> =
+            BTreeMap::new();
+        for identity in &analyzed.identities {
+            (known_constraints, _) =
+                propagate_constraints(known_constraints, identity, &Default::default());
+        }
+        let _known_constraints_vec: Vec<_> = known_constraints.values().collect_vec();
+
+        assert_eq!(
+            known_constraints,
+            vec![
+                // Global.Y
+                (witness_poly_id(0), RangeConstraint::from_mask(0x5_u32)),
+                // Global.Z
+                (
+                    witness_poly_id(1),
+                    RangeConstraint::from_mask(0xc0000000u32)
+                ),
             ]
             .into_iter()
             .collect::<BTreeMap<_, _>>()

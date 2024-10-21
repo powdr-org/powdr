@@ -1,4 +1,4 @@
-use std::machines::write_once_memory::WriteOnceMemory;
+use std::machines::large_field::write_once_memory::WriteOnceMemory;
 
 machine Main with degree: 256 {
     WriteOnceMemory memory;

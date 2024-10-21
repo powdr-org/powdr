@@ -212,7 +212,7 @@ Arith arith_mul(byte, byte2);
 
 {}
 
-let initial_memory: (fe, fe)[] = [
+let initial_memory: (int, int)[] = [
 {}
 ];
 
@@ -661,7 +661,24 @@ fn mul_instruction() -> &'static str {
 
 fn memory(with_bootloader: bool) -> String {
     let memory_machine = if with_bootloader {
-        todo!()
+        // TODO: small field MemoryWithBootloaderWrite machine
+        r#"
+    std::machines::memory_bb::Memory memory(byte2);
+
+    // Stores val(W) at address (V = val(X) - val(Z) + Y) % 2**32.
+    // V can be between 0 and 2**33.
+    instr mstore_bootloader XL, ZL, YH, YL, WL
+        link ~> (tmp1_h, tmp1_l) = regs.mload(XL, STEP)
+        link ~> (tmp2_h, tmp2_l) = regs.mload(ZL, STEP + 1)
+        link ~> (tmp3_h, tmp3_l) = regs.mload(WL, STEP + 2)
+        link ~> (tmp4_h, tmp4_l) = arith_bb.sub(tmp1_h, tmp1_l, tmp2_h, tmp2_l)
+        link ~> (tmp5_h, tmp5_l) = arith_bb.add(tmp4_h, tmp4_l, YH, YL)
+        link ~> memory.mstore_bootloader(tmp6_l, STEP + 3, tmp3_h, tmp3_l)
+    {
+        // TODO: ensure addr in range
+        tmp6_l = tmp5_l + tmp5_h * 2 ** 16
+    }
+"#
     } else {
         r#"
     std::machines::small_field::memory::Memory memory(bit12, byte2);

@@ -8,7 +8,7 @@ use env_logger::{Builder, Target};
 use log::LevelFilter;
 
 use powdr_number::{
-    BabyBearField, BigUint, Bn254Field, FieldElement, GoldilocksField, KnownField, KoalaBearField,
+    BabyBearField, BigUint, FieldElement, GoldilocksField, KnownField, KoalaBearField,
 };
 use powdr_pipeline::Pipeline;
 use powdr_riscv::{CompilerOptions, RuntimeLibs};
@@ -29,8 +29,9 @@ pub enum FieldArgument {
     Kb,
     #[strum(serialize = "gl")]
     Gl,
-    #[strum(serialize = "bn254")]
-    Bn254,
+    // TODO(leandro): do we need to support this in riscv now?
+    // #[strum(serialize = "bn254")]
+    // Bn254,
 }
 
 impl FieldArgument {
@@ -39,7 +40,7 @@ impl FieldArgument {
             FieldArgument::Bb => KnownField::BabyBearField,
             FieldArgument::Kb => KnownField::KoalaBearField,
             FieldArgument::Gl => KnownField::GoldilocksField,
-            FieldArgument::Bn254 => KnownField::Bn254Field,
+            // FieldArgument::Bn254 => KnownField::Bn254Field,
         }
     }
 }
@@ -327,7 +328,7 @@ fn execute<F: FieldElement>(
 
     match (witness, continuations) {
         (false, true) => {
-            powdr_riscv::continuations::rust_continuations_dry_run(&mut pipeline, profiling);
+            powdr_riscv::continuations::rust_continuations_dry_run::<F>(&mut pipeline, profiling);
         }
         (false, false) => {
             let program = pipeline.compute_asm_string().unwrap().clone();
@@ -342,9 +343,15 @@ fn execute<F: FieldElement>(
             log::info!("Execution trace length: {}", trace.len);
         }
         (true, true) => {
-            let dry_run =
-                powdr_riscv::continuations::rust_continuations_dry_run(&mut pipeline, profiling);
-            powdr_riscv::continuations::rust_continuations(pipeline, generate_witness, dry_run)?;
+            let dry_run = powdr_riscv::continuations::rust_continuations_dry_run::<F>(
+                &mut pipeline,
+                profiling,
+            );
+            powdr_riscv::continuations::rust_continuations::<F, _, _>(
+                pipeline,
+                generate_witness,
+                dry_run,
+            )?;
         }
         (true, false) => {
             generate_witness(pipeline)?;

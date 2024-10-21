@@ -7,3 +7,4 @@ mod binary;
 mod memory;
 mod rotate;
 mod shift;
+mod write_once_memory;

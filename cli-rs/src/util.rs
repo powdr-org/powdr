@@ -16,7 +16,7 @@ macro_rules! call_with_field {
             FieldArgument::Bb => $function::<BabyBearField>($($args),*),
             FieldArgument::Kb => $function::<KoalaBearField>($($args),*),
             FieldArgument::Gl => $function::<GoldilocksField>($($args),*),
-            FieldArgument::Bn254 => $function::<Bn254Field>($($args),*),
+            // FieldArgument::Bn254 => $function::<Bn254Field>($($args),*),
         }
     };
 }

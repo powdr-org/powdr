@@ -48,6 +48,7 @@ macro_rules! syscalls {
 syscalls!(
     (1, Input, "input"),
     (2, Output, "output"),
+    // TODO: support for poseidon_bb
     (3, PoseidonGL, "poseidon_gl"),
     (4, Affine256, "affine_256"),
     (5, EcAdd, "ec_add"),

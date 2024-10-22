@@ -197,7 +197,7 @@ machine Main with min_degree: {}, max_degree: {} {{
 
 {}
 
-let initial_memory: (fe, fe)[] = [
+let initial_memory: (int, int)[] = [
 {}
 ];
 

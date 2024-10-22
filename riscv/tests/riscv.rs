@@ -17,7 +17,7 @@ use powdr_riscv::{
 
 /// Compiles and runs a rust program with continuations, runs the full
 /// witness generation & verifies it using Pilcom.
-pub fn test_continuations(case: &str) {
+pub fn test_continuations_gl(case: &str) {
     let temp_dir = Temp::new_dir().unwrap();
 
     let executable = powdr_riscv::compile_rust_crate_to_riscv(
@@ -33,10 +33,10 @@ pub fn test_continuations(case: &str) {
             .with_poseidon()
             .with_continuations(),
     );
-    run_continuations_test(case, powdr_asm);
+    run_continuations_test_gl(case, powdr_asm);
 }
 
-fn run_continuations_test(case: &str, powdr_asm: String) {
+fn run_continuations_test_gl(case: &str, powdr_asm: String) {
     // Manually create tmp dir, so that it is the same in all chunks.
     let tmp_dir = mktemp::Temp::new_dir().unwrap();
 
@@ -49,8 +49,10 @@ fn run_continuations_test(case: &str, powdr_asm: String) {
 
         Ok(())
     };
-    let bootloader_inputs = rust_continuations_dry_run(&mut pipeline, Default::default());
-    rust_continuations(pipeline, pipeline_callback, bootloader_inputs).unwrap();
+    let bootloader_inputs =
+        rust_continuations_dry_run::<GoldilocksField>(&mut pipeline, Default::default());
+    rust_continuations::<GoldilocksField, _, _>(pipeline, pipeline_callback, bootloader_inputs)
+        .unwrap();
 }
 
 #[test]
@@ -502,13 +504,13 @@ fn output_syscall_with_options<T: FieldElement>(options: CompilerOptions) {
 #[test]
 #[ignore = "Too slow"]
 fn many_chunks() {
-    test_continuations("many_chunks")
+    test_continuations_gl("many_chunks")
 }
 
 #[test]
 #[ignore = "Too slow"]
 fn many_chunks_memory() {
-    test_continuations("many_chunks_memory")
+    test_continuations_gl("many_chunks_memory")
 }
 
 fn verify_riscv_crate(case: &str, inputs: &[u64]) {

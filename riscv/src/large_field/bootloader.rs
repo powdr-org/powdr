@@ -1,10 +1,67 @@
+use std::marker::PhantomData;
+
 use crate::code_gen::Register;
 
 use crate::continuations::bootloader::{
-    BOOTLOADER_INPUTS_PER_PAGE, BYTES_PER_WORD, DEFAULT_PC, MEMORY_HASH_START_INDEX,
-    MERKLE_TREE_DEPTH, NUM_PAGES_INDEX, N_LEAVES_LOG, PAGE_INPUTS_OFFSET, PAGE_NUMBER_MASK,
-    PAGE_SIZE_BYTES, PC_INDEX, REGISTER_NAMES, SHUTDOWN_START, WORDS_PER_HASH, WORDS_PER_PAGE,
+    BootloaderImpl, BOOTLOADER_INPUTS_PER_PAGE, BYTES_PER_WORD, DEFAULT_PC,
+    MEMORY_HASH_START_INDEX, MERKLE_TREE_DEPTH, NUM_PAGES_INDEX, N_LEAVES_LOG, PAGE_INPUTS_OFFSET,
+    PAGE_NUMBER_MASK, PAGE_SIZE_BYTES, PC_INDEX, REGISTER_NAMES, SHUTDOWN_START, WORDS_PER_HASH,
+    WORDS_PER_PAGE,
 };
+
+use powdr_number::{FieldElement, KnownField, LargeInt};
+use powdr_riscv_executor::large_field::poseidon_gl::poseidon_gl;
+
+pub fn split_fe<F: FieldElement>(v: &F) -> [F; 2] {
+    let v = v.to_integer().try_into_u64().unwrap();
+    [((v & 0xffffffff) as u32).into(), ((v >> 32) as u32).into()]
+}
+
+pub struct LargeFieldBootloader<F: FieldElement>(PhantomData<F>);
+
+impl<F: FieldElement> BootloaderImpl<F> for LargeFieldBootloader<F> {
+    const FE_PER_WORD: usize = 1;
+    type Page = [F; WORDS_PER_PAGE];
+    type Hash = [F; 4];
+
+    fn update_page(page: &mut Self::Page, idx: usize, word: u32) {
+        page[idx] = F::from(word);
+    }
+
+    fn hash_page(page: &Self::Page) -> Self::Hash {
+        let mut hash = [0.into(); 4];
+        for chunk in page.chunks_exact(4) {
+            hash = Self::hash_two(&hash, chunk.try_into().unwrap());
+        }
+        hash
+    }
+
+    fn hash_two(a: &Self::Hash, b: &Self::Hash) -> Self::Hash {
+        let mut buffer = [0.into(); 12];
+        buffer[..4].copy_from_slice(a);
+        buffer[4..8].copy_from_slice(b);
+        match F::known_field() {
+            Some(KnownField::GoldilocksField) => poseidon_gl(&buffer),
+            _ => todo!("field has no poseidon hash implementation"),
+        }
+    }
+
+    fn zero_page() -> Self::Page {
+        [0.into(); WORDS_PER_PAGE]
+    }
+
+    fn iter_hash_as_fe(h: &Self::Hash) -> impl Iterator<Item = F> {
+        h.iter().flat_map(|f| split_fe(f).into_iter())
+    }
+
+    fn iter_page_as_fe(p: &Self::Page) -> impl Iterator<Item = F> {
+        p.iter().copied()
+    }
+
+    fn iter_word_as_fe(w: u32) -> impl Iterator<Item = F> {
+        std::iter::once(w.into())
+    }
+}
 
 pub const BOOTLOADER_SPECIFIC_INSTRUCTION_NAMES: [&str; 2] =
     ["load_bootloader_input", "jump_to_bootloader_input"];

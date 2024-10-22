@@ -1,9 +1,7 @@
 use ::powdr_pipeline::Pipeline;
 use powdr_number::GoldilocksField;
 
-use powdr_riscv::{
-    compile_rust_crate_to_riscv, continuations::bootloader::default_input, elf, CompilerOptions,
-};
+use powdr_riscv::{compile_rust_crate_to_riscv, continuations::bootloader, elf, CompilerOptions};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use mktemp::Temp;
@@ -37,10 +35,8 @@ fn executor_benchmark(c: &mut Criterion) {
     pipeline.compute_optimized_pil().unwrap();
     pipeline.compute_fixed_cols().unwrap();
 
-    let pipeline = pipeline.add_external_witness_values(vec![(
-        "main_bootloader_inputs::value".to_string(),
-        default_input(&[63, 64, 65]),
-    )]);
+    let default_input = bootloader::default_input_witness::<T>(&[63, 64, 65]);
+    let pipeline = pipeline.add_external_witness_values(default_input);
     group.bench_function("many_chunks_chunk_0", |b| {
         b.iter(|| pipeline.clone().compute_witness().unwrap())
     });

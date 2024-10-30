@@ -1,9 +1,8 @@
-pub use data_structures::{get_uniquely_sized, get_uniquely_sized_cloned, VariablySizedColumn};
 use itertools::Itertools;
 use powdr_ast::analyzed::Analyzed;
 use powdr_number::FieldElement;
+pub use powdr_number::{get_uniquely_sized, get_uniquely_sized_cloned, VariablySizedColumn};
 
-mod data_structures;
 mod interpreter;
 mod jit_compiler;
 
@@ -75,9 +74,8 @@ mod test {
     use pretty_assertions::assert_eq;
     use test_log::test;
 
-    use crate::constant_evaluator::{
-        data_structures::get_uniquely_sized, generate as generate_variably_sized,
-    };
+    use crate::constant_evaluator::generate as generate_variably_sized;
+    use powdr_number::get_uniquely_sized;
 
     fn convert(input: Vec<i32>) -> Vec<GoldilocksField> {
         input.into_iter().map(|x| x.into()).collect()

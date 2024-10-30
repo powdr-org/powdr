@@ -11,6 +11,5 @@ powdr-pil-analyzer.workspace = true
 powdr-parser.workspace = true
 powdr-ast.workspace = true
 powdr-number.workspace = true
-powdr-executor.workspace = true
 log = "0.4.22"
 itertools = "0.13.0"

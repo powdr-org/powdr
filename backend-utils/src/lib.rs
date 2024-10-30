@@ -16,7 +16,7 @@ use powdr_ast::{
         visitor::{ExpressionVisitable, VisitOrder},
     },
 };
-use powdr_executor::constant_evaluator::VariablySizedColumn;
+use powdr_number::VariablySizedColumn;
 use powdr_number::{DegreeType, FieldElement};
 
 const DUMMY_COLUMN_NAME: &str = "__dummy";

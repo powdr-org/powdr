@@ -28,7 +28,6 @@ powdr-ast.workspace = true
 powdr-number.workspace = true
 powdr-backend-utils.workspace = true
 rand = "0.8.5"
-powdr-executor = { path = "../executor" }
 
 p3-air = { git = "https://github.com/plonky3/Plonky3.git", rev = "2192432ddf28e7359dd2c577447886463e6124f0" }
 p3-matrix = { git = "https://github.com/plonky3/Plonky3.git", rev = "2192432ddf28e7359dd2c577447886463e6124f0" }

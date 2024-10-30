@@ -1,6 +1,9 @@
-use powdr_number::DegreeType;
+use crate::{DegreeType, FieldElement};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 #[derive(Serialize, Deserialize)]
 pub struct VariablySizedColumn<F> {
@@ -69,5 +72,27 @@ impl<F> From<Vec<Vec<F>>> for VariablySizedColumn<F> {
                 .map(|column| (column.len() as DegreeType, column))
                 .collect(),
         }
+    }
+}
+
+type WitgenCallbackFn<T> =
+    Arc<dyn Fn(&[(String, Vec<T>)], BTreeMap<u64, T>, u8) -> Vec<(String, Vec<T>)> + Send + Sync>;
+
+#[derive(Clone)]
+pub struct WitgenCallback<T>(WitgenCallbackFn<T>);
+
+impl<T: FieldElement> WitgenCallback<T> {
+    pub fn new(f: WitgenCallbackFn<T>) -> Self {
+        WitgenCallback(f)
+    }
+
+    /// Computes the next-stage witness, given the current witness and challenges.
+    pub fn next_stage_witness(
+        &self,
+        current_witness: &[(String, Vec<T>)],
+        challenges: BTreeMap<u64, T>,
+        stage: u8,
+    ) -> Vec<(String, Vec<T>)> {
+        (self.0)(current_witness, challenges, stage)
     }
 }

@@ -1,0 +1,4 @@
+[toolchain]
+channel = "nightly-2024-08-01"
+targets = ["riscv32im-risc0-zkvm-elf"] # with std
+profile = "minimal"

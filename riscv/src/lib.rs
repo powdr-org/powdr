@@ -272,6 +272,7 @@ pub fn compile_rust_crate_to_riscv(
         .join(&metadata.bins[0])
 }
 
+#[derive(Debug)]
 struct CargoMetadata {
     bins: Vec<String>,
     use_std: bool,

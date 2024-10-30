@@ -29,12 +29,13 @@ use powdr_ast::analyzed::{
 use crate::{CallbackResult, MultiStageAir, MultistageAirBuilder};
 use powdr_ast::parsed::visitor::ExpressionVisitable;
 
-use powdr_executor::witgen::WitgenCallback;
+use powdr_number::WitgenCallback;
 use powdr_number::{FieldElement, LargeInt};
 
 /// A description of the constraint system.
 /// All of the data is derived from the analyzed PIL, but is materialized
 /// here for performance reasons.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct ConstraintSystem<T> {
     // for each witness column, the stage and index of this column in this stage
     witness_columns: BTreeMap<PolyID, (usize, usize)>,

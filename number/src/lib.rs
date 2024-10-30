@@ -11,8 +11,14 @@ mod koala_bear;
 mod mersenne31;
 #[macro_use]
 mod plonky3_macros;
+mod data_structures;
 mod serialize;
 mod traits;
+
+pub use data_structures::{
+    get_uniquely_sized, get_uniquely_sized_cloned, VariablySizedColumn, WitgenCallback,
+};
+
 pub use serialize::{
     buffered_write_file, read_polys_csv_file, write_polys_csv_file, CsvRenderMode, ReadWrite,
 };

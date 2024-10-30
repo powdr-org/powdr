@@ -191,6 +191,14 @@ fn vec_median() {
 
 #[test]
 #[ignore = "Too slow"]
+#[should_panic = "reached a fail instruction"]
+fn plonky3_recursion() {
+    let case = "plonky3_recursion";
+    verify_riscv_crate(case, &[]);
+}
+
+#[test]
+#[ignore = "Too slow"]
 fn password() {
     let case = "password_checker";
     verify_riscv_crate(case, Default::default());

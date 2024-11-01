@@ -58,6 +58,7 @@ lazy_static! {
             "std::prelude::set_hint",
             ("", "expr, (int -> std::prelude::Query) -> ()")
         ),
+        ("std::prelude::to_fe", ("T: FromLiteral", "T -> fe")),
         ("std::prover::eval", ("", "expr -> fe")),
         (
             "std::prover::try_eval",

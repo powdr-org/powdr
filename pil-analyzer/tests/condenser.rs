@@ -25,7 +25,7 @@ fn analyze_string(input: &str) -> Analyzed<GoldilocksField> {
 #[test]
 fn new_witness_column() {
     let input = r#"namespace N(16);
-    let even: col = |i| i * 2;
+    let even: col = |i| i * 2_int;
     let new_wit = constr || { let x; x };
     let new_wit_arr = constr || { let x; [x, x] };
     let x;
@@ -238,9 +238,12 @@ fn double_next() {
 
 #[test]
 fn new_fixed_column() {
-    let input = r#"namespace N(16);
+    let input = r#"
+    namespace std::convert;
+        let fe = 9;
+    namespace N(16);
         let f = constr || {
-            let even: col = |i| i * 2;
+            let even: col = |i| std::convert::fe(i * 2_int);
             even
         };
         let ev = f();
@@ -248,14 +251,16 @@ fn new_fixed_column() {
         x = ev;
     "#;
     let formatted = analyze_string(input).to_string();
-    let expected = r#"namespace N(16);
+    let expected = r#"namespace std::convert;
+    let fe = 9;
+namespace N(16);
     let f: -> expr = constr || {
-        let even: col = |i| i * 2_int;
+        let even: col = std::prelude::ToCol::to_col::<(int -> fe)>(|i| std::convert::fe::<int>(i * 2_int));
         even
     };
     let ev: expr = N::f();
     col witness x;
-    col fixed even(i) { i * 2_int };
+    col fixed even(i) { std::convert::fe::<int>(i * 2_int) };
     N::x = N::even;
 "#;
     assert_eq!(formatted, expected);
@@ -1055,7 +1060,7 @@ pub fn at_next_stage_intermediate_and_fixed() {
             std::prover::at_next_stage(constr || {
                 let b: inter = a * a;
                 let c;
-                let first: col = |i| if i == 0 { 1 } else { 0 };
+                let first: col = |i| if i == 0_int { 1_fe } else { 0 };
                 let d: inter = a + c;
                 c' = first;
             });

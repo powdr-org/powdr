@@ -2,11 +2,13 @@ use core::panic;
 use powdr_ast::{
     analyzed::{Expression, PolynomialReference, Reference},
     parsed::{
-        self, asm::SymbolPath, types::Type, ArrayExpression, ArrayLiteral, BinaryOperation,
-        BlockExpression, IfExpression, LambdaExpression, LetStatementInsideBlock, MatchArm,
-        MatchExpression, NamedExpression, NamespacedPolynomialReference, Number, Pattern,
-        SelectedExpressions, StatementInsideBlock, StructExpression, SymbolCategory,
-        UnaryOperation,
+        self,
+        asm::SymbolPath,
+        types::{ArrayType, Type},
+        ArrayExpression, ArrayLiteral, BinaryOperation, BlockExpression, FunctionCall,
+        IfExpression, LambdaExpression, LetStatementInsideBlock, MatchArm, MatchExpression,
+        NamedExpression, NamespacedPolynomialReference, Number, Pattern, SelectedExpressions,
+        SourceReference, StatementInsideBlock, StructExpression, SymbolCategory, UnaryOperation,
     },
 };
 
@@ -27,6 +29,45 @@ pub struct ExpressionProcessor<'a, D: AnalysisDriver> {
     type_vars: &'a HashSet<&'a String>,
     local_variables: HashMap<String, u64>,
     local_variable_counter: u64,
+}
+
+/// Injects a call to `ToCol::to_col` or `ToColArray::to_col_array` if the type is column.
+pub fn inject_column_conversion_if_needed(value: Expression, ty: &Option<Type<u64>>) -> Expression {
+    let Some(ty) = ty else { return value };
+    match ty {
+        Type::Col => inject_function_call_unless_present(value, "std::prelude::ToCol::to_col"),
+        Type::Array(ArrayType { base, length: _ }) if base.as_ref() == &Type::Col => {
+            inject_function_call_unless_present(value, "std::prelude::ToColArray::to_col_array")
+        }
+        _ => value,
+    }
+}
+
+/// Replaces `expr` by a function call to `name` with `expr` as argument,
+/// unless the expression is already a call to that function.
+fn inject_function_call_unless_present(expr: Expression, name: &str) -> Expression {
+    if let Expression::FunctionCall(_, FunctionCall { function, .. }) = &expr {
+        if let Expression::Reference(_, Reference::Poly(PolynomialReference { name: called, .. })) =
+            function.as_ref()
+        {
+            if called == name {
+                return expr;
+            }
+        }
+    }
+
+    let function = Box::new(Expression::Reference(
+        expr.source_reference().clone(),
+        Reference::Poly(PolynomialReference {
+            name: name.to_string(),
+            type_args: None,
+        }),
+    ));
+    FunctionCall {
+        function,
+        arguments: vec![expr],
+    }
+    .into()
 }
 
 impl<'a, D: AnalysisDriver> ExpressionProcessor<'a, D> {
@@ -368,6 +409,8 @@ impl<'a, D: AnalysisDriver> ExpressionProcessor<'a, D> {
                     if !pattern.is_irrefutable() {
                         panic!("Let statement requires an irrefutable pattern, but {pattern} is refutable.");
                     }
+                    // Inject a conversion function to column (or column array) if this is a column.
+                    let value = value.map(|v| inject_column_conversion_if_needed(v, &ty));
                     StatementInsideBlock::LetStatement(LetStatementInsideBlock { pattern, ty, value })
                 }
                 StatementInsideBlock::Expression(expr) => {

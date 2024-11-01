@@ -150,9 +150,7 @@ impl<'a, T: FieldElement> CodeGenerator<'a, T> {
                     }
                 })
             }
-            _ => Err(format!(
-                "Definition of this kind not supported: {symbol} - {definition}"
-            )),
+            _ => Err(format!("Definition of this kind not supported: {symbol}")),
         }
     }
 

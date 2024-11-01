@@ -27,7 +27,7 @@ use powdr_ast::analyzed::{
 use crate::type_processor::TypeProcessor;
 use crate::{untyped_evaluator, AnalysisDriver};
 
-use crate::expression_processor::ExpressionProcessor;
+use crate::expression_processor::{inject_column_conversion_if_needed, ExpressionProcessor};
 
 pub enum PILItem {
     Definition(Symbol, Option<FunctionValueDefinition>),
@@ -458,12 +458,15 @@ where
             .as_ref()
             .map(|ts| ts.vars.vars().collect())
             .unwrap_or_default();
-        let value = FunctionValueDefinition::Expression(TypedExpression {
-            e: self
-                .expression_processor(&type_vars)
-                .process_expression(expr),
-            type_scheme,
-        });
+        let e = self
+            .expression_processor(&type_vars)
+            .process_expression(expr);
+        let e = if symbol_kind == SymbolKind::Poly(PolynomialType::Constant) {
+            inject_column_conversion_if_needed(e, &type_scheme.as_ref().map(|ts| ts.ty.clone()))
+        } else {
+            e
+        };
+        let value = FunctionValueDefinition::Expression(TypedExpression { e, type_scheme });
 
         vec![PILItem::Definition(symbol, Some(value))]
     }

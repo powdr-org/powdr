@@ -159,7 +159,13 @@ impl<T: Display> Display for Analyzed<T> {
                     writeln_indented(f, format!("{};", &self.prover_functions[*i]))?;
                 }
                 StatementIdentifier::TraitImplementation(i) => {
-                    writeln_indented(f, format!("{}", self.trait_impls[*i]))?;
+                    let trait_impl = &self.trait_impls[*i];
+                    if !self
+                        .auto_added_symbols
+                        .contains(&trait_impl.name.to_string())
+                    {
+                        writeln_indented(f, format!("{}", self.trait_impls[*i]))?;
+                    }
                 }
             }
         }

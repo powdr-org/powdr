@@ -248,78 +248,42 @@ impl TypeChecker {
         declared_type: Type,
         value: &mut Expression,
     ) -> Result<(), Error> {
-        match &declared_type {
+        let expected_type = match declared_type {
             Type::Col => {
-                // This is a column. It means we prefer `int -> fe`, but `int -> int`
-                // is also OK if it can be derived directly.
-                let return_type = self.unifier.new_type_var_name();
-                let fun_type = Type::Function(FunctionType {
+                // This is a column, we expect an `int -> fe` function (a previous step
+                // has automatically injected a conversion function call if it is not already there).
+                Type::Function(FunctionType {
                     params: vec![Type::Int],
-                    value: Box::new(Type::TypeVar(return_type.clone())),
-                });
-                self.expect_type_allow_fe_or_int(&fun_type, value, &return_type)
+                    value: Box::new(Type::Fe),
+                })
             }
             Type::Array(ArrayType { base, length: _ }) if base.as_ref() == &Type::Col => {
-                // An array of columns. We prefer `(int -> fe)[]`, but we also allow `(int -> int)[]`.
-                // Also we ignore the length.
-                let return_type = self.unifier.new_type_var_name();
-                let fun_type = Type::Function(FunctionType {
-                    params: vec![Type::Int],
-                    value: Box::new(Type::TypeVar(return_type.clone())),
-                });
-                let arr = Type::Array(ArrayType {
-                    base: fun_type.into(),
+                // An array of columns. We ignore the length for the type. A previous step
+                // has automatically injected a conversion function call if it is not already there.
+                Type::Array(ArrayType {
+                    base: Type::Function(FunctionType {
+                        params: vec![Type::Int],
+                        value: Box::new(Type::Fe),
+                    })
+                    .into(),
                     length: None,
-                });
-                self.expect_type_allow_fe_or_int(&arr, value, &return_type)
+                })
             }
             Type::Inter => {
                 // Values of intermediate columns have type `expr`
-                self.expect_type(&Type::Expr, value)
+                Type::Expr
             }
             Type::Array(ArrayType { base, length: _ }) if base.as_ref() == &Type::Inter => {
                 // An array of intermediate columns with fixed length. We ignore the length.
                 // The condenser will have to check the actual length.
-                let arr = Type::Array(ArrayType {
+                Type::Array(ArrayType {
                     base: Type::Expr.into(),
                     length: None,
-                });
-                self.expect_type(&arr, value)
+                })
             }
-            t => self.expect_type(t, value),
-        }
-    }
-
-    /// Performs type inference on `expr` expecting it to have type `expected_type`.
-    /// The `flexible_var` is a type variable that occurs inside `expected_type`
-    /// and it is fine to resolve either to `int` or `fe`.
-    fn expect_type_allow_fe_or_int(
-        &mut self,
-        expected_type: &Type,
-        expr: &mut Expression,
-        flexible_var: &str,
-    ) -> Result<(), Error> {
-        self.expect_type(expected_type, expr)?;
-        match self.type_into_substituted(Type::TypeVar(flexible_var.to_string())) {
-            Type::Int => Ok(()),
-            t => self
-                .unifier
-                .unify_types(t.clone(), Type::Fe)
-                .map_err(|err| {
-                    let substitute_flexible = |s: Type| {
-                        let mut t = expected_type.clone();
-                        t.substitute_type_vars(&[(flexible_var.to_string(), s)].into());
-                        self.type_into_substituted(t)
-                    };
-
-                    expr.source_reference().with_error(format!(
-                        "Expected either {} or {}, but got: {}.\n{err}",
-                        substitute_flexible(Type::Int),
-                        substitute_flexible(Type::Fe),
-                        substitute_flexible(t)
-                    ))
-                }),
-        }
+            t => t,
+        };
+        self.expect_type(&expected_type, value)
     }
 
     /// Updates generic arguments and literal annotations with the proper resolved types.

@@ -112,7 +112,7 @@ mod test {
         let src = r#"
             let N = 8;
             namespace F(N);
-            col fixed LAST(i) { if i == N - 1 { 1 } else { 0 } };
+            col fixed LAST(i) { if i == N - 1_int { 1_fe } else { 0_fe } };
             "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 8);
@@ -127,8 +127,10 @@ mod test {
     fn counter() {
         let src = r#"
             let N: int = 8;
+            namespace std::convert;
+            let fe = [];
             namespace F(N);
-            pol constant EVEN(i) { 2 * (i - 1) + 4 };
+            pol constant EVEN(i) { std::convert::fe(2 * (i - 1) + 4_int) };
         "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 8);
@@ -146,8 +148,10 @@ mod test {
     fn xor() {
         let src = r#"
             let N: int = 8;
+            namespace std::convert;
+            let fe = [];
             namespace F(N);
-            pol constant X(i) { i ^ (i + 17) | 3 };
+            pol constant X(i) { std::convert::fe(i ^ (i + 17) | 3_int) };
         "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 8);
@@ -165,13 +169,16 @@ mod test {
     fn match_expression() {
         let src = r#"
             let N: int = 8;
+            namespace std::convert;
+            let fe = [];
             namespace F(N);
-            pol constant X(i) { match i {
+            let x: int -> fe = |i| std::convert::fe(match i {
                 0 => 7,
                 3 => 9,
                 5 => 2,
                 _ => 4,
-            } + 1 };
+            } + 1_int);
+            pol constant X(i) { x(i) };
         "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 8);
@@ -187,7 +194,7 @@ mod test {
         let src = r#"
             let N: int = 8;
             namespace F(N);
-            let X: col = |i| if i < 3 { 7 } else { 9 };
+            let X: col = |i| if i < 3_int { 7_fe } else { 9 };
         "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 8);
@@ -202,9 +209,11 @@ mod test {
     fn macro_directive() {
         let src = r#"
             let N: int = 8;
+            namespace std::convert;
+            let fe = [];
             namespace F(N);
             let minus_one: int -> int = |x| x - 1;
-            pol constant EVEN(i) { 2 * minus_one(i) + 2 };
+            pol constant EVEN(i) { std::convert::fe(2 * minus_one(i) + 2) };
         "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 8);
@@ -224,13 +233,14 @@ mod test {
             let N = 16;
             namespace std::convert(N);
             let int = [];
+            let fe = [];
             namespace F(N);
-            let seq_f = |i| i;
-            col fixed seq(i) { i };
-            col fixed double_plus_one(i) { std::convert::int(seq_f((2 * i) % N)) + 1 };
+            let seq_f: int -> int = |i| i;
+            col fixed seq(i) { std::convert::fe(seq_f(i)) };
+            col fixed double_plus_one(i) { std::convert::fe(std::convert::int(seq_f((2 * i) % N)) + 1) };
             let half_nibble_f = |i| i & 0x7;
-            col fixed half_nibble(i) { half_nibble_f(i) };
-            col fixed doubled_half_nibble(i) { half_nibble_f(i / 2) };
+            col fixed half_nibble(i) { std::convert::fe(half_nibble_f(i)) };
+            col fixed doubled_half_nibble(i) { std::convert::fe(half_nibble_f(i / 2)) };
         "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 16);
@@ -333,15 +343,15 @@ mod test {
             let inv = |i| N - i;
             let a: int -> int = |i| [0, 1, 0, 1, 2, 1, 1, 1][i];
             let b: int -> int = |i| [0, 0, 1, 1, 0, 5, 5, 5][i];
-            col fixed or(i) { if (a(i) != 0) || (b(i) != 0) { 1 } else { 0 } };
-            col fixed and(i) { if (a(i) != 0) && (b(i) != 0) { 1 } else { 0 } };
-            col fixed not(i) { if !(a(i) != 0) { 1 } else { 0 } };
-            col fixed less(i) { if id(i) < inv(i) { 1 } else { 0 } };
-            col fixed less_eq(i) { if id(i) <= inv(i) { 1 } else { 0 } };
-            col fixed eq(i) { if id(i) == inv(i) { 1 } else { 0 } };
-            col fixed not_eq(i) { if id(i) != inv(i) { 1 } else { 0 } };
-            col fixed greater(i) { if id(i) > inv(i) { 1 } else { 0 } };
-            col fixed greater_eq(i) { if id(i) >= inv(i) { 1 } else { 0 } };
+            col fixed or(i) { if (a(i) != 0) || (b(i) != 0) { 1_fe } else { 0_fe } };
+            col fixed and(i) { if (a(i) != 0) && (b(i) != 0) { 1_fe } else { 0_fe } };
+            col fixed not(i) { if !(a(i) != 0) { 1_fe } else { 0_fe } };
+            col fixed less(i) { if id(i) < inv(i) { 1_fe } else { 0_fe } };
+            col fixed less_eq(i) { if id(i) <= inv(i) { 1_fe } else { 0_fe } };
+            col fixed eq(i) { if id(i) == inv(i) { 1_fe } else { 0_fe } };
+            col fixed not_eq(i) { if id(i) != inv(i) { 1_fe } else { 0_fe } };
+            col fixed greater(i) { if id(i) > inv(i) { 1_fe } else { 0_fe } };
+            col fixed greater_eq(i) { if id(i) >= inv(i) { 1_fe } else { 0_fe } };
         "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 8);
@@ -444,7 +454,7 @@ mod test {
         let src = r#"
             let N: int = 10;
             namespace F(N);
-            let x: col = |i| y(i) + 1;
+            let x: col = |i| { let t = y(i) + 1; 1_fe };
             col fixed y = [1, 2, 3]*;
         "#;
         let analyzed = analyze_string(src);
@@ -456,9 +466,12 @@ mod test {
     fn forward_reference_to_function() {
         let src = r#"
             let N: int = 4;
+            namespace std::convert(N);
+            let int = [];
+            let fe = [];
             namespace F(N);
-            let x = |i| y(i) + 1;
-            let y = |i| i + 20;
+            let x: int -> fe = |i| std::convert::fe(y(i) + 1);
+            let y: int -> fe = |i| std::convert::fe(i + 20);
             let X: col = x;
             let Y: col = y;
         "#;
@@ -483,7 +496,7 @@ mod test {
             let int = [];
             let fe = [];
             namespace F(N);
-            let x: col = |i| (1 << (2000 + i)) >> 2000;
+            let x: col = |i| std::convert::fe((1 << (2000 + i)) >> 2000);
         "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 4);
@@ -503,7 +516,7 @@ mod test {
             let fe = [];
             namespace F(N);
             let x_arr = [ 3 % 4, (-3) % 4, 3 % (-4), (-3) % (-4)];
-            let x: col = |i| 100 + x_arr[i];
+            let x: col = |i| std::convert::fe(100 + x_arr[i]);
         "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 4);
@@ -547,7 +560,7 @@ mod test {
                 let fe = || fe();
             namespace F(4);
                 let<T: FromLiteral> seven: T = 7;
-                let a: col = |i| std::convert::fe(i + seven) + seven;
+                let a: col = |i| std::convert::fe(i + seven + 0_int) + seven;
         "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 4);
@@ -562,19 +575,20 @@ mod test {
     fn do_not_add_constraint_for_empty_tuple() {
         let input = r#"namespace N(4);
             let f: -> () = || ();
-            let g: col = |i| {
+            let r: int -> fe = |i| {
                 // This returns an empty tuple, we check that this does not lead to
                 // a call to add_proof_items()
                 f();
-                i
+                7_fe
             };
+            let g: col = r;
         "#;
         let analyzed = analyze_string(input);
         assert_eq!(analyzed.degree(), 4);
         let constants = generate(&analyzed);
         assert_eq!(
             constants[0],
-            ("N::g".to_string(), convert([0, 1, 2, 3].to_vec()))
+            ("N::g".to_string(), convert([7, 7, 7, 7].to_vec()))
         );
     }
 }

@@ -229,7 +229,7 @@ fn if_expr() {
 fn symbolic_functions() {
     let input = r#"namespace N(16);
     let last_row: int = 15;
-    let ISLAST: col = |i| if i == last_row { 1 } else { 0 };
+    let ISLAST: col = |i| if i == last_row { 1_fe } else { 0 };
     let x;
     let y;
     let constrain_equal_expr = |A, B| A - B;

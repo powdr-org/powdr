@@ -2,7 +2,6 @@
 /// meaning that a failed symbol resolution always re-tries relative to this module.
 
 use std::convert::expr as to_expr;
-use std::convert::fe as to_fe;
 use std::convert::int as to_int;
 
 let true: bool = "" == "";
@@ -51,6 +50,21 @@ enum SelectedExprs {
     JustExprs(expr[]),
 }
 
+trait ToCol<T> {
+    to_col: T -> (int -> fe),
+}
+
+impl ToCol<(int -> fe)> {
+    to_col: |x| x
+}
+
+trait ToColArray<T> {
+    to_col_array: T -> (int -> fe)[],
+}
+
+impl ToColArray<(int -> fe)[]> {
+    to_col_array: |x| x
+}
 
 /// The return type of a prover query function.
 enum Query {

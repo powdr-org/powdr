@@ -112,7 +112,7 @@ machine Arith(byte: Byte, byte2: Byte2) with
     col y2c[2] = combine(y2);
     col y3c[2] = combine(y3);
 
-    let CLK8: col[8] = array::new(8, |i| |row| if row % 8 == i { 1 } else { 0 });
+    let CLK8: col[8] = array::new(8, |i| |row| if row % 8 == i { 1_fe } else { 0 });
     let CLK8_7: expr = CLK8[7];
 
     // All inputs & outputs are kept constant within a block.

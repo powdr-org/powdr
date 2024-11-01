@@ -171,6 +171,8 @@ impl PILAnalyzer {
             "Query",
             "true",
             "false",
+            "ToCol",
+            "ToColArray",
         ]
         .into_iter()
         .filter(|symbol| {
@@ -189,6 +191,10 @@ impl PILAnalyzer {
                         ModuleStatement::SymbolDefinition(s) => {
                             missing_symbols.contains(&s.name.as_str())
                         }
+                        ModuleStatement::PilStatement(PilStatement::TraitImplementation(
+                            _,
+                            TraitImplementation { name, .. },
+                        )) => missing_symbols.contains(&name.to_string().as_str()),
                         ModuleStatement::PilStatement(s) => s
                             .symbol_definition_names()
                             .any(|(name, _)| missing_symbols.contains(&name.as_str())),

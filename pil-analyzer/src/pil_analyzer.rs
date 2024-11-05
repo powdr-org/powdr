@@ -15,7 +15,7 @@ use powdr_ast::parsed::types::Type;
 use powdr_ast::parsed::visitor::{AllChildren, Children};
 use powdr_ast::parsed::{
     self, FunctionKind, LambdaExpression, PILFile, PilStatement, SymbolCategory,
-    TraitImplementation, TypedExpression,
+    TraitImplementation, TypeDeclaration, TypedExpression,
 };
 use powdr_number::{FieldElement, GoldilocksField};
 
@@ -27,6 +27,7 @@ use powdr_ast::analyzed::{
 use powdr_parser::{parse, parse_module, parse_type};
 use powdr_parser_util::Error;
 
+use crate::pattern_match_analyzer::analyze_match_patterns;
 use crate::traits_resolver::TraitsResolver;
 use crate::type_builtins::constr_function_statement_type;
 use crate::type_inference::infer_types;
@@ -55,6 +56,8 @@ fn analyze<T: FieldElement>(files: Vec<PILFile>) -> Result<Analyzed<T>, Vec<Erro
     analyzer.side_effect_check()?;
     analyzer.validate_structs()?;
     analyzer.type_check()?;
+    analyzer.match_exhaustiveness_check();
+    // TODO should use Result here as well.
     let solved_impls = analyzer.resolve_trait_impls()?;
     analyzer.condense(solved_impls)
 }
@@ -358,7 +361,70 @@ impl PILAnalyzer {
         Ok(())
     }
 
-    /// Creates and returns a map for every referenced trait function with concrete type to the
+    pub fn match_exhaustiveness_check(&self) {
+        let enums = self
+            .definitions
+            .iter()
+            .filter_map(|(_, (_, def))| {
+                if let Some(FunctionValueDefinition::TypeDeclaration(TypeDeclaration::Enum(
+                    enum_decl,
+                ))) = def
+                {
+                    Some((
+                        enum_decl.name.as_str(),
+                        enum_decl
+                            .variants
+                            .iter()
+                            .map(|v| (v.name.as_str(), v.fields.clone()))
+                            .collect::<Vec<_>>(),
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let all_patterns: Vec<_> = self
+            .definitions
+            .iter()
+            .filter_map(|(_, (_, def))| {
+                if let Some(FunctionValueDefinition::Expression(TypedExpression {
+                    type_scheme: _,
+                    e: Expression::MatchExpression(_, match_expr),
+                })) = def
+                {
+                    Some(
+                        match_expr
+                            .arms
+                            .iter()
+                            .map(|arm| arm.pattern.clone())
+                            .collect::<Vec<_>>(),
+                    )
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for patterns in all_patterns {
+            let report = analyze_match_patterns(&patterns, &enums);
+            if report.is_exhaustive {
+                panic!("Match exhaustiveness check failed");
+            }
+
+            // TODO: Warning?
+            let redundant: Vec<_> = report
+                .redundant_patterns
+                .iter()
+                .map(|index| format!("Pos {}: {}", *index, patterns[*index].clone()))
+                .collect();
+
+            if !redundant.is_empty() {
+                panic!("Redundant patterns: {}", redundant.into_iter().join(", "));
+            }
+        }
+    }
+
+    /// Creates and returns a map for every referenced trait and every concrete type to the
     /// corresponding trait implementation function.
     fn resolve_trait_impls(&mut self) -> Result<SolvedTraitImpls, Vec<Error>> {
         let all_traits = self

@@ -4,6 +4,7 @@ mod call_graph;
 mod condenser;
 pub mod evaluator;
 pub mod expression_processor;
+mod pattern_match_analyzer;
 mod pil_analyzer;
 mod side_effect_checker;
 mod statement_processor;

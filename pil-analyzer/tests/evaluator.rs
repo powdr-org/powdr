@@ -647,3 +647,36 @@ fn test_trait_function_call_cross_impl() {
 
     assert_eq!(parse_and_evaluate_symbol(input, "F::r"), "6".to_string());
 }
+
+#[test]
+fn test_struct() {
+    // TODO: This test needs to be updated when we add field accessors.
+    let input = "    struct Point {
+        x: int,
+        y: int,
+    }
+    let f: int -> Point = |i| Point{ x: 0, y: i };
+    let equal_one: Point, int -> bool = |p1, p2| 1 == p2;
+    let result = equal_one(f(3), 3);
+";
+
+    assert_eq!(
+        parse_and_evaluate_symbol(input, "result"),
+        "false".to_string()
+    );
+}
+
+#[test]
+fn test_struct_unordered_fields() {
+    let input = "    struct Point {
+        x: int,
+        y: int,
+    }
+    let p: Point = Point{ y: 0, x: 2 };
+";
+
+    assert_eq!(
+        parse_and_evaluate_symbol(input, "p"),
+        "Point{x: 2, y: 0, }".to_string()
+    );
+}

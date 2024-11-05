@@ -18,8 +18,8 @@ use powdr_ast::{
         types::{ArrayType, Type, TypeScheme},
         ArrayLiteral, BinaryOperation, BinaryOperator, BlockExpression, EnumDeclaration,
         FunctionCall, IfExpression, IndexAccess, LambdaExpression, LetStatementInsideBlock,
-        MatchArm, MatchExpression, Number, Pattern, StatementInsideBlock, UnaryOperation,
-        UnaryOperator,
+        MatchArm, MatchExpression, Number, Pattern, StatementInsideBlock, StructExpression,
+        UnaryOperation, UnaryOperator,
     },
 };
 use powdr_number::{BigInt, BigUint, FieldElement, LargeInt};
@@ -147,6 +147,7 @@ pub enum Value<'a, T> {
     Closure(Closure<'a, T>),
     TypeConstructor(TypeConstructorValue<'a>),
     Enum(EnumValue<'a, T>),
+    Struct(StructValue<'a, T>),
     BuiltinFunction(BuiltinFunction),
     Expression(AlgebraicExpression<T>),
 }
@@ -224,6 +225,7 @@ impl<'a, T: FieldElement> Value<'a, T> {
             Value::Closure(c) => c.type_formatted(),
             Value::TypeConstructor(tc) => tc.type_formatted(),
             Value::Enum(enum_val) => enum_val.type_formatted(),
+            Value::Struct(struct_val) => struct_val.type_formatted(),
             Value::BuiltinFunction(b) => format!("builtin_{b:?}"),
             Value::Expression(_) => "expr".to_string(),
         }
@@ -339,6 +341,32 @@ impl<'a, T: Display> Display for EnumValue<'a, T> {
         write!(f, "{}::{}", self.enum_decl.name, self.variant)?;
         if let Some(data) = &self.data {
             write!(f, "({})", data.iter().format(", "))?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct StructValue<'a, T> {
+    pub name: &'a str,
+    pub fields: HashMap<&'a str, Arc<Value<'a, T>>>,
+}
+
+impl<'a, T: Display> StructValue<'a, T> {
+    pub fn type_formatted(&self) -> String {
+        self.name.to_string()
+    }
+}
+
+impl<'a, T: Display> Display for StructValue<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)?;
+        if !self.fields.is_empty() {
+            write!(f, "{{")?;
+            for (name, value) in &self.fields {
+                write!(f, "{name}: {value}, ")?;
+            }
+            write!(f, "}}")?;
         }
         Ok(())
     }
@@ -495,6 +523,7 @@ impl<'a, T: Display> Display for Value<'a, T> {
             Value::Closure(closure) => write!(f, "{closure}"),
             Value::TypeConstructor(tc) => write!(f, "{tc}"),
             Value::Enum(enum_value) => write!(f, "{enum_value}"),
+            Value::Struct(struct_value) => write!(f, "{struct_value}"),
             Value::BuiltinFunction(b) => write!(f, "{b:?}"),
             Value::Expression(e) => write!(f, "{e}"),
         }
@@ -976,8 +1005,16 @@ impl<'a, 'b, T: FieldElement, S: SymbolLookup<'a, T>> Evaluator<'a, 'b, T, S> {
             Expression::FreeInput(_, _) => Err(EvalError::Unsupported(
                 "Cannot evaluate free input.".to_string(),
             ))?,
-            Expression::StructExpression(_, _) => {
-                unimplemented!("Struct expressions are not yet supported.")
+            Expression::StructExpression(_, StructExpression { name: _, fields }) => {
+                self.op_stack.push(Operation::Combine(expr));
+                self.op_stack.extend(
+                    fields
+                        .iter()
+                        .skip(1)
+                        .rev()
+                        .map(|named_expr| Operation::Expand(named_expr.body.as_ref())),
+                );
+                self.expand(fields[0].body.as_ref())?;
             }
         };
         Ok(())
@@ -1145,7 +1182,31 @@ impl<'a, 'b, T: FieldElement, S: SymbolLookup<'a, T>> Evaluator<'a, 'b, T, S> {
                 let body = if *condition { body } else { else_body };
                 return self.expand(body);
             }
+            Expression::StructExpression(_, StructExpression { name, fields }) => {
+                let fields = fields
+                    .iter()
+                    .rev()
+                    .map(|named_expr| {
+                        let value = self.value_stack.pop().unwrap_or_else(|| {
+                            panic!(
+                                "Value for field {} not found in struct {name}",
+                                named_expr.name
+                            )
+                        });
+                        (named_expr.name.as_str(), value)
+                    })
+                    .collect::<HashMap<_, _>>();
 
+                let Reference::Poly(poly) = name else {
+                    unreachable!();
+                };
+
+                Value::Struct(StructValue {
+                    name: &poly.name,
+                    fields,
+                })
+                .into()
+            }
             _ => unreachable!(),
         };
         self.value_stack.push(value);

@@ -73,30 +73,18 @@ machine Keccakf16Memory(mem: Memory) with
     // Helper column to reduce the degree from the inverse constraints to 3.
     col witness helper[50]; 
 
-    // Address constraints for first step (input addresses)
-
-    // Helper column is set to equal (addr_l[i]' * (addr_l[i] - 0xfffc) - 1), 
-    // i.e. inverse * expr_to_test_for_zero - 1, where (addr_l[i] - 0xfffc) is tested for zero
-    // and where inverse is stored as rotation of addr_l.
-    array::new(50, |i| {
-        first_step * (helper[i] - (addr_l[i]' * (addr_l[i] - 0xfffc) - 1)) = 0
+    // First step
+    // Keep same value for addr_l
+    array::map(addr_l, |l| {
+        first_step * (l' - l) = 0
     });
 
-    // Inverse constraint that (inverse * expr_to_test_for_zero - 1) * expr_to_test_for_zero = 0.
-    array::new(50, |i| {
-        first_step * helper[i] * (addr_l[i] - 0xfffc) = 0
+    // Constrain carry (addr_h') and addr_h
+    array::new(49, |i| {
+        first_step * (addr_h[i + 1] - addr_h[i] - addr_h[i]') = 0
     });
 
-    // Carry is stored as rotation of addr_h.
-    // Constrain that carry + inverse * expr_to_test_for_zero - 1 = 0,
-    // so that if addr_l = 0xfffc (addr_h will be incremented by 1),
-    // then carry must be 1, or carry must be 0 in all other cases.
-    array::zip(addr_h, addr_l, |h, l| {
-        first_step * (h' + l' * (l - 0xfffc) - 1) = 0
-    });
-
-    // Constrain that if carry = 0, then the next addr_l is reset to 0,
-    // else if carry = 1, then the next addr_l increments by 4.
+    // Constrain carry (addr_h') and addr_l
     array::new(49, |i| {
         first_step * (
             addr_h[i]' * addr_l[i + 1] +
@@ -104,10 +92,22 @@ machine Keccakf16Memory(mem: Memory) with
         ) = 0
     });
 
-    // Constrain that addr_h is always incremented by carry, whether carry is 0 or 1.
-    array::new(49, |i| {
-        first_step * (addr_h[i + 1] - addr_h[i] - addr_h[i]') = 0
+    // Second step
+    // Store addr_l * inverse (addr_h') to addr_l'
+    array::zip(addr_h, addr_l, |h, l| {
+        second_step * (l' - l * h') = 0
     });
+
+    // Constrain carry (addr_h), inverse (addr_h'), and addr_l
+    array::zip(addr_h, addr_l, |h, l| {
+        second_step * (h + h' * (l - 0xfffc) - 1) = 0
+    });
+
+    // Constrain inverse (addr_h') and addr_l, using addr_l * inverse (addr_l')
+    array::zip(addr_h, addr_l, |h, l| {
+        second_step * (l' - 0xfffc * h' - 1) * (l - 0xfffc) = 0
+    });
+
 
     // Address constraints for final step (output addresses)
     // Same as constraints for first step (input addresses),
@@ -356,6 +356,7 @@ machine Keccakf16Memory(mem: Memory) with
 
     let first_step: expr = step_flags[0]; // Aliasing instead of defining a new fixed column.
     let final_step: expr = step_flags[NUM_ROUNDS - 1];
+    let second_step: expr = step_flags[1];
     let penultimate_step: expr = step_flags[NUM_ROUNDS - 2];
     col fixed is_last = [0]* + [1];
 

@@ -34,7 +34,7 @@ pub struct DefaultSequenceIterator {
     progress_steps: Vec<SequenceStep>,
 }
 
-const MAX_ROUNDS_PER_ROW_DELTA: usize = 100;
+const MAX_ROUNDS_PER_ROW_DELTA: usize = 102;
 
 impl DefaultSequenceIterator {
     pub fn new(block_size: usize, identities_count: usize, outer_query_row: Option<i64>) -> Self {

@@ -1,6 +1,5 @@
 use std::machines::hash::keccakf16_memory::Keccakf16Memory;
 use std::machines::small_field::memory::Memory;
-use std::machines::small_field::add_sub::AddSub;
 use std::machines::range::Byte2;
 use std::machines::range::Bit12;
 
@@ -20,10 +19,9 @@ machine Main with degree: main_degree {
 
     Byte2 byte2;
     Bit12 bit12;
-    AddSub add_sub(byte2, add_sub_degree, add_sub_degree);
     Memory memory(bit12, byte2, memory_degree, memory_degree);
 
-    Keccakf16Memory keccakf16_memory(memory, add_sub, keccakf_memory_degree, keccakf_memory_degree);
+    Keccakf16Memory keccakf16_memory(memory, keccakf_memory_degree, keccakf_memory_degree);
 
     // Increase time step by 2 in each row, because keccakf16_memory reads in step `i` and writes in step `i + 1`.
     col fixed STEP(i) { 2 * i };

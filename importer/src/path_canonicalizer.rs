@@ -944,7 +944,10 @@ fn check_expression(
                     .try_for_each(|NamedExpression { name: _, body }| {
                         check_expression(location, body, state, type_vars, local_variables)
                     }),
-                Err(e) => Err(source_ref.with_error(e)),
+                Err(e) => Err(source_ref.with_error(format!(
+                    "Could not resolve struct path `{}`: {}",
+                    name.path, e
+                ))),
             }
         }
     }

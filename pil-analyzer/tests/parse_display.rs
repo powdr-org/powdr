@@ -908,6 +908,19 @@ fn intermediate_syntax() {
 }
 
 #[test]
+fn simple_struct_parsing() {
+    let input = "    struct Point {
+        x: int,
+        y: int,
+    }
+    let f: int -> Point = |i| Point{ x: 0_int, y: i };
+    let x: Point = f(0_int);
+";
+    let formatted = analyze_string(input).to_string();
+    assert_eq!(formatted, input);
+}
+
+#[test]
 #[should_panic = "Unrecognized token"]
 fn typed_literals_no_sep_fe() {
     analyze_string("let a = 1fe;");

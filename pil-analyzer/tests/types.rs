@@ -763,6 +763,66 @@ fn prover_functions() {
 }
 
 #[test]
+fn simple_struct() {
+    let input = "
+    struct Dot { x: int, y: int }
+    let f: int -> Dot = |i| Dot{x: 0, y: i};
+    let x = f(0);
+    ";
+    type_check(input, &[("x", "", "Dot")]);
+}
+
+#[test]
+fn simple_struct_type_arg() {
+    let input = "
+    struct Dot<T> { x: int, y: T }
+    
+    let f: int -> Dot<int> = |i| Dot{x: 0, y: i};
+    let n = 1;
+    let x = f(n);
+    
+    let m: bool = false;
+    let y = Dot{x: 0, y: m};
+    ";
+    type_check(input, &[("x", "", "Dot<int>"), ("y", "", "Dot<bool>")]);
+}
+
+#[test]
+fn simple_struct_type_arg_fn() {
+    let input = "
+    struct Dot<T> { x: int, y: T }
+    
+    let f = |i| Dot{x: 0, y: i};
+    let n: int = 1;
+    let x = f(n);
+    ";
+    type_check(input, &[("x", "", "Dot<int>")]);
+}
+
+#[test]
+#[should_panic = "Cannot unify types Dot<int> and Dot"]
+fn simple_struct_type_arg_fail() {
+    let input = "
+    struct Dot<T> { x: int, y: T }
+    
+    let f: int -> Dot = |i| Dot{x: 0, y: i};
+    let n = 1;
+    let x = f(n);
+    ";
+    type_check(input, &[]);
+}
+
+#[test]
+#[should_panic = "Expected symbol of kind Struct but got Value: x"]
+fn struct_in_var() {
+    let input = "
+    let x: int = 1;
+    let y = x{a: 2};
+        ";
+    type_check(input, &[]);
+}
+
+#[test]
 #[should_panic = "Struct symbol not found: NotADot"]
 fn wrong_struct() {
     let input = "
@@ -825,11 +885,31 @@ fn test_struct_repeated_fields_decl() {
 }
 
 #[test]
+#[should_panic(expected = "Value symbol not found: A::X")]
+fn struct_used_as_enum() {
+    let input = "
+    struct A { X: int }
+    let a = A::X(8);
+    ";
+    type_check(input, &[]);
+}
+
+#[test]
 #[should_panic(expected = "Expected symbol of kind Struct but got Type: A")]
 fn enum_used_as_struct() {
     let input = "
     enum A { X }
     let a = A{x: 8};
+    ";
+    type_check(input, &[]);
+}
+
+#[test]
+#[should_panic(expected = "Expected symbol of kind Struct but got TypeConstructor: A::X")]
+fn enum_variant_used_as_struct() {
+    let input = "
+    enum A { X }
+    let a = A::X{x: 8};
     ";
     type_check(input, &[]);
 }

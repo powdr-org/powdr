@@ -518,11 +518,13 @@ mod reparse {
     use test_log::test;
 
     /// Files that we don't expect to parse, analyze, and optimize without error.
-    const BLACKLIST: [&str; 4] = [
+    const BLACKLIST: [&str; 6] = [
         "asm/failing_assertion.asm",
         "asm/multi_return_wrong_assignment_register_length.asm",
         "asm/multi_return_wrong_assignment_registers.asm",
         "asm/permutations/incoming_needs_selector.asm",
+        "asm/enum_as_struct.asm",
+        "asm/struct_as_enum.asm",
     ];
 
     fn run_reparse_test(file: &str) {
@@ -771,6 +773,29 @@ fn generics_preservation() {
 fn trait_parsing() {
     // Should be expanded/renamed when traits functionality is fully implemented
     let f = "asm/trait_parsing.asm";
+    make_simple_prepared_pipeline::<GoldilocksField>(f);
+    // No need to generate a proof here.
+}
+
+#[test]
+fn simple_struct() {
+    let f = "asm/struct_parsing.asm";
+    make_simple_prepared_pipeline::<GoldilocksField>(f);
+    // No need to generate a proof here.
+}
+
+#[test]
+#[should_panic = "Could not resolve struct path `A::X`: symbol not found in `::`: `A`"]
+fn enum_as_struct() {
+    let f = "asm/enum_as_struct.asm";
+    make_simple_prepared_pipeline::<GoldilocksField>(f);
+    // No need to generate a proof here.
+}
+
+#[test]
+#[should_panic = "symbol not found in `::`: `A`"]
+fn struct_as_enum() {
+    let f = "asm/struct_as_enum.asm";
     make_simple_prepared_pipeline::<GoldilocksField>(f);
     // No need to generate a proof here.
 }

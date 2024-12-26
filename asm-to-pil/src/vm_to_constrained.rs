@@ -200,41 +200,34 @@ impl<T: FieldElement> VMConverter<T> {
                         let lhs = next_reference(name);
                         use RegisterTy::*;
                         match reg.ty {
-                            // Force pc to zero on first row.
-                            Pc => {
+                            // Force write registers and pc to zero on first row.
+                            Write | Pc => {
                                 // introduce an intermediate witness polynomial to keep the degree of polynomial identities at 2
                                 // this may not be optimal for backends which support higher degree constraints
-                                let pc_update_name = format!("{name}_update");
+                                let update_name = format!("{name}_update");
                                 vec![
-                                    witness_column(
-                                        SourceRef::unknown(),
-                                        pc_update_name.clone(),
-                                        None,
-                                    ),
+                                    witness_column(SourceRef::unknown(), update_name.clone(), None),
                                     PilStatement::Expression(
                                         SourceRef::unknown(),
-                                        build::identity(
-                                            direct_reference(pc_update_name.clone()),
-                                            rhs,
-                                        ),
+                                        build::identity(direct_reference(update_name.clone()), rhs),
                                     ),
                                     PilStatement::Expression(
                                         SourceRef::unknown(),
                                         build::identity(
                                             lhs,
                                             (Expression::from(1) - next_reference("first_step"))
-                                                * direct_reference(pc_update_name),
+                                                * direct_reference(update_name),
                                         ),
                                     ),
                                 ]
                             }
-                            // Un-constrain read-only registers when calling `_reset`
+                            // Un-constrain read-only registers when calling `_jump_to_operation`
                             ReadOnly => {
-                                let not_reset: Expression =
-                                    Expression::from(1) - direct_reference("instr__reset");
+                                let not_jump_to_operation: Expression = Expression::from(1)
+                                    - direct_reference("instr__jump_to_operation");
                                 vec![PilStatement::Expression(
                                     SourceRef::unknown(),
-                                    build::identity(not_reset * (lhs - rhs), 0.into()),
+                                    build::identity(not_jump_to_operation * (lhs - rhs), 0.into()),
                                 )]
                             }
                             _ => {
@@ -1135,7 +1128,11 @@ impl<T: FieldElement> VMConverter<T> {
     }
 
     fn return_instruction(&self) -> parsed::asm::Instruction {
-        return_instruction(self.output_count, self.pc_name.as_ref().unwrap())
+        return_instruction(
+            self.output_count,
+            self.pc_name.as_ref().unwrap(),
+            self.write_register_names().map(|s| s.as_str()),
+        )
     }
 
     /// Return an expression of degree at most 1 whose value matches that of `expr`.

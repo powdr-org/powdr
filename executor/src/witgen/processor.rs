@@ -422,7 +422,7 @@ Known values in current row (local: {row_index}, global {global_row_index}):
     }
 
     /// Sets the inputs to the values given in [VmProcessor::inputs] if they are not already set.
-    /// Typically, inputs will have a constraint of the form: `((1 - instr__reset) * (_input' - _input)) = 0;`
+    /// Typically, inputs will have a constraint of the form: `((1 - instr__jump_to_operation) * (_input' - _input)) = 0;`
     /// So, once the value of `_input` is set, this function will do nothing until the next reset instruction.
     /// However, if `_input` does become unconstrained, we need to undo all changes we've done so far.
     /// For this reason, we keep track of all changes we've done to inputs in [Processor::previously_set_inputs].

@@ -1,5 +1,7 @@
 use powdr::backend::BackendType;
 use powdr::number::buffered_write_file;
+use powdr::pipeline::pipeline::DegreeMode;
+use powdr::pipeline::pipeline::LinkerParams;
 use powdr::Bn254Field;
 use powdr::Pipeline;
 
@@ -13,6 +15,10 @@ pub fn halo2_pipeline(
 ) {
     // Straightforward case
     let _proof = Pipeline::<Bn254Field>::default()
+        .with_linker_params(LinkerParams {
+            degree_mode: DegreeMode::Monolithic,
+            ..Default::default()
+        })
         .from_file(pil.into())
         .with_prover_inputs(prover_inputs.clone())
         .with_backend(BackendType::Halo2, None)
@@ -32,6 +38,10 @@ pub fn halo2_pipeline(
 
     // Configure a pipeline
     let mut pipeline = Pipeline::<Bn254Field>::default()
+        .with_linker_params(LinkerParams {
+            degree_mode: DegreeMode::Monolithic,
+            ..Default::default()
+        })
         .from_file(pil.into())
         .with_prover_inputs(prover_inputs)
         .with_backend(BackendType::Halo2, None)
@@ -50,6 +60,10 @@ pub fn halo2_pipeline(
 
     // Create yet another fresh pipeline only for proof verification
     let mut pipeline = pipeline
+        .with_linker_params(LinkerParams {
+            degree_mode: DegreeMode::Monolithic,
+            ..Default::default()
+        })
         .with_backend(BackendType::Halo2, None)
         .with_setup_file(Some("params.bin".into()))
         .with_vkey_file(Some("vkey.bin".into()));

@@ -175,7 +175,9 @@ machine_instances! {
 /// proof initialization.
 ///
 /// TODO: get this value from some authoritative place
-const PC_INITIAL_VAL: usize = 2;
+const PC_INITIAL_VAL: usize = 1;
+
+const MAIN_OPERATION_ID: usize = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Elem<F: FieldElement> {
@@ -402,7 +404,7 @@ impl<F: FieldElement> ExecutionTrace<F> {
         let cols: HashMap<String, _> = witness_cols
             .into_iter()
             .filter(|n| n.starts_with("main::"))
-            .map(|n| (n, vec![F::zero(), F::zero()]))
+            .map(|n| (n, vec![]))
             .collect();
 
         ExecutionTrace {
@@ -778,17 +780,6 @@ mod builder {
             self.regs[idx as usize] = value;
         }
 
-        pub fn set_col_idx(&mut self, name: &str, idx: usize, value: Elem<F>) {
-            if let ExecMode::Trace = self.mode {
-                let col = self
-                    .trace
-                    .cols
-                    .get_mut(name)
-                    .unwrap_or_else(|| panic!("col not found: {name}"));
-                *col.get_mut(idx).unwrap() = value.into_fe();
-            }
-        }
-
         pub fn set_col(&mut self, name: &str, value: Elem<F>) {
             if let ExecMode::Trace = self.mode {
                 let col = self
@@ -1145,23 +1136,12 @@ struct Executor<'a, 'b, F: FieldElement> {
 
 impl<F: FieldElement> Executor<'_, '_, F> {
     fn init(&mut self) {
-        self.step = 4;
-        for i in 0..2 {
-            for (fixed, col) in &self.program_cols {
-                let val = Elem::Field(
-                    *self
-                        .get_fixed(fixed)
-                        .unwrap_or(&Vec::new())
-                        .get(i as usize)
-                        .unwrap_or(&F::zero()),
-                );
-                self.proc.set_col_idx(col, i as usize, val);
-            }
-            self.proc
-                .set_col_idx("main::_operation_id", i as usize, 2.into());
-            self.proc
-                .set_col_idx("main::pc_update", i as usize, (i + 1).into());
-        }
+        self.step = 0;
+        self.proc.push_row();
+        self.set_program_columns(0);
+        self.proc
+            .set_col("main::_operation_id", MAIN_OPERATION_ID.into());
+        self.proc.set_col("main::pc_update", 1.into());
     }
 
     fn get_fixed(&self, name: &str) -> Option<&Vec<F>> {
@@ -1215,6 +1195,7 @@ impl<F: FieldElement> Executor<'_, '_, F> {
         self.proc.set_reg_mem(reg, val);
     }
 
+    /// update current row with the program definition for the given PC
     fn set_program_columns(&mut self, pc: u32) {
         if let ExecMode::Trace = self.mode {
             // set witness from the program definition
@@ -1228,7 +1209,8 @@ impl<F: FieldElement> Executor<'_, '_, F> {
                 );
                 self.proc.set_col(col, val);
             }
-            self.proc.set_col("main::_operation_id", 2.into());
+            self.proc
+                .set_col("main::_operation_id", MAIN_OPERATION_ID.into());
         }
     }
 
@@ -2935,8 +2917,14 @@ fn execute_inner<F: FieldElement>(
 
         curr_pc = match e.proc.advance() {
             Some(pc) => {
-                // We set pc_update=PC here, after the PC has been updated but before "pushing" the next row
+                // We set the PC and write register update columns here, after
+                // the registers have been writen but before "pushing" the next
+                // row
                 e.proc.set_col("main::pc_update", e.proc.get_pc());
+                e.proc
+                    .set_col("main::query_arg_1_update", e.proc.get_reg("query_arg_1"));
+                e.proc
+                    .set_col("main::query_arg_2_update", e.proc.get_reg("query_arg_2"));
                 pc
             }
             None => break,
@@ -2950,22 +2938,16 @@ fn execute_inner<F: FieldElement>(
     if let ExecMode::Trace = mode {
         let sink_id = e.sink_id();
 
-        // reset
+        // jump_to_operation
         e.proc.set_col("main::pc_update", 0.into());
         e.proc.set_pc(0.into());
-        assert!(e.proc.advance().is_none());
-        e.proc.push_row();
-        e.set_program_columns(0);
-        e.proc.set_col("main::_operation_id", sink_id.into());
-
-        // jump_to_operation
-        e.proc.set_col("main::pc_update", 1.into());
-        e.proc.set_pc(1.into());
+        e.proc.set_col("main::query_arg_1_update", 0.into());
         e.proc.set_reg("query_arg_1", 0);
+        e.proc.set_col("main::query_arg_2_update", 0.into());
         e.proc.set_reg("query_arg_2", 0);
         assert!(e.proc.advance().is_none());
         e.proc.push_row();
-        e.set_program_columns(1);
+        e.set_program_columns(0);
         e.proc.set_col("main::_operation_id", sink_id.into());
 
         // loop

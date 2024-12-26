@@ -17,7 +17,7 @@ use powdr_parser_util::SourceRef;
 
 use crate::common::{instruction_flag, RETURN_NAME};
 use crate::{
-    common::{input_at, output_at, RESET_NAME},
+    common::{input_at, output_at},
     utils::{
         parse_function_statement, parse_instruction_definition, parse_pil_statement,
         parse_register_declaration,
@@ -72,14 +72,6 @@ pub fn generate_machine_rom<T: FieldElement>(mut machine: Machine) -> (Machine, 
             parse_instruction_definition(&format!(
                 "instr _jump_to_operation {{ {pc}' = {operation_id} }}",
             )),
-            parse_instruction_definition(&format!(
-                "instr {RESET_NAME} {{ {} }}",
-                machine
-                    .write_register_names()
-                    .map(|w| format!("{w}' = 0"))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )),
             parse_instruction_definition(&format!("instr _loop {{ {pc}' = {pc} }}")),
         ];
 
@@ -91,15 +83,13 @@ pub fn generate_machine_rom<T: FieldElement>(mut machine: Machine) -> (Machine, 
         let mut rom: Vec<Batch> = vec![];
 
         // add the beginning of the dispatcher
-        rom.extend(vec![
+        rom.push(
             Batch::from(vec![
                 parse_function_statement("_powdr_start:"),
-                parse_function_statement(&format!("{RESET_NAME};")),
+                parse_function_statement("_jump_to_operation;"),
             ])
-            .reason(IncompatibleSet::from(Incompatible::Unimplemented)),
-            Batch::from(vec![parse_function_statement("_jump_to_operation;")])
-                .reason(IncompatibleSet::from(Incompatible::Label)),
-        ]);
+            .reason(IncompatibleSet::from(Incompatible::Label)),
+        );
 
         // the number of inputs is the max of the number of inputs needed in each function
         let input_count = machine
@@ -291,8 +281,6 @@ mod tests {
                 .replace('\t', "    "),
             r#"
 _powdr_start:
-_reset;
-// END BATCH Unimplemented
 _jump_to_operation;
 // END BATCH Label
 _sink:
@@ -329,8 +317,6 @@ _loop;
                 .replace('\t', "    "),
             r#"
 _powdr_start:
-_reset;
-// END BATCH Unimplemented
 _jump_to_operation;
 // END BATCH Label
 _identity:
@@ -388,8 +374,6 @@ _loop;
                 .replace('\t', "    "),
             r#"
 _powdr_start:
-_reset;
-// END BATCH Unimplemented
 _jump_to_operation;
 // END BATCH Label
 _f_add:

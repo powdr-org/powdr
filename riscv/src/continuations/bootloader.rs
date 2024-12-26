@@ -135,14 +135,13 @@ pub const PC_INDEX: usize = REGISTER_MEMORY_NAMES.len() + REGISTER_NAMES.len() -
 ///
 /// The value is 3, because we added a jump instruction at the beginning of the code.
 /// Specifically, the first instructions are:
-/// 0: reset
-/// 1: jump_to_operation
-/// 2: jump submachine_init
-/// 3: jump computation_start
-pub const DEFAULT_PC: u64 = 3;
+/// 0: jump_to_operation
+/// 1: jump submachine_init
+/// 2: jump computation_start
+pub const DEFAULT_PC: u64 = 2;
 
 /// Analogous to the `DEFAULT_PC`, this well-known PC jumps to the shutdown routine.
-pub const SHUTDOWN_START: u64 = 4;
+pub const SHUTDOWN_START: u64 = 3;
 
 /// Helper struct to construct the bootloader inputs, placing each element in
 /// its correct position.

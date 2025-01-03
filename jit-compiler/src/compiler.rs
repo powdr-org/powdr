@@ -2,6 +2,8 @@ use mktemp::Temp;
 use std::{
     env,
     fs::{self},
+    hash::{DefaultHasher, Hash, Hasher},
+    path::PathBuf,
     process::Command,
     str::from_utf8,
     sync::Arc,
@@ -209,46 +211,59 @@ fn cargo_toml() -> String {
     }
 }
 
+fn hash_string(input: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    input.hash(&mut hasher);
+    hasher.finish()
+}
+
 /// Compiles the given code and returns the path to the
 /// temporary directory containing the compiled library
 /// and the path to the compiled library.
 pub fn call_cargo(code: &str) -> Result<PathInTempDir, String> {
-    let dir = mktemp::Temp::new_dir().unwrap();
-    fs::write(dir.join("Cargo.toml"), cargo_toml()).unwrap();
-    fs::create_dir(dir.join("src")).unwrap();
-    fs::write(dir.join("src").join("lib.rs"), code).unwrap();
-    let output_asm = false;
-    let out = Command::new("cargo")
-        .env(
-            "RUSTFLAGS",
-            format!(
-                "-C target-cpu=native{}",
-                if output_asm { " --emit asm" } else { "" }
-            ),
-        )
-        .arg("build")
-        .arg("--release")
-        .current_dir(dir.clone())
-        .output()
-        .unwrap();
-    if !out.status.success() {
-        if log::log_enabled!(log::Level::Debug) {
-            let stderr = from_utf8(&out.stderr).unwrap_or("UTF-8 error in error message.");
-            return Err(format!(
+    let tmp = mktemp::Temp::new_dir().unwrap();
+    let dir = PathBuf::from(format!("../cargo_dir/{}", hash_string(code)));
+    if !dir.exists() {
+        log::debug!("Compiling JIT code with cargo. ({})", dir.display());
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("Cargo.toml"), cargo_toml()).unwrap();
+        fs::create_dir(dir.join("src")).unwrap();
+        fs::write(dir.join("src").join("lib.rs"), code).unwrap();
+        let output_asm = false;
+        let out = Command::new("cargo")
+            .env(
+                "RUSTFLAGS",
+                format!(
+                    "-C target-cpu=native{}",
+                    if output_asm { " --emit asm" } else { "" }
+                ),
+            )
+            .arg("build")
+            .arg("--release")
+            .current_dir(dir.clone())
+            .output()
+            .unwrap();
+        if !out.status.success() {
+            if log::log_enabled!(log::Level::Debug) {
+                let stderr = from_utf8(&out.stderr).unwrap_or("UTF-8 error in error message.");
+                return Err(format!(
                 "Rust compiler error when JIT-compiling. Will use interpreter instead. Error message:\n{stderr}."
             ));
-        } else {
-            return Err("Rust compiler error when JIT-compiling. Will use interpreter instead. Set log level to DEBUG for reason.".to_string());
+            } else {
+                return Err("Rust compiler error when JIT-compiling. Will use interpreter instead. Set log level to DEBUG for reason.".to_string());
+            }
         }
-    }
-    #[allow(clippy::print_stdout)]
-    if output_asm {
-        let asm_file = dir
-            .join("target")
-            .join("release")
-            .join("deps")
-            .join("powdr_jit_compiled.s");
-        println!("{}", fs::read_to_string(&asm_file).unwrap());
+        #[allow(clippy::print_stdout)]
+        if output_asm {
+            let asm_file = dir
+                .join("target")
+                .join("release")
+                .join("deps")
+                .join("powdr_jit_compiled.s");
+            println!("{}", fs::read_to_string(&asm_file).unwrap());
+        }
+    } else {
+        log::debug!("Reusing cached JIT code. ({})", dir.display());
     }
     let extension = if cfg!(target_os = "windows") {
         "dll"
@@ -262,7 +277,7 @@ pub fn call_cargo(code: &str) -> Result<PathInTempDir, String> {
         .join("release")
         .join(format!("libpowdr_jit_compiled.{extension}"));
     Ok(PathInTempDir {
-        dir,
+        dir: tmp,
         path: lib_path.to_str().unwrap().to_string(),
     })
 }

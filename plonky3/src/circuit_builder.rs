@@ -23,6 +23,7 @@ use crate::{
 use p3_air::{Air, BaseAir, PairBuilder};
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use powdr_ast::analyzed::{
+    expression_evaluator::{ExpressionEvaluator, TerminalAccess},
     AlgebraicExpression, AlgebraicReference, AlgebraicReferenceThin, Analyzed, Challenge, Identity,
     PolyID, PolynomialType,
 };
@@ -30,10 +31,7 @@ use powdr_ast::analyzed::{
 use crate::{CallbackResult, MultiStageAir, MultistageAirBuilder};
 use powdr_ast::parsed::visitor::ExpressionVisitable;
 
-use powdr_executor_utils::{
-    expression_evaluator::{ExpressionEvaluator, TerminalAccess},
-    WitgenCallback,
-};
+use powdr_executor_utils::WitgenCallback;
 use powdr_number::FieldElement;
 
 /// A description of the constraint system.

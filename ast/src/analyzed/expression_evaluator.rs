@@ -1,7 +1,8 @@
 use core::ops::{Add, Mul, Sub};
 use std::collections::BTreeMap;
+use std::ops::Neg;
 
-use powdr_ast::analyzed::{
+use crate::analyzed::{
     AlgebraicBinaryOperation, AlgebraicBinaryOperator, AlgebraicExpression as Expression,
     AlgebraicReference, AlgebraicReferenceThin, AlgebraicUnaryOperation, AlgebraicUnaryOperator,
     Analyzed, Challenge, PolyID, PolynomialType,
@@ -104,47 +105,44 @@ impl<F: FieldElement, T: From<F>> TerminalAccess<T> for RowValues<'_, F> {
     }
 }
 
+pub trait ExpressionWalkerCallback<F, T> {
+    fn handle_binary_operation(
+        &self,
+        left: T,
+        op: &AlgebraicBinaryOperator,
+        right: T,
+        right_expr: &Expression<F>,
+    ) -> T;
+    fn handle_unary_operation(&self, op: &AlgebraicUnaryOperator, arg: T) -> T;
+    fn handle_number(&self, fe: &F) -> T;
+}
+
 /// Evaluates an algebraic expression to a value.
-pub struct ExpressionEvaluator<'a, T, Expr, TA> {
+pub struct ExpressionWalker<'a, T, Expr, TA, C> {
     terminal_access: TA,
     intermediate_definitions: &'a BTreeMap<AlgebraicReferenceThin, Expression<T>>,
     /// Maps intermediate reference to their evaluation. Updated throughout the lifetime of the
     /// ExpressionEvaluator.
     intermediates_cache: BTreeMap<AlgebraicReferenceThin, Expr>,
-    to_expr: fn(&T) -> Expr,
+    callback: C,
 }
 
-impl<'a, T, TA> ExpressionEvaluator<'a, T, T, TA>
+impl<'a, T, Expr: Clone, TA, C> ExpressionWalker<'a, T, Expr, TA, C>
 where
-    TA: TerminalAccess<T>,
-    T: FieldElement,
+    TA: TerminalAccess<Expr>,
+    C: ExpressionWalkerCallback<T, Expr>,
 {
-    /// Create a new expression evaluator (for the case where Expr = T).
+    /// Create a new expression evaluator with custom expression converters.
     pub fn new(
         terminal_access: TA,
         intermediate_definitions: &'a BTreeMap<AlgebraicReferenceThin, Expression<T>>,
-    ) -> Self {
-        Self::new_with_custom_expr(terminal_access, intermediate_definitions, |x| *x)
-    }
-}
-
-impl<'a, T, Expr, TA> ExpressionEvaluator<'a, T, Expr, TA>
-where
-    TA: TerminalAccess<Expr>,
-    Expr: Clone + Add<Output = Expr> + Sub<Output = Expr> + Mul<Output = Expr>,
-    T: FieldElement,
-{
-    /// Create a new expression evaluator with custom expression converters.
-    pub fn new_with_custom_expr(
-        terminal_access: TA,
-        intermediate_definitions: &'a BTreeMap<AlgebraicReferenceThin, Expression<T>>,
-        to_expr: fn(&T) -> Expr,
+        callback: C,
     ) -> Self {
         Self {
             terminal_access,
             intermediate_definitions,
             intermediates_cache: Default::default(),
-            to_expr,
+            callback,
         }
     }
 
@@ -168,24 +166,99 @@ where
                 }
             },
             Expression::PublicReference(public) => self.terminal_access.get_public(public),
-            Expression::Number(n) => (self.to_expr)(n),
-            Expression::BinaryOperation(AlgebraicBinaryOperation { left, op, right }) => match op {
-                AlgebraicBinaryOperator::Add => self.evaluate(left) + self.evaluate(right),
-                AlgebraicBinaryOperator::Sub => self.evaluate(left) - self.evaluate(right),
-                AlgebraicBinaryOperator::Mul => self.evaluate(left) * self.evaluate(right),
-                AlgebraicBinaryOperator::Pow => match &**right {
-                    Expression::Number(n) => {
-                        let left = self.evaluate(left);
-                        (0u32..n.to_integer().try_into_u32().unwrap())
-                            .fold((self.to_expr)(&T::one()), |acc, _| acc * left.clone())
-                    }
-                    _ => unimplemented!("pow with non-constant exponent"),
-                },
-            },
-            Expression::UnaryOperation(AlgebraicUnaryOperation { op, expr }) => match op {
-                AlgebraicUnaryOperator::Minus => self.evaluate(expr),
-            },
             Expression::Challenge(challenge) => self.terminal_access.get_challenge(challenge),
+            Expression::Number(n) => self.callback.handle_number(n),
+            Expression::BinaryOperation(AlgebraicBinaryOperation { left, op, right }) => {
+                let left_value = self.evaluate(left);
+                let right_value = self.evaluate(right);
+                self.callback
+                    .handle_binary_operation(left_value, op, right_value, right)
+            }
+            Expression::UnaryOperation(AlgebraicUnaryOperation { op, expr }) => {
+                let arg = self.evaluate(expr);
+                self.callback.handle_unary_operation(op, arg)
+            }
         }
+    }
+}
+
+struct EvaluatorCallback<F, T> {
+    to_expr: fn(&F) -> T,
+}
+
+impl<F, Expr> ExpressionWalkerCallback<F, Expr> for EvaluatorCallback<F, Expr>
+where
+    Expr: Clone + Add<Output = Expr> + Sub<Output = Expr> + Mul<Output = Expr> + Neg<Output = Expr>,
+    F: FieldElement,
+{
+    fn handle_binary_operation(
+        &self,
+        left: Expr,
+        op: &AlgebraicBinaryOperator,
+        right: Expr,
+        right_expr: &Expression<F>,
+    ) -> Expr {
+        match op {
+            AlgebraicBinaryOperator::Add => left + right,
+            AlgebraicBinaryOperator::Sub => left - right,
+            AlgebraicBinaryOperator::Mul => left * right,
+            AlgebraicBinaryOperator::Pow => match right_expr {
+                Expression::Number(n) => (0u32..n.to_integer().try_into_u32().unwrap())
+                    .fold((self.to_expr)(&F::one()), |acc, _| acc * left.clone()),
+                _ => unimplemented!("pow with non-constant exponent"),
+            },
+        }
+    }
+
+    fn handle_unary_operation(&self, op: &AlgebraicUnaryOperator, arg: Expr) -> Expr {
+        match op {
+            AlgebraicUnaryOperator::Minus => -arg,
+        }
+    }
+
+    fn handle_number(&self, fe: &F) -> Expr {
+        (self.to_expr)(fe)
+    }
+}
+
+/// Evaluates an algebraic expression to a value.
+pub struct ExpressionEvaluator<'a, T, Expr, TA> {
+    expression_walker: ExpressionWalker<'a, T, Expr, TA, EvaluatorCallback<T, Expr>>,
+}
+
+impl<'a, T, TA> ExpressionEvaluator<'a, T, T, TA>
+where
+    TA: TerminalAccess<T>,
+    T: FieldElement,
+{
+    /// Create a new expression evaluator (for the case where Expr = T).
+    pub fn new(
+        terminal_access: TA,
+        intermediate_definitions: &'a BTreeMap<AlgebraicReferenceThin, Expression<T>>,
+    ) -> Self {
+        Self::new_with_custom_expr(terminal_access, intermediate_definitions, |x| *x)
+    }
+}
+
+impl<'a, T, Expr, TA> ExpressionEvaluator<'a, T, Expr, TA>
+where
+    TA: TerminalAccess<Expr>,
+    Expr: Clone + Add<Output = Expr> + Sub<Output = Expr> + Mul<Output = Expr> + Neg<Output = Expr>,
+    T: FieldElement,
+{
+    /// Create a new expression evaluator with custom expression converters.
+    pub fn new_with_custom_expr(
+        terminal_access: TA,
+        intermediate_definitions: &'a BTreeMap<AlgebraicReferenceThin, Expression<T>>,
+        to_expr: fn(&T) -> Expr,
+    ) -> Self {
+        let callback = EvaluatorCallback { to_expr };
+        let expression_walker =
+            ExpressionWalker::new(terminal_access, intermediate_definitions, callback);
+        Self { expression_walker }
+    }
+
+    pub fn evaluate(&mut self, expr: &'a Expression<T>) -> Expr {
+        self.expression_walker.evaluate(expr)
     }
 }

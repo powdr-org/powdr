@@ -456,7 +456,11 @@ impl<'a, T: FieldElement> MachineParts<'a, T> {
         let identities_with_next_reference = self
             .identities
             .iter()
-            .filter_map(|identity| identity.contains_next_ref().then_some(*identity))
+            .filter_map(|identity| {
+                identity
+                    .contains_next_ref(&self.fixed_data.intermediate_definitions)
+                    .then_some(*identity)
+            })
             .collect::<Vec<_>>();
         Self {
             identities: identities_with_next_reference,

@@ -334,7 +334,7 @@ Known values in current row (local: {row_index}, global {global_row_index}):
 ",
                     self.data[row_index].render_values(false, self.parts)
                 );
-                if identity.contains_next_ref() {
+                if identity.contains_next_ref(&self.fixed_data.intermediate_definitions) {
                     error += &format!(
                         "Known values in next row (local: {}, global {}):\n{}\n",
                         row_index + 1,

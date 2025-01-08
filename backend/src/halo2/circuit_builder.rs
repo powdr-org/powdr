@@ -15,10 +15,10 @@ use powdr_executor::witgen::WitgenCallback;
 
 use powdr_ast::analyzed::Analyzed;
 use powdr_ast::analyzed::{
+    expression_evaluator::{ExpressionEvaluator, TerminalAccess},
     AlgebraicExpression, AlgebraicReferenceThin, Identity, PolynomialIdentity, PolynomialType,
     SelectedExpressions,
 };
-use powdr_executor_utils::expression_evaluator::{ExpressionEvaluator, TerminalAccess};
 use powdr_number::FieldElement;
 
 const FIRST_STEP_NAME: &str = "__first_step";

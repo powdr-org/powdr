@@ -6,8 +6,6 @@ use std::sync::Arc;
 
 use powdr_number::{DegreeType, FieldElement};
 
-pub mod expression_evaluator;
-
 /// A callback that computes an updated witness, given:
 /// - The PIL for the current machine.
 /// - The current witness.

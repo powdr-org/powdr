@@ -4,17 +4,14 @@ use std::fmt;
 use std::ops::ControlFlow;
 
 use itertools::Itertools;
-use powdr_ast::analyzed::AlgebraicExpression;
-use powdr_ast::analyzed::Analyzed;
 use powdr_ast::analyzed::{
-    Identity, LookupIdentity, PermutationIdentity, PhantomLookupIdentity,
-    PhantomPermutationIdentity, SelectedExpressions,
+    expression_evaluator::{ExpressionEvaluator, TerminalAccess},
+    AlgebraicExpression, Analyzed, Identity, LookupIdentity, PermutationIdentity,
+    PhantomLookupIdentity, PhantomPermutationIdentity, SelectedExpressions,
 };
 use powdr_ast::parsed::visitor::ExpressionVisitable;
 use powdr_ast::parsed::visitor::VisitOrder;
 use powdr_backend_utils::referenced_namespaces_algebraic_expression;
-use powdr_executor_utils::expression_evaluator::ExpressionEvaluator;
-use powdr_executor_utils::expression_evaluator::TerminalAccess;
 use powdr_number::FieldElement;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;

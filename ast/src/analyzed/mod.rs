@@ -9,6 +9,7 @@ use std::iter::{self, empty, once};
 use std::ops::{self, ControlFlow};
 use std::sync::Arc;
 
+use expression_evaluator::{ExpressionWalker, ExpressionWalkerCallback, TerminalAccess};
 use itertools::Itertools;
 use num_traits::One;
 use powdr_number::{DegreeType, FieldElement};
@@ -24,6 +25,8 @@ use crate::parsed::{
     self, ArrayExpression, EnumDeclaration, EnumVariant, NamedType, SourceReference,
     TraitDeclaration, TraitImplementation, TypeDeclaration,
 };
+
+pub mod expression_evaluator;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub enum StatementIdentifier {
@@ -1048,18 +1051,55 @@ pub enum Identity<T> {
     PhantomBusInteraction(PhantomBusInteractionIdentity<T>),
 }
 
+struct NextRefCallback();
+impl<T> ExpressionWalkerCallback<T, bool> for &NextRefCallback {
+    fn handle_binary_operation(
+        &self,
+        left: bool,
+        _op: &AlgebraicBinaryOperator,
+        right: bool,
+        _right_expr: &AlgebraicExpression<T>,
+    ) -> bool {
+        left || right
+    }
+
+    fn handle_unary_operation(&self, _op: &AlgebraicUnaryOperator, arg: bool) -> bool {
+        arg
+    }
+
+    fn handle_number(&self, _fe: &T) -> bool {
+        false
+    }
+}
+impl TerminalAccess<bool> for &NextRefCallback {
+    fn get(&self, poly_ref: &AlgebraicReference) -> bool {
+        poly_ref.next
+    }
+    fn get_public(&self, _public: &str) -> bool {
+        false
+    }
+    fn get_challenge(&self, _challenge: &Challenge) -> bool {
+        false
+    }
+}
+
 impl<T> Identity<T> {
-    pub fn contains_next_ref(&self) -> bool {
-        self.children().any(|e| e.contains_next_ref())
+    pub fn contains_next_ref(
+        &self,
+        intermediate_definitions: &BTreeMap<AlgebraicReferenceThin, AlgebraicExpression<T>>,
+    ) -> bool {
+        let callback = NextRefCallback();
+        let mut expression_walker =
+            ExpressionWalker::new(&callback, intermediate_definitions, &callback);
+        self.children().any(|e| expression_walker.evaluate(e))
     }
 
     pub fn degree(
         &self,
-        intermediate_polynomials: &BTreeMap<AlgebraicReferenceThin, AlgebraicExpression<T>>,
+        intermediate_definitions: &BTreeMap<AlgebraicReferenceThin, AlgebraicExpression<T>>,
     ) -> usize {
-        let mut cache = BTreeMap::new();
         self.children()
-            .map(|e| e.degree_with_cache(intermediate_polynomials, &mut cache))
+            .map(|e| e.degree(intermediate_definitions))
             .max()
             .unwrap_or(0)
     }
@@ -1362,6 +1402,44 @@ impl<T: FieldElement> num_traits::One for AlgebraicExpression<T> {
     }
 }
 
+struct DegreeCallback();
+impl<T> ExpressionWalkerCallback<T, usize> for &DegreeCallback {
+    fn handle_binary_operation(
+        &self,
+        left: usize,
+        op: &AlgebraicBinaryOperator,
+        right: usize,
+        _right_expr: &AlgebraicExpression<T>,
+    ) -> usize {
+        match op {
+            AlgebraicBinaryOperator::Add | AlgebraicBinaryOperator::Sub => max(left, right),
+            AlgebraicBinaryOperator::Mul => left + right,
+            AlgebraicBinaryOperator::Pow => todo!(),
+        }
+    }
+
+    fn handle_unary_operation(&self, _op: &AlgebraicUnaryOperator, arg: usize) -> usize {
+        arg
+    }
+
+    fn handle_number(&self, _fe: &T) -> usize {
+        0
+    }
+}
+impl TerminalAccess<usize> for &DegreeCallback {
+    fn get(&self, _poly_ref: &AlgebraicReference) -> usize {
+        1
+    }
+
+    fn get_public(&self, _public: &str) -> usize {
+        0
+    }
+
+    fn get_challenge(&self, _challenge: &Challenge) -> usize {
+        0
+    }
+}
+
 impl<T> AlgebraicExpression<T> {
     /// Returns an iterator over all (top-level) expressions in this expression.
     /// This specifically does not implement Children because otherwise it would
@@ -1428,42 +1506,14 @@ impl<T> AlgebraicExpression<T> {
     }
 
     /// Returns the degree of the expressions
-    pub fn degree_with_cache(
+    pub fn degree(
         &self,
         intermediate_definitions: &BTreeMap<AlgebraicReferenceThin, AlgebraicExpression<T>>,
-        cache: &mut BTreeMap<AlgebraicReferenceThin, usize>,
     ) -> usize {
-        match self {
-            AlgebraicExpression::Reference(reference) => match reference.poly_id.ptype {
-                PolynomialType::Committed | PolynomialType::Constant => 1,
-                PolynomialType::Intermediate => {
-                    let reference = reference.to_thin();
-                    cache.get(&reference).cloned().unwrap_or_else(|| {
-                        let def = intermediate_definitions
-                            .get(&reference)
-                            .expect("Intermediate definition not found.");
-                        let result = def.degree_with_cache(intermediate_definitions, cache);
-                        cache.insert(reference, result);
-                        result
-                    })
-                }
-            },
-            // Multiplying two expressions adds their degrees
-            AlgebraicExpression::BinaryOperation(AlgebraicBinaryOperation {
-                op: AlgebraicBinaryOperator::Mul,
-                left,
-                right,
-            }) => {
-                left.degree_with_cache(intermediate_definitions, cache)
-                    + right.degree_with_cache(intermediate_definitions, cache)
-            }
-            // In all other cases, we take the maximum of the degrees of the children
-            _ => self
-                .children()
-                .map(|e| e.degree_with_cache(intermediate_definitions, cache))
-                .max()
-                .unwrap_or(0),
-        }
+        let callback = DegreeCallback();
+        let mut expression_walker =
+            ExpressionWalker::new(&callback, intermediate_definitions, &callback);
+        expression_walker.evaluate(self)
     }
 }
 
@@ -1731,33 +1781,30 @@ mod tests {
 
         // No intermediates
         let intermediate_definitions = Default::default();
-        let mut cache = Default::default();
 
         let expr = one.clone() + one.clone() * one.clone();
-        let degree = expr.degree_with_cache(&intermediate_definitions, &mut cache);
+        let degree = expr.degree(&intermediate_definitions);
         assert_eq!(degree, 0);
 
         let expr = column.clone() + one.clone() * one.clone();
-        let degree = expr.degree_with_cache(&intermediate_definitions, &mut cache);
+        let degree = expr.degree(&intermediate_definitions);
         assert_eq!(degree, 1);
 
         let expr = column.clone() + one.clone() * column.clone();
-        let degree = expr.degree_with_cache(&intermediate_definitions, &mut cache);
+        let degree = expr.degree(&intermediate_definitions);
         assert_eq!(degree, 1);
 
         let expr = column.clone() + column.clone() * column.clone();
-        let degree = expr.degree_with_cache(&intermediate_definitions, &mut cache);
+        let degree = expr.degree(&intermediate_definitions);
         assert_eq!(degree, 2);
 
         let expr = column.clone() + column.clone() * (column.clone() + one.clone());
-        let degree = expr.degree_with_cache(&intermediate_definitions, &mut cache);
+        let degree = expr.degree(&intermediate_definitions);
         assert_eq!(degree, 2);
 
         let expr = column.clone() * column.clone() * column.clone();
-        let degree = expr.degree_with_cache(&intermediate_definitions, &mut cache);
+        let degree = expr.degree(&intermediate_definitions);
         assert_eq!(degree, 3);
-
-        assert!(cache.is_empty());
     }
 
     #[test]
@@ -1787,27 +1834,26 @@ mod tests {
         let intermediate_definitions = [(column_squared_ref.to_thin(), column_squared.clone())]
             .into_iter()
             .collect();
-        let mut cache = Default::default();
 
         let expr = column_squared_intermediate.clone() + one.clone();
-        let degree = expr.degree_with_cache(&intermediate_definitions, &mut cache);
+        let degree = expr.degree(&intermediate_definitions);
         assert_eq!(degree, 2);
 
         let expr = column_squared_intermediate.clone() + column.clone();
-        let degree = expr.degree_with_cache(&intermediate_definitions, &mut cache);
+        let degree = expr.degree(&intermediate_definitions);
         assert_eq!(degree, 2);
 
         let expr = column_squared_intermediate.clone() * column_squared_intermediate.clone();
-        let degree = expr.degree_with_cache(&intermediate_definitions, &mut cache);
+        let degree = expr.degree(&intermediate_definitions);
         assert_eq!(degree, 4);
 
         let expr = column_squared_intermediate.clone()
             * (column_squared_intermediate.clone() + one.clone());
-        let degree = expr.degree_with_cache(&intermediate_definitions, &mut cache);
+        let degree = expr.degree(&intermediate_definitions);
         assert_eq!(degree, 4);
 
         let expr = column_squared_intermediate.clone() * column.clone();
-        let degree = expr.degree_with_cache(&intermediate_definitions, &mut cache);
+        let degree = expr.degree(&intermediate_definitions);
         assert_eq!(degree, 3);
     }
 

@@ -153,7 +153,12 @@ impl<'a, T: FieldElement> SingleStepProcessor<'a, T> {
                     continue;
                 }
                 // TODO this is wrong if intermediate columns are referenced.
-                let row_offset = if id.contains_next_ref() { 0 } else { 1 };
+                let row_offset = if id.contains_next_ref(&self.fixed_data.intermediate_definitions)
+                {
+                    0
+                } else {
+                    1
+                };
                 let result = witgen.process_identity(can_process.clone(), id, row_offset);
                 progress |= result.progress;
                 if result.complete {

@@ -1,10 +1,13 @@
 use std::collections::BTreeMap;
 
 use itertools::Itertools;
-use powdr_ast::analyzed::{AlgebraicExpression, AlgebraicReferenceThin, Analyzed};
+use powdr_ast::analyzed::{
+    expression_evaluator::OwnedTerminalValues, AlgebraicExpression, AlgebraicReferenceThin,
+    Analyzed,
+};
 use powdr_backend_utils::{machine_fixed_columns, machine_witness_columns};
 use powdr_executor::constant_evaluator::VariablySizedColumn;
-use powdr_executor_utils::{expression_evaluator::OwnedTerminalValues, WitgenCallback};
+use powdr_executor_utils::WitgenCallback;
 use powdr_number::{DegreeType, FieldElement};
 
 /// A collection of columns with self-contained constraints.

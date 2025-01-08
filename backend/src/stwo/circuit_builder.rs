@@ -1,12 +1,14 @@
 use core::unreachable;
 use powdr_ast::parsed::visitor::AllChildren;
-use powdr_executor_utils::expression_evaluator::{ExpressionEvaluator, TerminalAccess};
 use std::collections::HashSet;
 use std::sync::Arc;
 
 extern crate alloc;
 use alloc::collections::btree_map::BTreeMap;
-use powdr_ast::analyzed::{AlgebraicExpression, AlgebraicReference, Analyzed, Challenge, Identity};
+use powdr_ast::analyzed::{
+    expression_evaluator::{ExpressionEvaluator, TerminalAccess},
+    AlgebraicExpression, AlgebraicReference, Analyzed, Challenge, Identity,
+};
 use powdr_number::FieldElement;
 
 use powdr_ast::analyzed::{PolyID, PolynomialType};

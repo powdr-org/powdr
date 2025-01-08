@@ -3,11 +3,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use fp2::Fp2;
 use itertools::Itertools;
 use num_traits::{One, Zero};
-use powdr_ast::analyzed::{Analyzed, Identity, PhantomBusInteractionIdentity};
-use powdr_executor_utils::{
+use powdr_ast::analyzed::{
     expression_evaluator::{ExpressionEvaluator, OwnedTerminalValues},
-    VariablySizedColumn,
+    Analyzed, Identity, PhantomBusInteractionIdentity,
 };
+use powdr_executor_utils::VariablySizedColumn;
 use powdr_number::{DegreeType, FieldElement};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 

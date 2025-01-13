@@ -145,7 +145,7 @@ where
             .iter()
             .filter_map(|(namespace, pil)| {
                 // if we have no fixed columns, we don't need to commit to anything.
-                if pil.constant_count() == 0 {
+                if pil.constant_count()+pil.publics_count() == 0 {
                     None
                 } else {
                     let fixed_columns = machine_fixed_columns(&self.fixed, pil);
@@ -422,6 +422,7 @@ where
             &proof.constant_col_log_sizes,
             verifier_channel,
         );
+        print!("proof.stark_proof.commitments[PREPROCESSED]: {:?}", proof.stark_proof.commitments[PREPROCESSED_TRACE_IDX]);
         commitment_scheme.commit(
             proof.stark_proof.commitments[ORIGINAL_TRACE_IDX],
             &proof.witness_col_log_sizes,

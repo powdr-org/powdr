@@ -9,6 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 powdr-ast.workspace = true
+powdr-analysis.workspace = true
 powdr-executor.workspace = true
 powdr-number.workspace = true
 powdr-parser.workspace = true

@@ -14,12 +14,15 @@ use powdr::riscv::{CompilerOptions, RuntimeLibs};
 use powdr::riscv_executor::{write_executor_csv, ProfilerOptions};
 use powdr::Pipeline;
 
+use itertools::Itertools;
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::time::Instant;
 use std::{
     io::{self, Write},
     path::Path,
 };
+
 use strum::{Display, EnumString, EnumVariantNames};
 
 #[derive(Clone, EnumString, EnumVariantNames, Display)]
@@ -149,6 +152,10 @@ enum Commands {
         #[arg(long)]
         #[arg(default_value_t = false)]
         generate_callgrind: bool,
+
+        #[arg(long)]
+        #[arg(default_value_t = false)]
+        auto_precompiles: bool,
     },
     /// Execute and generate a valid witness for a RISCV powdr-asm file with the given inputs.
     Witgen {
@@ -280,6 +287,7 @@ fn run_command(command: Commands) {
             output_directory,
             generate_flamegraph,
             generate_callgrind,
+            auto_precompiles,
         } => {
             let profiling = if generate_callgrind || generate_flamegraph {
                 Some(ProfilerOptions {
@@ -294,12 +302,20 @@ fn run_command(command: Commands) {
             } else {
                 None
             };
-            call_with_field!(execute_fast::<field>(
-                Path::new(&file),
-                split_inputs(&inputs),
-                Path::new(&output_directory),
-                profiling
-            ))
+            if !auto_precompiles {
+                call_with_field!(execute_fast::<field>(
+                    Path::new(&file),
+                    split_inputs(&inputs),
+                    Path::new(&output_directory),
+                    profiling
+                ))
+            } else {
+                call_with_field!(autoprecompiles::<field>(
+                    Path::new(&file),
+                    split_inputs(&inputs),
+                    Path::new(&output_directory)
+                ))
+            }
         }
         Commands::Witgen {
             file,
@@ -392,17 +408,123 @@ fn execute_fast<F: FieldElement>(
 
     let start = Instant::now();
 
-    let trace_len = powdr::riscv_executor::execute::<F>(
+    let (trace_len, _) = powdr::riscv_executor::execute::<F>(
         &asm,
         powdr::riscv_executor::MemoryState::new(),
         pipeline.data_callback().unwrap(),
         &[],
         profiling,
+        Default::default(),
     );
 
     let duration = start.elapsed();
     log::info!("Executor done in: {:?}", duration);
     log::info!("Execution trace length: {}", trace_len);
+    Ok(())
+}
+
+fn autoprecompiles<F: FieldElement>(
+    file_name: &Path,
+    inputs: Vec<F>,
+    output_dir: &Path,
+) -> Result<(), Vec<String>> {
+    let mut pipeline = Pipeline::<F>::default()
+        .from_asm_file(file_name.to_path_buf())
+        .with_prover_inputs(inputs)
+        .with_backend(powdr::backend::BackendType::Plonky3Composite, None)
+        .with_output(output_dir.into(), true);
+
+    pipeline.compute_checked_asm().unwrap();
+    let checked_asm = pipeline.checked_asm().unwrap().clone();
+
+    let asm = pipeline.compute_analyzed_asm().unwrap().clone();
+    let initial_memory =
+        powdr::riscv::continuations::load_initial_memory(&asm, pipeline.initial_memory());
+
+    println!("Running powdr-riscv executor in fast mode...");
+    let start = Instant::now();
+
+    let (trace_len, label_freq) = powdr::riscv_executor::execute(
+        &asm,
+        initial_memory,
+        pipeline.data_callback().unwrap(),
+        &powdr::riscv::continuations::bootloader::default_input(&[]),
+        None,
+        Default::default(),
+    );
+
+    let duration = start.elapsed();
+    println!("Fast executor took: {duration:?}");
+    println!("Trace length: {trace_len}");
+
+    let blocks = powdr_analysis::collect_basic_blocks(&checked_asm);
+    let blocks = blocks
+        .into_iter()
+        .map(|(name, b)| {
+            let freq = label_freq.get(&name).unwrap_or(&0);
+            let l = b.len() as u64;
+            (name, b, freq, freq * l)
+        })
+        .sorted_by_key(|(_, _, _, cost)| std::cmp::Reverse(*cost))
+        .collect::<Vec<_>>();
+    for (name, block, freq, cost) in &blocks {
+        println!(
+            "{name}: size = {}, freq = {freq}, cost = {cost}",
+            block.len()
+        );
+    }
+
+    let dont_eq = vec!["__data_init", "main", "halt"];
+    let dont_contain = vec!["powdr_riscv_runtime", "page_ok"];
+    let selected: HashSet<String> = blocks
+        .iter()
+        .skip(0)
+        .filter(|(name, _, _, _)| {
+            !dont_eq.contains(&name.as_str()) && !dont_contain.iter().any(|s| name.contains(s))
+        })
+        .take(10)
+        .map(|block| block.0.clone())
+        .into_iter()
+        .collect();
+    let auto_asm = powdr_analysis::analyze_precompiles(checked_asm.clone(), &selected);
+
+    println!("New auto_asm:\n{auto_asm}");
+
+    println!("Selected blocks: {selected:?}");
+
+    let selected_blocks: HashMap<_, _> = blocks
+        .into_iter()
+        .filter(|(name, _, _, _)| selected.contains(name))
+        .map(|(name, block, _, _)| (name, block))
+        .collect();
+
+    pipeline.rollback_from_checked_asm();
+    pipeline.set_checked_asm(auto_asm);
+    let asm = pipeline.compute_analyzed_asm().unwrap().clone();
+    let initial_memory =
+        powdr::riscv::continuations::load_initial_memory(&asm, pipeline.initial_memory());
+
+    println!("Running powdr-riscv executor in fast mode with autoprecomiles...");
+    let start = Instant::now();
+
+    let (trace_len, _) = powdr::riscv_executor::execute(
+        &asm,
+        initial_memory,
+        pipeline.data_callback().unwrap(),
+        &powdr::riscv::continuations::bootloader::default_input(&[]),
+        None,
+        selected_blocks,
+    );
+
+    let duration = start.elapsed();
+    println!("Fast executor with autoprecompiles took: {duration:?}");
+    println!("Trace length with autoprecompiles: {trace_len}");
+
+    /*
+        pipeline.compute_witness()?;
+        pipeline.compute_proof()?;
+    */
+
     Ok(())
 }
 
@@ -436,7 +558,7 @@ fn execute<F: FieldElement>(
 
         let start = Instant::now();
 
-        let execution = powdr::riscv_executor::execute_with_witness::<F>(
+        let (execution, _) = powdr::riscv_executor::execute_with_trace::<F>(
             &asm,
             &pil,
             fixed,

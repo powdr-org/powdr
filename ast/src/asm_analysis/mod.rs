@@ -92,7 +92,7 @@ pub fn combine_flags(instr_flag: Option<Expression>, link_flag: Expression) -> E
 
 #[derive(Clone, Debug, Default)]
 pub struct FunctionStatements {
-    inner: Vec<FunctionStatement>,
+    pub inner: Vec<FunctionStatement>,
     batches: Option<Vec<BatchMetadata>>,
 }
 
@@ -836,6 +836,12 @@ impl AnalysisASMFile {
         let mut path = ty.clone();
         let name = path.pop().unwrap();
         self.modules[&path].machines.get(&name)
+    }
+
+    pub fn get_machine_mut(&mut self, ty: &AbsoluteSymbolPath) -> Option<&mut Machine> {
+        let mut path = ty.clone();
+        let name = path.pop().unwrap();
+        self.modules.get_mut(&path).unwrap().machines.get_mut(&name)
     }
 }
 

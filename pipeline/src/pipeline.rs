@@ -52,6 +52,8 @@ pub struct Artifacts<T: FieldElement> {
     /// A tree of .asm modules (with all dependencies potentially imported
     /// from other files) with all references resolved to absolute symbol paths.
     resolved_module_tree: Option<ASMProgram>,
+    /// The machine checked .asm file.
+    checked_asm: Option<AnalysisASMFile>,
     /// The analyzed .asm file: Assignment registers are inferred, instructions
     /// are batched and some properties are checked.
     analyzed_asm: Option<AnalysisASMFile>,
@@ -159,6 +161,7 @@ impl<T: FieldElement> Clone for Artifacts<T> {
             asm_string: self.asm_string.clone(),
             parsed_asm_file: self.parsed_asm_file.clone(),
             resolved_module_tree: self.resolved_module_tree.clone(),
+            checked_asm: self.checked_asm.clone(),
             analyzed_asm: self.analyzed_asm.clone(),
             optimized_asm: self.optimized_asm.clone(),
             constrained_machine_collection: self.constrained_machine_collection.clone(),
@@ -700,6 +703,20 @@ impl<T: FieldElement> Pipeline<T> {
         self.arguments.external_witness_values.clear();
     }
 
+    pub fn rollback_from_checked_asm(&mut self) {
+        self.rollback_from_witness();
+        self.artifact.analyzed_asm = None;
+        self.artifact.optimized_asm = None;
+        self.artifact.constrained_machine_collection = None;
+        self.artifact.linked_machine_graph = None;
+        self.artifact.parsed_pil_file = None;
+        self.artifact.pil_file_path = None;
+        self.artifact.pil_string = None;
+        self.artifact.analyzed_pil = None;
+        self.artifact.optimized_pil = None;
+        self.artifact.fixed_cols = None;
+    }
+
     // ===== Compute and retrieve artifacts =====
 
     pub fn asm_file_path(&self) -> Result<&PathBuf, Vec<String>> {
@@ -782,14 +799,40 @@ impl<T: FieldElement> Pipeline<T> {
         Ok(self.artifact.resolved_module_tree.as_ref().unwrap())
     }
 
-    pub fn compute_analyzed_asm(&mut self) -> Result<&AnalysisASMFile, Vec<String>> {
-        if self.artifact.analyzed_asm.is_none() {
-            self.artifact.analyzed_asm = Some({
+    pub fn compute_checked_asm(&mut self) -> Result<&AnalysisASMFile, Vec<String>> {
+        if self.artifact.checked_asm.is_none() {
+            self.artifact.checked_asm = Some({
                 self.compute_resolved_module_tree()?;
                 let resolved = self.artifact.resolved_module_tree.take().unwrap();
 
+                self.log("Run analysis machine check");
+                let checked_asm = powdr_analysis::check(resolved)?;
+                self.log("Analysis machine check done");
+                log::trace!("{checked_asm}");
+
+                checked_asm
+            });
+        }
+
+        Ok(self.artifact.checked_asm.as_ref().unwrap())
+    }
+
+    pub fn checked_asm(&self) -> Result<&AnalysisASMFile, Vec<String>> {
+        Ok(self.artifact.checked_asm.as_ref().unwrap())
+    }
+
+    pub fn set_checked_asm(&mut self, asm: AnalysisASMFile) {
+        self.artifact.checked_asm = Some(asm);
+    }
+
+    pub fn compute_analyzed_asm(&mut self) -> Result<&AnalysisASMFile, Vec<String>> {
+        if self.artifact.analyzed_asm.is_none() {
+            self.artifact.analyzed_asm = Some({
+                self.compute_checked_asm()?;
+                let checked = self.artifact.checked_asm.take().unwrap();
+
                 self.log("Run analysis");
-                let analyzed_asm = powdr_analysis::analyze(resolved)?;
+                let analyzed_asm = powdr_analysis::analyze_only(checked)?;
                 self.log("Analysis done");
                 log::trace!("{analyzed_asm}");
 

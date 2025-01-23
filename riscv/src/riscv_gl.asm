@@ -97,7 +97,7 @@ machine Main with min_degree: MIN_DEGREE, max_degree: {{MAIN_MAX_DEGREE}} {
     // ===========================================
 
     // Increased by 4 in each step, because we do up to 4 register memory accesses per step
-    col fixed STEP(i) { 4 * i };
+    col fixed STEP(i) { 3000 * i };
 
     // ============== memory instructions ==============
 

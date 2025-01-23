@@ -467,6 +467,7 @@ fn build_machine<'a, T: FieldElement>(
         BlockMachine::try_new(name_with_type("BlockMachine"), fixed_data, &machine_parts)
     {
         log::debug!("Detected machine: {machine}");
+        log_extracted_machine(machine.name(), &machine_parts);
         KnownMachine::BlockMachine(machine)
     } else {
         log::debug!("Detected machine: Dynamic machine.");

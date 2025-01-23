@@ -11,7 +11,7 @@ fn fib(n: u32) -> u32 {
 
 fn main() {
     // Read input from stdin.
-    let n: u32 = read(0);
+    let n: u32 = read();
     let r = fib(n);
     // Write result to stdout.
     write(1, r);

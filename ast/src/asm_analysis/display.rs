@@ -83,6 +83,10 @@ impl Display for MachineDegree {
 
 impl Display for Machine {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let params = &self.params.0;
+        if !params.is_empty() {
+            write!(f, "({params}) ", params = params.iter().format(", "))?;
+        }
         let props = std::iter::once(&self.degree)
             .map(|d| format!("{d}"))
             .chain(self.latch.as_ref().map(|s| format!("latch: {s}")))

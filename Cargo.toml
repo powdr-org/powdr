@@ -30,7 +30,7 @@ members = [
     "riscv-syscalls",
     "schemas",
     "backend-utils",
-    "executor-utils",
+    "executor-utils", "precompile_macro",
 ]
 
 exclude = ["riscv-runtime"]

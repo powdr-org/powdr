@@ -9,6 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 powdr-ast.workspace = true
+powdr-analysis.workspace = true
 powdr-backend.workspace = true
 powdr-executor.workspace = true
 powdr-number.workspace = true
@@ -19,6 +20,7 @@ powdr-pipeline.workspace = true
 powdr-riscv.workspace = true
 powdr-riscv-executor.workspace = true
 
+itertools = "0.13"
 log = "0.4.17"
 
 serde = { version = "1.0", default-features = false, features = [

@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use std::iter::once;
 
-use powdr_ast::parsed::asm::parse_absolute_path;
+use powdr_ast::parsed::asm::{parse_absolute_path, AbsoluteSymbolPath};
 use powdr_ast::{
     asm_analysis::{AnalysisASMFile, Machine},
-    parsed::{asm::AbsoluteSymbolPath, NamespacedPolynomialReference},
+    parsed::NamespacedPolynomialReference,
 };
 use powdr_pilopt::referenced_symbols::ReferencedSymbols;
 

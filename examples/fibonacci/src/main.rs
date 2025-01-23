@@ -10,10 +10,12 @@ fn main() {
         .chunk_size_log2(18)
         .build()
         // Compute Fibonacci of 21 in the guest.
-        .write(0, &n);
+        .write(&n);
 
     // Fast dry run to test execution.
-    session.run();
+    //session.run();
+
+    session.optimize_autoprecompile();
 
     session.prove();
 }

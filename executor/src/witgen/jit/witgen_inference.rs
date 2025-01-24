@@ -200,6 +200,36 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> WitgenInference<'a, T, F
         self.ingest_effects(result, Some((id.id(), row_offset)))
     }
 
+    /// Returns the list of all unknown variables that occur in the given identity
+    /// when it is evaluated at the given row offset, applying simplifications like multiplication by zero etc.
+    /// If None is returned, the set of unknown varialbes cannot be determined.
+    pub fn unknown_variables_in_simplified_identity(
+        &self,
+        id: &'a Identity<T>,
+        row_offset: i32,
+    ) -> Vec<Variable> {
+        // TODO If we use this to determine the unconstrained variables, we should also look at the assignments.
+        let result = match id {
+            Identity::Polynomial(PolynomialIdentity { expression, .. }) => {
+                self.unknown_variables_in_simplfied_expression(expression, row_offset)
+            }
+            Identity::Lookup(LookupIdentity { id, left, .. })
+            | Identity::Permutation(PermutationIdentity { id, left, .. })
+            | Identity::PhantomPermutation(PhantomPermutationIdentity { id, left, .. })
+            | Identity::PhantomLookup(PhantomLookupIdentity { id, left, .. }) => {
+                self.unknown_variables_in_simplfied_expression(left.selector, row_offset)
+                    .into_iter()
+                    .chain(left.expressions.iter().flat_map(|e| {
+                        self.unknown_variables_in_simplfied_expression(e, row_offset)
+                    }))
+                    .collect()
+            }
+            // TODO(bus_interaction)
+            Identity::PhantomBusInteraction(_) => ProcessResult::empty(),
+            Identity::Connect(_) => ProcessResult::empty(),
+        };
+    }
+
     /// Process the constraint that the expression evaluated at the given offset equals the given value.
     /// This does not have to be solvable right away, but is always processed as soon as we have progress.
     /// Note that all variables in the expression can be unknown and their status can also change over time.
@@ -490,6 +520,36 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> WitgenInference<'a, T, F
         offset: i32,
     ) -> Option<AffineSymbolicExpression<T, Variable>> {
         Evaluator::new(self).evaluate(expr, offset)
+    }
+
+    fn unknown_variables_in_simplfied_expression(
+        &self,
+        expr: &Expression<T>,
+        row_offset: i32,
+    ) -> Vec<Variable> {
+        // We do not use the evaluator here because we want to be able to deal with
+        // super-quadratic expressions as well.
+        match expr {
+            Expression::Reference(r) => {
+                let variable = Variable::from_reference(r, row_offset);
+                if self.is_known(&variable) {
+                    vec![]
+                } else {
+                    vec![variable]
+                }
+            }
+            Expression::PublicReference(_) | Expression::Challenge(_) => vec![], // TODO
+            Expression::Number(_) => vec![],
+            Expression::BinaryOperation(op) => {
+                // TOOD perform simplifications.
+                let left = self.unknown_variables_in_simplfied_expression(&op.left, row_offset);
+                let right = self.unknown_variables_in_simplfied_expression(&op.right, row_offset);
+                left.into_iter().chain(right).collect()
+            }
+            Expression::UnaryOperation(op) => {
+                self.unknown_variables_in_simplfied_expression(&op.expr, row_offset)
+            }
+        }
     }
 }
 

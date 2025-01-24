@@ -129,7 +129,7 @@ fn empty() {
 
 #[test]
 // TODO: https://github.com/powdr-labs/powdr/issues/2292
-#[should_panic = "Identity references no namespace: Constr::PhantomBusInteraction(1, [0], 1);"]
+#[should_panic = "Identity references no namespace: Constr::PhantomBusInteraction(1, [1334494144], 1);"]
 fn single_operation() {
     let f = "asm/single_operation.asm";
     regular_test_all_fields(f, &[]);
@@ -467,7 +467,7 @@ fn permutation_to_block() {
 }
 
 #[test]
-#[should_panic = "Column main_bin::pc is not stackable in a 1-row block, conflict in rows 0 and 1"]
+#[should_panic = "called `Result::unwrap()` on an `Err` value: Linear constraint is not satisfiable: 18446744069414584320 != 0"]
 fn permutation_to_vm() {
     // TODO: witgen issue: Machine incorrectly detected as block machine.
     let f = "asm/permutations/vm_to_vm.asm";

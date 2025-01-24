@@ -265,8 +265,8 @@ fn add() {
 }
 
 #[test]
-fn stwo_add_and_equal() {
-    let f = "pil/add_and_equal.pil";
+fn stwo_challenges() {
+    let f = "pil/challenges.pil";
     test_stwo(f, Default::default());
 }
 

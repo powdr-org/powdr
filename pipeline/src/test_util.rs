@@ -583,6 +583,8 @@ pub fn assert_proofs_fail_for_invalid_witnesses(file_name: &str, witness: &[(Str
     assert_proofs_fail_for_invalid_witnesses_estark(file_name, witness);
     #[cfg(feature = "halo2")]
     assert_proofs_fail_for_invalid_witnesses_halo2(file_name, witness);
+    #[cfg(feature = "stwo")]
+    assert_proofs_fail_for_invalid_witnesses_stwo(file_name, witness);
 }
 
 pub fn run_reparse_test(file: &str) {

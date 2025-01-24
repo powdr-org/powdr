@@ -6,10 +6,10 @@ use std::{
 use powdr_ast::analyzed::{PolyID, PolynomialType};
 
 // Marker types for each PolynomialType
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Witness;
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Fixed;
 
 pub trait PolynomialTypeTrait {
@@ -30,7 +30,7 @@ pub type FixedColumnMap<V> = ColumnMap<V, Fixed>;
 /// A Map indexed by polynomial ID, for a specific polynomial type (e.g. fixed or witness).
 /// For performance reasons, it uses a Vec<V> internally and assumes that the polynomial IDs
 /// are contiguous.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ColumnMap<V, T: PolynomialTypeTrait> {
     values: Vec<V>,
     _ptype: PhantomData<T>,

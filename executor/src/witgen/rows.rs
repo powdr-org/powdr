@@ -111,7 +111,7 @@ impl Display for RowIndex {
     }
 }
 
-#[derive(Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 enum CellValue<T: FieldElement> {
     Known(T),
     RangeConstraint(RangeConstraint<T>),
@@ -177,7 +177,7 @@ impl<T: FieldElement> Display for CellValue<T> {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Row<T: FieldElement> {
     values: WitnessColumnMap<CellValue<T>>,
 }

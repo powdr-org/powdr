@@ -23,7 +23,7 @@ use super::{
     variable::Variable,
 };
 
-pub struct WitgenFunction<T: FieldElement> {
+pub struct WitgenFunction<T> {
     // TODO We might want to pass arguments as direct function parameters
     // (instead of a struct), so that
     // they are stored in registers instead of the stack. Should be checked.

@@ -89,6 +89,7 @@ impl<'a, T: FieldElement> SingleStepProcessor<'a, T> {
         )
         .generate_code(can_process, witgen)
         .map_err(|e| e.to_string())
+        .map(|r| r.code)
     }
 
     fn cell(&self, id: PolyID, row_offset: i32) -> Variable {

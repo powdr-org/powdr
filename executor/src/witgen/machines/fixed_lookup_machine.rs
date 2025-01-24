@@ -11,6 +11,7 @@ use crate::witgen::affine_expression::{AffineExpression, AlgebraicVariable};
 use crate::witgen::data_structures::caller_data::CallerData;
 use crate::witgen::data_structures::mutable_state::MutableState;
 use crate::witgen::global_constraints::{GlobalConstraints, RangeConstraintSet};
+use crate::witgen::jit::witgen_inference::CanProcessCall;
 use crate::witgen::processor::OuterQuery;
 use crate::witgen::range_constraints::RangeConstraint;
 use crate::witgen::rows::RowPair;
@@ -296,6 +297,7 @@ impl<'a, T: FieldElement> Machine<'a, T> for FixedLookup<'a, T> {
 
     fn can_process_call_fully(
         &mut self,
+        _can_process: impl CanProcessCall<T>,
         identity_id: u64,
         known_arguments: &BitVec,
         range_constraints: &[RangeConstraint<T>],

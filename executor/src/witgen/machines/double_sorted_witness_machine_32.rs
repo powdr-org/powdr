@@ -7,6 +7,7 @@ use itertools::Itertools;
 use super::{LookupCell, Machine, MachineParts};
 use crate::witgen::data_structures::caller_data::CallerData;
 use crate::witgen::data_structures::mutable_state::MutableState;
+use crate::witgen::jit::witgen_inference::CanProcessCall;
 use crate::witgen::machines::compute_size_and_log;
 use crate::witgen::processor::OuterQuery;
 use crate::witgen::range_constraints::RangeConstraint;
@@ -190,6 +191,7 @@ impl<'a, T: FieldElement> DoubleSortedWitnesses32<'a, T> {
 impl<'a, T: FieldElement> Machine<'a, T> for DoubleSortedWitnesses32<'a, T> {
     fn can_process_call_fully(
         &mut self,
+        _can_process: impl CanProcessCall<T>,
         identity_id: u64,
         known_arguments: &BitVec,
         range_constraints: &[RangeConstraint<T>],

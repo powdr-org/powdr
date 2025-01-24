@@ -8,7 +8,7 @@ use powdr_number::FieldElement;
 use crate::witgen::{jit::processor::Processor, machines::MachineParts, FixedData};
 
 use super::{
-    effect::Effect,
+    processor::ProcessorResult,
     variable::{Cell, Variable},
     witgen_inference::{CanProcessCall, FixedEvaluator, WitgenInference},
 };
@@ -46,7 +46,7 @@ impl<'a, T: FieldElement> BlockMachineProcessor<'a, T> {
         can_process: impl CanProcessCall<T>,
         identity_id: u64,
         known_args: &BitVec,
-    ) -> Result<Vec<Effect<T, Variable>>, String> {
+    ) -> Result<ProcessorResult<T>, String> {
         let connection = self.machine_parts.connections[&identity_id];
         assert_eq!(connection.right.expressions.len(), known_args.len());
 
@@ -110,6 +110,7 @@ impl<'a, T: FieldElement> BlockMachineProcessor<'a, T> {
         )
         .with_block_shape_check()
         .with_block_size(self.block_size)
+        .with_requested_range_constraints((0..known_args.len()).map(Variable::Param))
         .generate_code(can_process, witgen)
         .map_err(|e| {
             let err_str = e.to_string_with_variable_formatter(|var| match var {
@@ -171,11 +172,9 @@ mod test {
     use crate::witgen::{
         data_structures::mutable_state::MutableState,
         global_constraints,
-        jit::{
-            effect::{format_code, Effect},
-            test_util::read_pil,
-        },
+        jit::{effect::format_code, test_util::read_pil},
         machines::{machine_extractor::MachineExtractor, KnownMachine, Machine},
+        range_constraints::RangeConstraint,
         FixedData,
     };
 
@@ -186,7 +185,7 @@ mod test {
         machine_name: &str,
         num_inputs: usize,
         num_outputs: usize,
-    ) -> Result<Vec<Effect<GoldilocksField, Variable>>, String> {
+    ) -> Result<ProcessorResult<GoldilocksField>, String> {
         let (analyzed, fixed_col_vals) = read_pil(input_pil);
 
         let fixed_data = FixedData::new(&analyzed, &fixed_col_vals, &[], Default::default(), 0);
@@ -234,9 +233,9 @@ mod test {
             col witness sel, a, b, c;
             c = a + b;
         ";
-        let code = generate_for_block_machine(input, "Add", 2, 1);
+        let code = generate_for_block_machine(input, "Add", 2, 1).unwrap().code;
         assert_eq!(
-            format_code(&code.unwrap()),
+            format_code(&code),
             "Add::sel[0] = 1;
 Add::a[0] = params[0];
 Add::b[0] = params[1];
@@ -279,9 +278,14 @@ params[2] = Add::c[0];"
     #[test]
     fn binary() {
         let input = read_to_string("../test_data/pil/binary.pil").unwrap();
-        let code = generate_for_block_machine(&input, "main_binary", 3, 1).unwrap();
+        let result = generate_for_block_machine(&input, "main_binary", 3, 1).unwrap();
+        let [op_rc, a_rc, b_rc, c_rc] = &result.range_constraints.try_into().unwrap();
+        assert_eq!(op_rc, &RangeConstraint::from_range(0.into(), 2.into()));
+        assert_eq!(a_rc, &RangeConstraint::from_mask(0xffffffffu64));
+        assert_eq!(b_rc, &RangeConstraint::from_mask(0xffffffffu64));
+        assert_eq!(c_rc, &RangeConstraint::from_mask(0xffffffffu64));
         assert_eq!(
-            format_code(&code),
+            format_code(&result.code),
             "main_binary::sel[0][3] = 1;
 main_binary::operation_id[3] = params[0];
 main_binary::A[3] = params[1];

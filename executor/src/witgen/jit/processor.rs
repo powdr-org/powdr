@@ -14,7 +14,10 @@ use powdr_ast::{
 };
 use powdr_number::FieldElement;
 
-use crate::witgen::{jit::debug_formatter::format_identities, FixedData};
+use crate::witgen::{
+    range_constraints::RangeConstraint,
+    {jit::debug_formatter::format_identities, FixedData},
+};
 
 use super::{
     affine_symbolic_expression,
@@ -39,8 +42,18 @@ pub struct Processor<'a, T: FieldElement, FixedEval> {
     /// List of variables we want to be known at the end. One of them not being known
     /// is a failure.
     requested_known_vars: Vec<Variable>,
+    /// List of variables we want to know the derived range constraints of at the very end
+    /// (for every branch).
+    requested_range_constraints: Vec<Variable>,
     /// Maximum branch depth allowed.
     max_branch_depth: usize,
+}
+
+pub struct ProcessorResult<T: FieldElement> {
+    /// Generated code.
+    pub code: Vec<Effect<T, Variable>>,
+    /// Range constrainst of the variables they were requested on.
+    pub range_constraints: Vec<RangeConstraint<T>>,
 }
 
 impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEval> {
@@ -61,8 +74,18 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
             block_size: 1,
             check_block_shape: false,
             requested_known_vars: requested_known_vars.into_iter().collect(),
+            requested_range_constraints: vec![],
             max_branch_depth,
         }
+    }
+
+    /// Provides a list of variables that we want to know the derived range constraints of at the end.
+    pub fn with_requested_range_constraints(
+        mut self,
+        vars: impl IntoIterator<Item = Variable>,
+    ) -> Self {
+        self.requested_range_constraints.extend(vars);
+        self
     }
 
     /// Sets the block size.
@@ -82,7 +105,7 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
         self,
         can_process: impl CanProcessCall<T>,
         witgen: WitgenInference<'a, T, FixedEval>,
-    ) -> Result<Vec<Effect<T, Variable>>, Error<'a, T, FixedEval>> {
+    ) -> Result<ProcessorResult<T>, Error<'a, T, FixedEval>> {
         let branch_depth = 0;
         self.generate_code_for_branch(can_process, witgen, branch_depth)
     }
@@ -92,7 +115,7 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
         can_process: impl CanProcessCall<T>,
         mut witgen: WitgenInference<'a, T, FixedEval>,
         branch_depth: usize,
-    ) -> Result<Vec<Effect<T, Variable>>, Error<'a, T, FixedEval>> {
+    ) -> Result<ProcessorResult<T>, Error<'a, T, FixedEval>> {
         if self
             .process_until_no_progress(can_process.clone(), &mut witgen)
             .is_err()
@@ -125,7 +148,16 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
 
         let incomplete_machine_calls = self.incomplete_machine_calls(&witgen);
         if missing_variables.is_empty() && incomplete_machine_calls.is_empty() {
-            return Ok(witgen.finish());
+            let range_constraints = self
+                .requested_range_constraints
+                .iter()
+                .map(|var| witgen.range_constraint(var))
+                .collect();
+            let code = witgen.finish();
+            return Ok(ProcessorResult {
+                code,
+                range_constraints,
+            });
         }
 
         // We need to do some work, try to branch.
@@ -180,29 +212,49 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
             self.generate_code_for_branch(can_process.clone(), first_branch, branch_depth + 1);
         let second_branch_result =
             self.generate_code_for_branch(can_process, second_branch, branch_depth + 1);
-        let result = match (first_branch_result, second_branch_result) {
+        let mut result = match (first_branch_result, second_branch_result) {
             (Err(e), other) | (other, Err(e))
                 if e.reason == ErrorReason::ConflictingConstraints =>
             {
                 // Any branch with a conflicting constraint is not reachable and thus
-                // can be pruned. We do not branch but still add the range constraint.
-                // Note that the other branch might also have a conflicting constraint,
-                // but then it is correct to return it.
+                // can be pruned. We do not branch but still add the range constraint
+                // of the branching variable.
+                // Note that both branches might actually have a conflicting constraint,
+                // but then it is correct to return one.
                 log::trace!("Branching on {most_constrained_var} resulted in a conflict, we can reduce to a single branch.");
-                other
+                other?
             }
             // Any other error should be propagated.
-            (Err(e), _) | (_, Err(e)) => Err(e),
-            (Ok(first_code), Ok(second_code)) if first_code == second_code => {
+            (Err(e), _) | (_, Err(e)) => Err(e)?,
+            (Ok(first_result), Ok(second_result)) if first_result.code == second_result.code => {
                 log::trace!("Branching on {most_constrained_var} resulted in the same code, we can reduce to a single branch.");
-                Ok(first_code)
+                ProcessorResult {
+                    code: first_result.code,
+                    range_constraints: combine_range_constraints(
+                        &first_result.range_constraints,
+                        &second_result.range_constraints,
+                    ),
+                }
             }
-            (Ok(first_code), Ok(second_code)) => {
-                Ok(vec![Effect::Branch(condition, first_code, second_code)])
+            (Ok(first_result), Ok(second_result)) => {
+                let code = vec![Effect::Branch(
+                    condition,
+                    first_result.code,
+                    second_result.code,
+                )];
+                let range_constraints = combine_range_constraints(
+                    &first_result.range_constraints,
+                    &second_result.range_constraints,
+                );
+                ProcessorResult {
+                    code,
+                    range_constraints,
+                }
             }
         };
         // Prepend the common code in the success case.
-        result.map(|code| common_code.into_iter().chain(code).collect())
+        result.code = common_code.into_iter().chain(result.code).collect();
+        Ok(result)
     }
 
     fn process_until_no_progress(
@@ -338,6 +390,14 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
                         .iter()
                         .map(|&r| format!("  row {r}: {}\n", witgen.value(&cell_var(r))))
                         .format("");
+                    log::debug!(
+                        "Code generated so far:\n{}\n\
+                        Column {column_name} is not stackable in a {}-row block, \
+                        conflict in rows {row} and {}.\n{row_vals}",
+                        format_code(witgen.code()),
+                        self.block_size,
+                        row + self.block_size as i32
+                    );
                     panic!(
                         "Column {column_name} is not stackable in a {}-row block, conflict in rows {row} and {}.\n{row_vals}",
                         self.block_size,
@@ -485,6 +545,17 @@ fn is_machine_call<T>(identity: &Identity<T>) -> bool {
         Identity::PhantomBusInteraction(_) => false,
         Identity::Polynomial(_) | Identity::Connect(_) => false,
     }
+}
+
+fn combine_range_constraints<T: FieldElement>(
+    first: &[RangeConstraint<T>],
+    second: &[RangeConstraint<T>],
+) -> Vec<RangeConstraint<T>> {
+    first
+        .iter()
+        .zip(second.iter())
+        .map(|(rc1, rc2)| rc1.disjunction(rc2))
+        .collect()
 }
 
 pub struct Error<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> {

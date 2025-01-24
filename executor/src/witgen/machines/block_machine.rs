@@ -13,13 +13,16 @@ use crate::witgen::data_structures::caller_data::CallerData;
 use crate::witgen::data_structures::finalizable_data::FinalizableData;
 use crate::witgen::data_structures::mutable_state::MutableState;
 use crate::witgen::jit::function_cache::FunctionCache;
+use crate::witgen::jit::witgen_inference::CanProcessCall;
 use crate::witgen::processor::{OuterQuery, Processor, SolverState};
+use crate::witgen::range_constraints::RangeConstraint;
 use crate::witgen::rows::{Row, RowIndex, RowPair};
 use crate::witgen::sequence_iterator::{
     DefaultSequenceIterator, ProcessingSequenceCache, ProcessingSequenceIterator,
 };
 use crate::witgen::util::try_to_simple_poly;
 use crate::witgen::{machines::Machine, EvalError, EvalValue, IncompleteCause, QueryCallback};
+use bit_vec::BitVec;
 use powdr_ast::analyzed::{DegreeRange, PolyID, PolynomialType};
 use powdr_number::{DegreeType, FieldElement};
 
@@ -160,13 +163,43 @@ impl<'a, T: FieldElement> Machine<'a, T> for BlockMachine<'a, T> {
         self.parts.connections.keys().copied().collect()
     }
 
+    fn can_process_call_fully(
+        &mut self,
+        can_process: impl CanProcessCall<T>,
+        identity_id: u64,
+        known_arguments: &BitVec,
+        range_constraints: &[RangeConstraint<T>],
+    ) -> Option<Vec<RangeConstraint<T>>> {
+        if self
+            .function_cache
+            .compile_cached(can_process, identity_id, known_arguments)
+            .is_some()
+        {
+            Some(range_constraints.to_vec())
+        } else {
+            None
+        }
+    }
+
     fn process_lookup_direct<'b, 'c, Q: QueryCallback<T>>(
         &mut self,
-        _mutable_state: &'b MutableState<'a, T, Q>,
-        _identity_id: u64,
-        _values: &mut [LookupCell<'c, T>],
+        mutable_state: &'b MutableState<'a, T, Q>,
+        identity_id: u64,
+        values: &mut [LookupCell<'c, T>],
     ) -> Result<bool, EvalError<T>> {
-        unimplemented!("Direct lookup not supported by machine {}.", self.name())
+        if self.rows() + self.block_size as DegreeType > self.degree {
+            return Err(EvalError::RowsExhausted(self.name.clone()));
+        }
+
+        self.data.finalize_all();
+        let data = self.data.append_new_finalized_rows(self.block_size);
+
+        let success =
+            self.function_cache
+                .process_lookup_direct(mutable_state, identity_id, values, data)?;
+        assert!(success);
+        self.block_count_jit += 1;
+        Ok(true)
     }
 
     fn process_plookup<'b, Q: QueryCallback<T>>(

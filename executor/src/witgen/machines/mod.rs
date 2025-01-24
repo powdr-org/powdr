@@ -22,6 +22,7 @@ use self::second_stage_machine::SecondStageMachine;
 use self::sorted_witness_machine::SortedWitnesses;
 use self::write_once_memory::WriteOnceMemory;
 
+use super::jit::witgen_inference::CanProcessCall;
 use super::range_constraints::RangeConstraint;
 use super::rows::RowPair;
 use super::{EvalError, EvalResult, FixedData, QueryCallback};
@@ -67,6 +68,7 @@ pub trait Machine<'a, T: FieldElement>: Send + Sync {
     /// or something similar.
     fn can_process_call_fully(
         &mut self,
+        _can_process: impl CanProcessCall<T>,
         _identity_id: u64,
         _known_arguments: &BitVec,
         _range_constraints: &[RangeConstraint<T>],
@@ -187,35 +189,60 @@ impl<'a, T: FieldElement> Machine<'a, T> for KnownMachine<'a, T> {
 
     fn can_process_call_fully(
         &mut self,
+        can_process: impl CanProcessCall<T>,
         identity_id: u64,
         known_arguments: &BitVec,
         range_constraints: &[RangeConstraint<T>],
     ) -> Option<Vec<RangeConstraint<T>>> {
         match self {
-            KnownMachine::SecondStageMachine(m) => {
-                m.can_process_call_fully(identity_id, known_arguments, range_constraints)
-            }
-            KnownMachine::SortedWitnesses(m) => {
-                m.can_process_call_fully(identity_id, known_arguments, range_constraints)
-            }
-            KnownMachine::DoubleSortedWitnesses16(m) => {
-                m.can_process_call_fully(identity_id, known_arguments, range_constraints)
-            }
-            KnownMachine::DoubleSortedWitnesses32(m) => {
-                m.can_process_call_fully(identity_id, known_arguments, range_constraints)
-            }
-            KnownMachine::WriteOnceMemory(m) => {
-                m.can_process_call_fully(identity_id, known_arguments, range_constraints)
-            }
-            KnownMachine::BlockMachine(m) => {
-                m.can_process_call_fully(identity_id, known_arguments, range_constraints)
-            }
-            KnownMachine::DynamicMachine(m) => {
-                m.can_process_call_fully(identity_id, known_arguments, range_constraints)
-            }
-            KnownMachine::FixedLookup(m) => {
-                m.can_process_call_fully(identity_id, known_arguments, range_constraints)
-            }
+            KnownMachine::SecondStageMachine(m) => m.can_process_call_fully(
+                can_process,
+                identity_id,
+                known_arguments,
+                range_constraints,
+            ),
+            KnownMachine::SortedWitnesses(m) => m.can_process_call_fully(
+                can_process,
+                identity_id,
+                known_arguments,
+                range_constraints,
+            ),
+            KnownMachine::DoubleSortedWitnesses16(m) => m.can_process_call_fully(
+                can_process,
+                identity_id,
+                known_arguments,
+                range_constraints,
+            ),
+            KnownMachine::DoubleSortedWitnesses32(m) => m.can_process_call_fully(
+                can_process,
+                identity_id,
+                known_arguments,
+                range_constraints,
+            ),
+            KnownMachine::WriteOnceMemory(m) => m.can_process_call_fully(
+                can_process,
+                identity_id,
+                known_arguments,
+                range_constraints,
+            ),
+            KnownMachine::BlockMachine(m) => m.can_process_call_fully(
+                can_process,
+                identity_id,
+                known_arguments,
+                range_constraints,
+            ),
+            KnownMachine::DynamicMachine(m) => m.can_process_call_fully(
+                can_process,
+                identity_id,
+                known_arguments,
+                range_constraints,
+            ),
+            KnownMachine::FixedLookup(m) => m.can_process_call_fully(
+                can_process,
+                identity_id,
+                known_arguments,
+                range_constraints,
+            ),
         }
     }
 

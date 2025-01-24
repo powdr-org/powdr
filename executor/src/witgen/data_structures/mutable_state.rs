@@ -61,7 +61,7 @@ impl<'a, T: FieldElement, Q: QueryCallback<T>> MutableState<'a, T, Q> {
         // unique machine responsible for handling a bus send), so just answer "false" if the identity
         // has no responsible machine.
         let mut machine = self.responsible_machine(identity_id).ok()?;
-        machine.can_process_call_fully(identity_id, known_inputs, range_constraints)
+        machine.can_process_call_fully(self, identity_id, known_inputs, range_constraints)
     }
 
     /// Call the machine responsible for the right-hand-side of an identity given its ID

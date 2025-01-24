@@ -532,7 +532,8 @@ mod test {
 
         let effects = processor
             .generate_code(&mutable_state, connection_id, &known_values)
-            .unwrap();
+            .unwrap()
+            .code;
 
         let known_inputs = (0..12).map(Variable::Param).collect::<Vec<_>>();
 

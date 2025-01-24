@@ -6,7 +6,9 @@ use powdr_number::{FieldElement, KnownField};
 
 use crate::witgen::{
     data_structures::finalizable_data::{ColumnLayout, CompactDataRef},
+    jit::processor::ProcessorResult,
     machines::{LookupCell, MachineParts},
+    range_constraints::RangeConstraint,
     EvalError, FixedData, MutableState, QueryCallback,
 };
 
@@ -27,13 +29,18 @@ pub struct FunctionCache<'a, T: FieldElement> {
     fixed_data: &'a FixedData<'a, T>,
     /// The processor that generates the JIT code
     processor: BlockMachineProcessor<'a, T>,
-    /// The cache of JIT functions. If the entry is None, we attempted to generate the function
-    /// but failed.
-    witgen_functions: HashMap<CacheKey, Option<WitgenFunction<T>>>,
+    /// The cache of JIT functions and the returned range constraints.
+    /// If the entry is None, we attempted to generate the function but failed.
+    witgen_functions: HashMap<CacheKey, Option<CacheEntry<T>>>,
     column_layout: ColumnLayout,
     block_size: usize,
     machine_name: String,
     parts: MachineParts<'a, T>,
+}
+
+pub struct CacheEntry<T: FieldElement> {
+    pub function: WitgenFunction<T>,
+    pub _range_constraints: Vec<RangeConstraint<T>>,
 }
 
 impl<'a, T: FieldElement> FunctionCache<'a, T> {
@@ -60,19 +67,19 @@ impl<'a, T: FieldElement> FunctionCache<'a, T> {
     }
 
     /// Compiles the JIT function for the given identity and known arguments.
-    /// Returns true if the function was successfully compiled.
+    /// Returns the function and the output range constraints if the function was successfully compiled.
     pub fn compile_cached(
         &mut self,
         can_process: impl CanProcessCall<T>,
         identity_id: u64,
         known_args: &BitVec,
-    ) -> &Option<WitgenFunction<T>> {
+    ) -> Option<&CacheEntry<T>> {
         let cache_key = CacheKey {
             identity_id,
             known_args: known_args.clone(),
         };
         self.ensure_cache(can_process, &cache_key);
-        self.witgen_functions.get(&cache_key).unwrap()
+        self.witgen_functions.get(&cache_key).unwrap().as_ref()
     }
 
     fn ensure_cache(&mut self, can_process: impl CanProcessCall<T>, cache_key: &CacheKey) {
@@ -94,7 +101,7 @@ impl<'a, T: FieldElement> FunctionCache<'a, T> {
         &self,
         can_process: impl CanProcessCall<T>,
         cache_key: &CacheKey,
-    ) -> Option<WitgenFunction<T>> {
+    ) -> Option<CacheEntry<T>> {
         log::debug!(
             "Compiling JIT function for\n  Machine: {}\n  Connection: {}\n   Inputs: {:?}",
             self.machine_name,
@@ -102,7 +109,10 @@ impl<'a, T: FieldElement> FunctionCache<'a, T> {
             cache_key.known_args
         );
 
-        let code = self
+        let ProcessorResult {
+            code,
+            range_constraints,
+        } = self
             .processor
             .generate_code(can_process, cache_key.identity_id, &cache_key.known_args)
             .map_err(|e| {
@@ -134,7 +144,7 @@ impl<'a, T: FieldElement> FunctionCache<'a, T> {
             .collect::<Vec<_>>();
 
         log::trace!("Compiling effects...");
-        let effects = compile_effects(
+        let function = compile_effects(
             self.column_layout.first_column_id,
             self.column_layout.column_count,
             &known_inputs,
@@ -142,7 +152,11 @@ impl<'a, T: FieldElement> FunctionCache<'a, T> {
         )
         .unwrap();
         log::trace!("Compilation done.");
-        Some(effects)
+
+        Some(CacheEntry {
+            function,
+            _range_constraints: range_constraints,
+        })
     }
 
     pub fn process_lookup_direct<'c, 'd, Q: QueryCallback<T>>(
@@ -162,13 +176,13 @@ impl<'a, T: FieldElement> FunctionCache<'a, T> {
             known_args,
         };
 
-        let f = self
-            .witgen_functions
+        self.witgen_functions
             .get(&cache_key)
             .expect("Need to call compile_cached() first!")
             .as_ref()
-            .expect("compile_cached() returned false!");
-        f.call(self.fixed_data, mutable_state, values, data);
+            .expect("compile_cached() returned false!")
+            .function
+            .call(self.fixed_data, mutable_state, values, data);
 
         Ok(true)
     }

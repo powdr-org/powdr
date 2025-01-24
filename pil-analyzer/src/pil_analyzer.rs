@@ -14,8 +14,8 @@ use powdr_ast::parsed::asm::{
 use powdr_ast::parsed::types::Type;
 use powdr_ast::parsed::visitor::{AllChildren, Children};
 use powdr_ast::parsed::{
-    self, FunctionKind, LambdaExpression, PILFile, PilStatement, SymbolCategory,
-    TraitImplementation, TypedExpression,
+    self, Expression as ParsedExpression, FunctionKind, LambdaExpression, PILFile, PilStatement,
+    SourceReference, SymbolCategory, TraitImplementation, TypedExpression,
 };
 use powdr_number::{FieldElement, GoldilocksField};
 
@@ -149,13 +149,20 @@ impl PILAnalyzer {
             files = once(core).chain(files).collect();
         }
 
+        let mut errors = Vec::new();
         for PILFile(file) in files {
             self.current_namespace = Default::default();
             for statement in file {
-                self.handle_statement(statement);
+                if let Err(e) = self.handle_statement(statement) {
+                    errors.push(e);
+                }
             }
         }
-        Ok(())
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 
     /// Adds core types if they are not present in the input.
@@ -472,7 +479,7 @@ impl PILAnalyzer {
         }
     }
 
-    fn handle_statement(&mut self, statement: PilStatement) {
+    fn handle_statement(&mut self, statement: PilStatement) -> Result<(), Error> {
         match statement {
             PilStatement::Include(_, _) => unreachable!(),
             PilStatement::Namespace(_, name, degree) => self.handle_namespace(name, degree),
@@ -481,7 +488,7 @@ impl PILAnalyzer {
                 let mut counters = self.symbol_counters.take().unwrap();
                 let items =
                     StatementProcessor::new(self.driver(), &mut counters, self.polynomial_degree)
-                        .handle_statement(statement);
+                        .handle_statement(statement)?;
                 self.symbol_counters = Some(counters);
                 for item in items {
                     match item {
@@ -519,41 +526,49 @@ impl PILAnalyzer {
                         }
                     }
                 }
+                Ok(())
             }
         }
     }
-
-    fn handle_namespace(&mut self, name: SymbolPath, degree: Option<parsed::NamespaceDegree>) {
-        let evaluate_degree_bound = |e| {
-            let e = match ExpressionProcessor::new(self.driver(), &Default::default())
+    fn handle_namespace(
+        &mut self,
+        name: SymbolPath,
+        degree: Option<parsed::NamespaceDegree>,
+    ) -> Result<(), Error> {
+        let evaluate_degree_bound = |e: ParsedExpression| -> Result<u64, Error> {
+            let source = e.source_reference().clone();
+            let e = ExpressionProcessor::new(self.driver(), &Default::default())
                 .process_expression(e)
-            {
-                Ok(e) => e,
-                Err(e) => {
-                    // TODO propagate this error up
-                    panic!("Failed to evaluate degree bound: {e}");
-                }
-            };
-            u64::try_from(
-                evaluator::evaluate_expression::<GoldilocksField>(
-                    &e,
-                    &self.definitions,
-                    &Default::default(),
-                )
-                .unwrap()
-                .try_to_integer()
-                .unwrap(),
+                .map_err(|err| {
+                    err.extend_message(|m| format!("Failed to evaluate degree bound: {m}"))
+                })?;
+
+            let value = evaluator::evaluate_expression::<GoldilocksField>(
+                &e,
+                &self.definitions,
+                &Default::default(),
             )
             .unwrap()
+            .try_to_integer()
+            .map_err(|err| source.with_error(err.to_string()))?;
+
+            u64::try_from(value)
+                .map_err(|_| source.with_error("Degree bound too large".to_string()))
         };
 
-        self.polynomial_degree = degree.map(|degree| DegreeRange {
-            min: evaluate_degree_bound(degree.min),
-            max: evaluate_degree_bound(degree.max),
-        });
-        self.current_namespace = AbsoluteSymbolPath::default().join(name);
-    }
+        self.polynomial_degree = degree
+            .map(|degree| -> Result<_, Error> {
+                Ok(DegreeRange {
+                    min: evaluate_degree_bound(degree.min)?,
+                    max: evaluate_degree_bound(degree.max)?,
+                })
+            })
+            .transpose()?;
 
+        self.current_namespace = AbsoluteSymbolPath::default().join(name);
+
+        Ok(())
+    }
     fn driver(&self) -> Driver {
         Driver(self)
     }

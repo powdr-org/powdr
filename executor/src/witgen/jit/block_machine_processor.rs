@@ -346,4 +346,31 @@ params[3] = main_binary::C[3];"
         let input = read_to_string("../test_data/pil/poseidon_gl.pil").unwrap();
         generate_for_block_machine(&input, "main_poseidon", 12, 4).unwrap();
     }
+
+    #[test]
+    fn bitfield_opid() {
+        // The issue with this machine is that if we pass 0 as the operation_id, the machine
+        // is fully unconstrained.
+        let input = "
+        namespace Main(256);
+            col witness x, a, b, c;
+            [x, a, b, c] is [
+                Arith::is_add + 2 * Arith::is_mul, Arith::X, Arith::Y, Arith::Z];
+        namespace Arith(256);
+            col witness is_add, is_mul, X, Y, Z;
+            is_add * (1 - is_add) = 0;
+            is_mul * (1 - is_mul) = 0;
+            is_add * (X + Y - Z) = 0;
+            is_mul * (X * Y - Z) = 0;
+        ";
+        let code = generate_for_block_machine(input, "Arith", 3, 1);
+        assert_eq!(
+            format_code(&code.unwrap()),
+            "Add::sel[0] = 1;
+Add::a[0] = params[0];
+Add::b[0] = params[1];
+Add::c[0] = (Add::a[0] + Add::b[0]);
+params[2] = Add::c[0];"
+        );
+    }
 }

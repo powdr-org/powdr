@@ -433,7 +433,7 @@ impl<T: Display> Display for PhantomBusInteractionIdentity<T> {
             f,
             "Constr::PhantomBusInteraction({}, [{}], {});",
             self.multiplicity,
-            self.tuple.0.iter().map(ToString::to_string).format(", "),
+            self.payload.0.iter().map(ToString::to_string).format(", "),
             self.latch,
         )
     }

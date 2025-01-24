@@ -1,10 +1,10 @@
 use itertools::Itertools;
-use powdr_ast::analyzed::Identity;
 use powdr_number::{DegreeType, FieldElement};
 use std::collections::{BTreeMap, HashMap};
 
 use crate::witgen::block_processor::BlockProcessor;
 use crate::witgen::data_structures::finalizable_data::FinalizableData;
+use crate::witgen::data_structures::identity::Identity;
 use crate::witgen::data_structures::mutable_state::MutableState;
 use crate::witgen::machines::{Machine, MachineParts};
 use crate::witgen::processor::SolverState;

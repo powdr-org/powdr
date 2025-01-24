@@ -10,8 +10,8 @@ use powdr_number::{DegreeType, FieldElement};
 use crate::witgen::affine_expression::AlgebraicVariable;
 use crate::witgen::data_structures::mutable_state::MutableState;
 use crate::witgen::{query_processor::QueryProcessor, util::try_to_simple_poly, Constraint};
-use crate::Identity;
 
+use super::data_structures::identity::Identity;
 use super::machines::{Connection, MachineParts};
 use super::FixedData;
 use super::{
@@ -598,14 +598,14 @@ Known values in current row (local: {row_index}, global {global_row_index}):
             ),
         };
 
-        if let Ok(connection) = Connection::try_from(identity) {
+        if let Identity::BusSend(bus_interaction) = identity {
             // JITed submachines would panic if passed a wrong input / output pair.
             // Therefore, if any machine call is activated, we resort to the full
             // solving routine.
-            // An to this is when the call is always active (e.g. the PC lookup).
+            // An exception to this is when the call is always active (e.g. the PC lookup).
             // In that case, we know that the call has been active before with the
             // same input / output pair, so we can be sure that it will succeed.
-            let selector = &connection.left.selector;
+            let selector = &bus_interaction.selected_payload.selector;
             if selector != &Expression::one() {
                 let selector_value = row_pair
                     .evaluate(selector)

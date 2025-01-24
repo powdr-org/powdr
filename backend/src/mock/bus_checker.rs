@@ -137,7 +137,7 @@ impl<'a, F: FieldElement> BusChecker<'a, F> {
                             .unwrap();
 
                             let tuple = identity
-                                .tuple
+                                .payload
                                 .children()
                                 .map(|e| evaluator.evaluate(e))
                                 .collect();

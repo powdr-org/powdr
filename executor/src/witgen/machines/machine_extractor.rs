@@ -1,10 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use itertools::Itertools;
-use powdr_ast::analyzed::LookupIdentity;
-use powdr_ast::analyzed::PermutationIdentity;
-use powdr_ast::analyzed::PhantomLookupIdentity;
-use powdr_ast::analyzed::PhantomPermutationIdentity;
 
 use super::block_machine::BlockMachine;
 use super::double_sorted_witness_machine_16::DoubleSortedWitnesses16;
@@ -14,11 +10,11 @@ use super::sorted_witness_machine::SortedWitnesses;
 use super::FixedData;
 use super::KnownMachine;
 use super::Machine;
+use crate::witgen::data_structures::identity::Identity;
 use crate::witgen::machines::dynamic_machine::DynamicMachine;
 use crate::witgen::machines::second_stage_machine::SecondStageMachine;
 use crate::witgen::machines::Connection;
 use crate::witgen::machines::{write_once_memory::WriteOnceMemory, MachineParts};
-use crate::Identity;
 
 use powdr_ast::analyzed::{
     self, AlgebraicExpression as Expression, PolyID, PolynomialReference, Reference,
@@ -35,10 +31,9 @@ impl<'a, T: FieldElement> MachineExtractor<'a, T> {
         Self { fixed }
     }
 
-    /// Finds machines in the witness columns and identities and returns a list of machines and the identities
-    /// that are not "internal" to the machines.
+    /// Finds machines in the witness columns and identities and returns a list of machines.
     /// The first returned machine is the "main machine", i.e. a machine that has no incoming connections.
-    pub fn split_out_machines(&self, identities: Vec<&'a Identity<T>>) -> Vec<KnownMachine<'a, T>> {
+    pub fn split_out_machines(&self) -> Vec<KnownMachine<'a, T>> {
         // Ignore prover functions that reference columns of later stages.
         let all_witnesses = self.fixed.witness_cols.keys().collect::<HashSet<_>>();
         let current_stage_witnesses = self
@@ -65,7 +60,7 @@ impl<'a, T: FieldElement> MachineExtractor<'a, T> {
             let machine_parts = MachineParts::new(
                 self.fixed,
                 Default::default(),
-                identities,
+                self.fixed.identities.iter().collect(),
                 self.fixed.witness_cols.keys().collect::<HashSet<_>>(),
                 prover_functions,
             );
@@ -80,13 +75,15 @@ impl<'a, T: FieldElement> MachineExtractor<'a, T> {
 
         let mut publics = PublicsTracker::default();
         let mut remaining_witnesses = current_stage_witnesses.clone();
-        let mut base_identities = identities.clone();
+        let mut base_identities = self.fixed.identities.iter().collect::<Vec<_>>();
         let mut extracted_prover_functions = HashSet::new();
         let mut id_counter = 0;
 
-        let all_connections = identities
+        let all_connections = self
+            .fixed
+            .identities
             .iter()
-            .filter_map(|i| Connection::try_from(*i).ok())
+            .filter_map(|i| Connection::try_new(i, &self.fixed.bus_receives))
             .collect::<Vec<_>>();
 
         let mut fixed_lookup_connections = BTreeMap::new();
@@ -116,7 +113,7 @@ impl<'a, T: FieldElement> MachineExtractor<'a, T> {
             let machine_witnesses = self.all_row_connected_witnesses(
                 lookup_witnesses,
                 &remaining_witnesses,
-                &identities,
+                &self.fixed.identities,
             );
 
             // Split identities into those that only concern the machine
@@ -125,9 +122,8 @@ impl<'a, T: FieldElement> MachineExtractor<'a, T> {
                 base_identities.iter().cloned().partition(|i| {
                     // The identity's left side has at least one machine witness, but
                     // all referenced witnesses are machine witnesses.
-                    // For lookups, any lookup calling from the current machine belongs
-                    // to the machine; lookups to the machine do not.
-                    let all_refs = &self.refs_in_identity_left(i) & (&current_stage_witnesses);
+                    let all_refs =
+                        &self.fixed.polynomial_references(*i) & (&current_stage_witnesses);
                     !all_refs.is_empty() && all_refs.is_subset(&machine_witnesses)
                 });
             base_identities = remaining_identities;
@@ -216,14 +212,19 @@ impl<'a, T: FieldElement> MachineExtractor<'a, T> {
         // of fixed lookups, because they are not referenced by any "normal"
         // first-stage identities. As the main machine should not be on the
         // receiving end of a lookup, we remove any multiplicity columns here.
-        // Note that we don't use the passed identities, because we want to
-        // include removed range constraints.
         let multiplicity_columns = self
             .fixed
-            .analyzed
             .identities
             .iter()
-            .filter_map(|identity| Connection::try_from(identity).ok()?.multiplicity_column)
+            .filter_map(|identity| match identity {
+                Identity::BusReceive(bus_receive) => {
+                    bus_receive.multiplicity.as_ref().and_then(|m| match m {
+                        Expression::Reference(reference) => Some(reference.poly_id),
+                        _ => None,
+                    })
+                }
+                _ => None,
+            })
             .collect::<HashSet<_>>();
         let main_witnesses = remaining_witnesses
             .difference(&multiplicity_columns)
@@ -266,40 +267,22 @@ impl<'a, T: FieldElement> MachineExtractor<'a, T> {
         &self,
         mut witnesses: HashSet<PolyID>,
         all_witnesses: &HashSet<PolyID>,
-        identities: &[&Identity<T>],
+        identities: &[Identity<T>],
     ) -> HashSet<PolyID> {
         loop {
             let count = witnesses.len();
             for i in identities {
                 match i {
-                    Identity::Polynomial(i) => {
+                    Identity::Polynomial(_) | Identity::BusSend(_) | Identity::BusReceive(_) => {
                         // Any current witness in the identity adds all other witnesses.
                         let in_identity = &self.fixed.polynomial_references(i) & all_witnesses;
                         if in_identity.intersection(&witnesses).next().is_some() {
                             witnesses.extend(in_identity);
                         }
                     }
-                    Identity::Lookup(LookupIdentity { left, .. })
-                    | Identity::Permutation(PermutationIdentity { left, .. })
-                    | Identity::PhantomLookup(PhantomLookupIdentity { left, .. })
-                    | Identity::PhantomPermutation(PhantomPermutationIdentity { left, .. }) => {
-                        // If we already have witnesses on the LHS, include the LHS,
-                        // and vice-versa, but not across the "sides".
-                        let in_lhs = &self.fixed.polynomial_references(left) & all_witnesses;
-                        let in_rhs = &self
-                            .refs_in_connection_rhs(&Connection::try_from(*i).unwrap())
-                            & all_witnesses;
-                        if in_lhs.intersection(&witnesses).next().is_some() {
-                            witnesses.extend(in_lhs);
-                        } else if in_rhs.intersection(&witnesses).next().is_some() {
-                            witnesses.extend(in_rhs);
-                        }
-                    }
                     Identity::Connect(..) => {
                         unimplemented!()
                     }
-                    // TODO(bus_interaction)
-                    Identity::PhantomBusInteraction(..) => {}
                 };
             }
             if witnesses.len() == count {
@@ -315,26 +298,6 @@ impl<'a, T: FieldElement> MachineExtractor<'a, T> {
             .into_iter()
             .chain(connection.multiplicity_column)
             .collect()
-    }
-
-    /// Extracts all references to names from the "left" side of an identity. This is the left selected expressions for connecting identities, and everything for other identities.
-    fn refs_in_identity_left(&self, identity: &Identity<T>) -> HashSet<PolyID> {
-        match identity {
-            Identity::Lookup(LookupIdentity { left, .. })
-            | Identity::PhantomLookup(PhantomLookupIdentity { left, .. })
-            | Identity::Permutation(PermutationIdentity { left, .. })
-            | Identity::PhantomPermutation(PhantomPermutationIdentity { left, .. }) => {
-                self.fixed.polynomial_references(left)
-            }
-            Identity::Polynomial(i) => self.fixed.polynomial_references(i),
-            Identity::Connect(i) => self.fixed.polynomial_references(i),
-            Identity::PhantomBusInteraction(i) => self
-                .fixed
-                .polynomial_references(&i.tuple)
-                .into_iter()
-                .chain(self.fixed.polynomial_references(&i.multiplicity))
-                .collect(),
-        }
     }
 }
 
@@ -397,10 +360,7 @@ struct PublicsTracker<'a>(BTreeSet<&'a String>);
 impl<'a> PublicsTracker<'a> {
     /// Given a machine's identities, add all publics that are referenced by them.
     /// Panics if a public is referenced by more than one machine.
-    fn add_all<T>(
-        &mut self,
-        identities: &[&'a powdr_ast::analyzed::Identity<T>],
-    ) -> Result<(), String> {
+    fn add_all<T>(&mut self, identities: &[&'a Identity<T>]) -> Result<(), String> {
         let referenced_publics = identities
             .iter()
             .flat_map(|id| id.all_children())

@@ -7,17 +7,18 @@ use std::{
 use itertools::Itertools;
 use powdr_ast::{
     analyzed::{
-        AlgebraicExpression as Expression, AlgebraicReference, AlgebraicReferenceThin, Identity,
-        PolyID, PolynomialType,
+        AlgebraicExpression as Expression, AlgebraicReference, AlgebraicReferenceThin, PolyID,
+        PolynomialType,
     },
     parsed::visitor::{AllChildren, Children},
 };
 use powdr_number::FieldElement;
 
-use crate::witgen::{jit::debug_formatter::format_identities, FixedData};
+use crate::witgen::{data_structures::identity::Identity, FixedData};
 
 use super::{
     affine_symbolic_expression,
+    debug_formatter::format_identities,
     effect::{format_code, Effect},
     variable::{Cell, Variable},
     witgen_inference::{BranchResult, CanProcessCall, FixedEvaluator, Value, WitgenInference},
@@ -472,19 +473,7 @@ impl<T> PartialEq for IdentitySorter<'_, T> {
 impl<T> Eq for IdentitySorter<'_, T> {}
 
 fn is_machine_call<T>(identity: &Identity<T>) -> bool {
-    match identity {
-        Identity::Lookup(_)
-        | Identity::Permutation(_)
-        | Identity::PhantomLookup(_)
-        | Identity::PhantomPermutation(_) => true,
-        // TODO(bus_interaction): Bus interactions are currently ignored,
-        // so processing them does not succeed. We currently assume that for
-        // every bus interaction, there is an equivalent (phantom) lookup or
-        // permutation constraint.
-        // Returning false here to give JITing a chance to succeed.
-        Identity::PhantomBusInteraction(_) => false,
-        Identity::Polynomial(_) | Identity::Connect(_) => false,
-    }
+    matches!(identity, Identity::BusSend(_))
 }
 
 pub struct Error<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> {

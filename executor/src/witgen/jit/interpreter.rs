@@ -503,9 +503,8 @@ mod test {
         let (analyzed, fixed_col_vals) = read_pil::<GoldilocksField>(&pil);
 
         let fixed_data = FixedData::new(&analyzed, &fixed_col_vals, &[], Default::default(), 0);
-        let (fixed_data, retained_identities) =
-            global_constraints::set_global_constraints(fixed_data, &analyzed.identities);
-        let machines = MachineExtractor::new(&fixed_data).split_out_machines(retained_identities);
+        let fixed_data = global_constraints::set_global_constraints(fixed_data);
+        let machines = MachineExtractor::new(&fixed_data).split_out_machines();
         let [KnownMachine::BlockMachine(machine)] = machines
             .iter()
             .filter(|m| m.name().contains(machine_name))

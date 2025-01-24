@@ -52,8 +52,6 @@ enum Constr {
     ///   would be in an equivalent lookup or permutation:
     ///   - It should always evaluate to a binary value.
     ///   - If it evaluates to zero, the multiplicity must be zero.
-    /// WARNING: As of now, this annotation is largely ignored. When using the bus,
-    /// make sure that you also add phantom lookup / permutation constraints.
     PhantomBusInteraction(expr, expr[], expr)
 }
 

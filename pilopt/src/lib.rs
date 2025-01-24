@@ -654,7 +654,7 @@ fn remove_trivial_identities<T: FieldElement>(pil_file: &mut Analyzed<T>) {
             }
             Identity::Connect(..) => None,
             Identity::PhantomBusInteraction(id) => {
-                if id.tuple.0.is_empty() {
+                if id.payload.0.is_empty() {
                     unreachable!("Unexpected empty bus interaction: {}", id);
                 } else {
                     None

@@ -1,13 +1,15 @@
 use itertools::Itertools;
 use powdr_ast::analyzed::{
     AlgebraicBinaryOperation, AlgebraicBinaryOperator, AlgebraicExpression as Expression,
-    AlgebraicUnaryOperation, AlgebraicUnaryOperator, Identity, LookupIdentity, PermutationIdentity,
-    PhantomLookupIdentity, PhantomPermutationIdentity, PolynomialIdentity, PolynomialType,
+    AlgebraicUnaryOperation, AlgebraicUnaryOperator, PolynomialIdentity, PolynomialType,
     SelectedExpressions,
 };
 use powdr_number::FieldElement;
 
-use crate::witgen::range_constraints::RangeConstraint;
+use crate::witgen::{
+    data_structures::identity::{BusSend, Identity},
+    range_constraints::RangeConstraint,
+};
 
 use super::{
     variable::Variable,
@@ -47,14 +49,13 @@ impl<T: FieldElement, FixedEval: FixedEvaluator<T>> DebugFormatter<'_, T, FixedE
     /// about the sub-expressions as possible.
     fn format_identity(&self, identity: &Identity<T>, row_offset: i32) -> String {
         match identity {
-            Identity::Lookup(LookupIdentity { left, .. })
-            | Identity::Permutation(PermutationIdentity { left, .. })
-            | Identity::PhantomPermutation(PhantomPermutationIdentity { left, .. })
-            | Identity::PhantomLookup(PhantomLookupIdentity { left, .. }) => {
-                self.format_connection(left, row_offset)
+            Identity::BusSend(BusSend {
+                selected_payload: selected_tuple,
+                ..
+            }) => self.format_connection(selected_tuple, row_offset),
+            Identity::BusReceive(_) | Identity::Connect(_) => {
+                format!("{identity}")
             }
-            // TODO(bus_interaction)
-            Identity::PhantomBusInteraction(_) | Identity::Connect(_) => format!("{identity}"),
             Identity::Polynomial(PolynomialIdentity { expression, .. }) => {
                 if let Expression::BinaryOperation(AlgebraicBinaryOperation {
                     left,

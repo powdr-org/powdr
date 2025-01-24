@@ -7,15 +7,16 @@ use bit_vec::BitVec;
 use itertools::Itertools;
 use powdr_ast::analyzed::{
     AlgebraicBinaryOperation, AlgebraicBinaryOperator, AlgebraicExpression as Expression,
-    AlgebraicReference, AlgebraicUnaryOperation, AlgebraicUnaryOperator, Identity, LookupIdentity,
-    PermutationIdentity, PhantomLookupIdentity, PhantomPermutationIdentity, PolynomialIdentity,
+    AlgebraicReference, AlgebraicUnaryOperation, AlgebraicUnaryOperator, PolynomialIdentity,
     PolynomialType,
 };
 use powdr_number::FieldElement;
 
 use crate::witgen::{
-    data_structures::mutable_state::MutableState, global_constraints::RangeConstraintSet,
-    range_constraints::RangeConstraint, FixedData, QueryCallback,
+    data_structures::{identity::Identity, mutable_state::MutableState},
+    global_constraints::RangeConstraintSet,
+    range_constraints::RangeConstraint,
+    FixedData, QueryCallback,
 };
 
 use super::{
@@ -183,18 +184,14 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> WitgenInference<'a, T, F
                     row_offset,
                     &VariableOrValue::Value(T::from(0)),
                 )?,
-            Identity::Lookup(LookupIdentity { id, left, .. })
-            | Identity::Permutation(PermutationIdentity { id, left, .. })
-            | Identity::PhantomPermutation(PhantomPermutationIdentity { id, left, .. })
-            | Identity::PhantomLookup(PhantomLookupIdentity { id, left, .. }) => self.process_call(
+            Identity::BusSend(bus_interaction) => self.process_call(
                 can_process,
-                *id,
-                &left.selector,
-                &left.expressions,
+                bus_interaction.identity_id,
+                &bus_interaction.selected_payload.selector,
+                &bus_interaction.selected_payload.expressions,
                 row_offset,
             ),
-            // TODO(bus_interaction)
-            Identity::PhantomBusInteraction(_) => ProcessResult::empty(),
+            Identity::BusReceive(_) => ProcessResult::empty(),
             Identity::Connect(_) => ProcessResult::empty(),
         };
         self.ingest_effects(result, Some((id.id(), row_offset)))
@@ -677,12 +674,12 @@ mod test {
     fn solve_on_rows(input: &str, rows: &[i32], known_cells: Vec<(&str, i32)>) -> String {
         let (analyzed, fixed_col_vals) = read_pil::<GoldilocksField>(input);
         let fixed_data = FixedData::new(&analyzed, &fixed_col_vals, &[], Default::default(), 0);
-        let (fixed_data, retained_identities) =
-            global_constraints::set_global_constraints(fixed_data, &analyzed.identities);
+        let fixed_data = global_constraints::set_global_constraints(fixed_data);
 
-        let fixed_lookup_connections = retained_identities
+        let fixed_lookup_connections = fixed_data
+            .identities
             .iter()
-            .filter_map(|i| Connection::try_from(*i).ok())
+            .filter_map(|i| Connection::try_new(i, &fixed_data.bus_receives))
             .filter(|c| FixedLookup::is_responsible(c))
             .map(|c| (c.id, c))
             .collect();
@@ -710,7 +707,7 @@ mod test {
             let mut progress = false;
             counter += 1;
             for row in rows {
-                for id in retained_identities.iter() {
+                for id in fixed_data.identities.iter() {
                     progress |= !witgen
                         .process_identity(&mutable_state, id, *row)
                         .unwrap()

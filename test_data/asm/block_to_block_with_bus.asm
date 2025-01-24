@@ -22,7 +22,9 @@ machine Arith with
 
     let used = std::array::sum(sel);
 
-    bus_receive(ARITH_INTERACTION_ID, [0, x, y, z], latch * used, latch);
+    col witness bus_selector;
+    std::utils::force_bool(bus_selector);
+    bus_receive(ARITH_INTERACTION_ID, [0, x, y, z], latch * bus_selector, latch * bus_selector);
 
     // TODO: Expose final value of acc as public.
 

@@ -89,7 +89,7 @@ impl<'a, T: FieldElement, Ext: ExtensionField<T> + Sync> BusAccumulatorGenerator
 
         let max_tuple_size = bus_interactions
             .iter()
-            .map(|i| i.tuple.0.len())
+            .map(|i| i.payload.0.len())
             .max()
             .unwrap();
 
@@ -147,7 +147,7 @@ impl<'a, T: FieldElement, Ext: ExtensionField<T> + Sync> BusAccumulatorGenerator
             let multiplicity = evaluator.evaluate(&bus_interaction.multiplicity);
 
             let tuple = bus_interaction
-                .tuple
+                .payload
                 .0
                 .iter()
                 .map(|r| evaluator.evaluate(r))

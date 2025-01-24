@@ -2,13 +2,14 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
 use bus_accumulator::generate_bus_accumulator_columns;
+use data_structures::identity::{convert_identities, BusReceive, Identity};
 use itertools::Itertools;
 use machines::machine_extractor::MachineExtractor;
 use multiplicity_column_generator::MultiplicityColumnGenerator;
 use powdr_ast::analyzed::{
     AlgebraicExpression, AlgebraicReference, AlgebraicReferenceThin, Analyzed, DegreeRange,
-    Expression, FunctionValueDefinition, Identity, PolyID, PolynomialType, Symbol, SymbolKind,
-    TypedExpression,
+    Expression, FunctionValueDefinition, Identity as AnalyzedIdentity, PolyID, PolynomialType,
+    Symbol, SymbolKind, TypedExpression,
 };
 use powdr_ast::parsed::visitor::{AllChildren, ExpressionVisitable};
 use powdr_ast::parsed::{FunctionKind, LambdaExpression};
@@ -111,7 +112,7 @@ impl<T: FieldElement> WitgenCallbackContext<T> {
         let has_phantom_bus_sends = pil
             .identities
             .iter()
-            .any(|identity| matches!(identity, Identity::PhantomBusInteraction(_)));
+            .any(|identity| matches!(identity, AnalyzedIdentity::PhantomBusInteraction(_)));
 
         let supports_field = match T::known_field().unwrap() {
             KnownField::GoldilocksField
@@ -210,41 +211,34 @@ impl<'a, 'b, T: FieldElement> WitnessGenerator<'a, 'b, T> {
             self.challenges,
             self.stage,
         );
-        let identities = self
-            .analyzed
-            .identities
-            .clone()
-            .into_iter()
-            .filter(|identity| {
-                let references_later_stage_challenge = identity.expr_any(|expr| {
-                    if let AlgebraicExpression::Challenge(challenge) = expr {
-                        challenge.stage >= self.stage.into()
-                    } else {
-                        false
-                    }
-                });
-                let references_later_stage_witness = fixed
-                    .polynomial_references(identity)
-                    .into_iter()
-                    .any(|poly_id| {
-                        (poly_id.ptype == PolynomialType::Committed)
-                            && fixed.witness_cols[&poly_id].stage > self.stage as u32
-                    });
-
-                let discard = references_later_stage_challenge || references_later_stage_witness;
-
-                if discard {
-                    log::trace!("Skipping identity that references later-stage items: {identity}",);
+        let fixed = fixed.filter_identities(|fixed, identity| {
+            let references_later_stage_challenge = identity.expr_any(|expr| {
+                if let AlgebraicExpression::Challenge(challenge) = expr {
+                    challenge.stage >= self.stage.into()
+                } else {
+                    false
                 }
-                !discard
-            })
-            .collect::<Vec<_>>();
+            });
+            let references_later_stage_witness = fixed
+                .polynomial_references(identity)
+                .into_iter()
+                .any(|poly_id| {
+                    (poly_id.ptype == PolynomialType::Committed)
+                        && fixed.witness_cols[&poly_id].stage > self.stage as u32
+                });
+
+            let discard = references_later_stage_challenge || references_later_stage_witness;
+
+            if discard {
+                log::trace!("Skipping identity that references later-stage items: {identity}",);
+            }
+            !discard
+        });
 
         // Removes identities like X * (X - 1) = 0 or [ A ] in [ BYTES ]
         // These are already captured in the range constraints.
-        let (fixed, retained_identities) =
-            global_constraints::set_global_constraints(fixed, &identities);
-        let machines = MachineExtractor::new(&fixed).split_out_machines(retained_identities);
+        let fixed = global_constraints::set_global_constraints(fixed);
+        let machines = MachineExtractor::new(&fixed).split_out_machines();
 
         // Run main machine and extract columns from all machines.
         let columns = MutableState::new(machines.into_iter(), &self.query_callback).run();
@@ -262,7 +256,12 @@ impl<'a, 'b, T: FieldElement> WitnessGenerator<'a, 'b, T> {
             );
         }
 
-        let mut columns = MultiplicityColumnGenerator::new(&fixed).generate(columns, publics);
+        let mut columns = if self.stage == 0 {
+            // Multiplicities should be computed in the first stage
+            MultiplicityColumnGenerator::new(&fixed).generate(columns, publics)
+        } else {
+            columns
+        };
 
         record_end(OUTER_CODE_NAME);
         reset_and_print_profile_summary();
@@ -309,6 +308,10 @@ where
 /// (i.e., a call to [WitnessGenerator::generate]).
 pub struct FixedData<'a, T: FieldElement> {
     analyzed: &'a Analyzed<T>,
+    /// The identities to be processed, not including those that are fully
+    /// represented by the global range constraints (e.g. [X] in [BYTE]).
+    identities: Vec<Identity<T>>,
+    bus_receives: BTreeMap<T, BusReceive<T>>,
     fixed_cols: FixedColumnMap<FixedColumn<'a, T>>,
     witness_cols: WitnessColumnMap<WitnessColumn<'a, T>>,
     column_by_name: HashMap<String, PolyID>,
@@ -381,8 +384,29 @@ impl<'a, T: FieldElement> FixedData<'a, T> {
             fixed_constraints: FixedColumnMap::new(None, fixed_cols.len()),
         };
 
+        let mut identities = convert_identities(analyzed);
+        if stage > 0 {
+            // Unfortunately, with the composite backend, we won't have the matching
+            // receives in other machines, which can lead to panics. Machine calls
+            // should not be executed in the second stage anyway.
+            // TODO: Probably we can remove this once we handle "dynamic" busses, because
+            // we need to deal with the case that sends can't be matched statically anyway.
+            identities.retain(|identity| {
+                !matches!(identity, Identity::BusSend(_) | Identity::BusReceive(_))
+            });
+        }
+        let bus_receives = identities
+            .iter()
+            .filter_map(|identity| match identity {
+                Identity::BusReceive(id) => Some((id.bus_id, id.clone())),
+                _ => None,
+            })
+            .collect();
+
         FixedData {
             analyzed,
+            identities,
+            bus_receives,
             fixed_cols,
             witness_cols,
             column_by_name: analyzed
@@ -396,6 +420,25 @@ impl<'a, T: FieldElement> FixedData<'a, T> {
             intermediate_definitions,
             stage,
         }
+    }
+
+    /// Allows the caller to filter out identities based on some criteria.
+    /// The callback has access the fixed data and the identity.
+    /// Consumes fixed data and returns a new instance.
+    pub fn filter_identities(self, f: impl Fn(&FixedData<T>, &Identity<T>) -> bool) -> Self {
+        let keep = self
+            .identities
+            .iter()
+            .map(|id| f(&self, id))
+            .collect::<Vec<_>>();
+        let identities = self
+            .identities
+            .into_iter()
+            .zip_eq(keep)
+            .filter(|(_, keep)| *keep)
+            .map(|(id, _)| id)
+            .collect();
+        Self { identities, ..self }
     }
 
     pub fn with_global_range_constraints(

@@ -1011,7 +1011,7 @@ pub struct PhantomBusInteractionIdentity<T> {
     pub id: u64,
     pub source: SourceRef,
     pub multiplicity: AlgebraicExpression<T>,
-    pub tuple: ExpressionList<T>,
+    pub payload: ExpressionList<T>,
     pub latch: AlgebraicExpression<T>,
 }
 
@@ -1019,14 +1019,14 @@ impl<T> Children<AlgebraicExpression<T>> for PhantomBusInteractionIdentity<T> {
     fn children_mut(&mut self) -> Box<dyn Iterator<Item = &mut AlgebraicExpression<T>> + '_> {
         Box::new(
             once(&mut self.multiplicity)
-                .chain(self.tuple.children_mut())
+                .chain(self.payload.children_mut())
                 .chain(once(&mut self.latch)),
         )
     }
     fn children(&self) -> Box<dyn Iterator<Item = &AlgebraicExpression<T>> + '_> {
         Box::new(
             once(&self.multiplicity)
-                .chain(self.tuple.children())
+                .chain(self.payload.children())
                 .chain(once(&self.latch)),
         )
     }

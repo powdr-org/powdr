@@ -77,7 +77,7 @@ impl<F: FieldElement> Connection<F> {
                 ConnectionKind::Permutation,
                 None,
             )),
-            // TODO(bus_interaction)
+            // Handled by bus constraint checker
             Identity::PhantomBusInteraction(_) => Err(()),
         }?;
 

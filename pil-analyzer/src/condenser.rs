@@ -796,7 +796,7 @@ fn to_constraint<T: FieldElement>(
             id: counters.dispense_identity_id(),
             source,
             multiplicity: to_expr(&fields[0]),
-            tuple: ExpressionList(match fields[1].as_ref() {
+            payload: ExpressionList(match fields[1].as_ref() {
                 Value::Array(fields) => fields.iter().map(|f| to_expr(f)).collect(),
                 _ => panic!("Expected array, got {:?}", fields[1]),
             }),

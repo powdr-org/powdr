@@ -1,6 +1,6 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use itertools::Itertools;
-use powdr_ast::analyzed::{DegreeRange, LookupIdentity, PhantomLookupIdentity};
+use powdr_ast::analyzed::DegreeRange;
 use powdr_ast::indent;
 use powdr_number::{DegreeType, FieldElement};
 use std::cmp::max;
@@ -11,9 +11,9 @@ use crate::witgen::data_structures::mutable_state::MutableState;
 use crate::witgen::identity_processor::{self};
 use crate::witgen::machines::compute_size_and_log;
 use crate::witgen::IncompleteCause;
-use crate::Identity;
 
 use super::affine_expression::AlgebraicVariable;
+use super::data_structures::identity::Identity;
 use super::machines::MachineParts;
 use super::processor::{OuterQuery, Processor, SolverState};
 
@@ -357,15 +357,16 @@ impl<'a, 'c, T: FieldElement, Q: QueryCallback<T>> VmProcessor<'a, 'c, T, Q> {
         let mut outer_assignments = vec![];
 
         // The PC lookup fills most of the columns and enables hints thus it should be run first.
-        // We find it as largest plookup identity.
+        // We find it as largest bus send.
         let pc_lookup_index = identities
             .iter_mut()
             .enumerate()
             .filter_map(|(index, (ident, _))| match ident {
-                Identity::Lookup(LookupIdentity { left, .. })
-                | Identity::PhantomLookup(PhantomLookupIdentity { left, .. }) => {
-                    Some((index, left))
-                }
+                Identity::BusSend(send) => send
+                    .try_match_static(&self.fixed_data.bus_receives)
+                    .unwrap()
+                    .has_arbitrary_multiplicity()
+                    .then_some((index, &send.selected_payload)),
                 _ => None,
             })
             .max_by_key(|(_, left)| left.expressions.len())
@@ -457,13 +458,7 @@ impl<'a, 'c, T: FieldElement, Q: QueryCallback<T>> VmProcessor<'a, 'c, T, Q> {
             return Ok(None);
         }
 
-        let is_machine_call = matches!(
-            identity,
-            Identity::Lookup(..)
-                | Identity::Permutation(..)
-                | Identity::PhantomLookup(..)
-                | Identity::PhantomPermutation(..)
-        );
+        let is_machine_call = matches!(identity, Identity::BusSend(_));
         if is_machine_call && unknown_strategy == UnknownStrategy::Zero {
             // The fact that we got to the point where we assume 0 for unknown cells, but this identity
             // is still not complete, means that either the inputs or the machine is under-constrained.

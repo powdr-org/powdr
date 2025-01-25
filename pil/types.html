@@ -1,0 +1,444 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Types - powdr</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc.js"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">powdr</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="types"><a class="header" href="#types">Types</a></h1>
+<p>The powdr-pil language has the following types:</p>
+<ul>
+<li><code>bool</code></li>
+<li><code>int</code> (integer)</li>
+<li><code>fe</code> (field element)</li>
+<li><code>string</code></li>
+<li>tuple</li>
+<li>array</li>
+<li>function type</li>
+<li><code>expr</code> (expression)</li>
+<li><code>!</code> ("bottom" or "unreachable" type)</li>
+<li>enum types</li>
+</ul>
+<blockquote>
+<p>In addition, there are the <code>col</code> and <code>inter</code> types, but they are special in that
+they are only used for declaring columns, but cannot appear as the type of an expression.
+See <a href="#declaring-and-referencing-columns">Declaring and Referencing Columns</a> for details.</p>
+</blockquote>
+<p>Powdr-pil performs Hindley-Milner type inference. This means that, similar to Rust, the type of
+a symbol does not always have to be specified. The compiler will try to find a type for every
+symbol depending both on the value assigned to the symbol and on the context the symbol is used in.
+It is an error if the type is not uniquely determined.</p>
+<p>Symbols can have a generic type, but in those cases, you have to explicitly specify the generic type.
+Such declarations can require type variables to satisfy certain trait bounds.
+Currently, only built-in traits are supported (see the next section).</p>
+<p>Literal numbers do not have a specific type, they can be either <code>int</code>, <code>fe</code> or <code>expr</code> (the types that
+implement the <code>FromLiteral</code> trait), and their type can also stay generic until evaluation.</p>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<p>The following snippet defines a function that takes a value of a generic type and returns the value incremented by one.
+The type bounds on the generic type are <code>FromLiteral</code> and <code>Add</code>. The type checker will complain if we do not specify
+the type bounds. The bound <code>Add</code> is required because we use the <code>+</code> operator in the function and <code>FromLiteral</code> is needed
+because we use the literal <code>1</code> as a value of that type.</p>
+<pre><code class="language-rust">let&lt;T: FromLiteral + Add&gt; add_one: T -&gt; T = |i| i + 1;</code></pre>
+<h2 id="declaring-and-referencing-columns"><a class="header" href="#declaring-and-referencing-columns">Declaring and Referencing Columns</a></h2>
+<p>A symbol declared to have type <code>col</code> or <code>inter</code> (or <code>col[k]</code> / <code>inter[k]</code>) is a bit special:</p>
+<p>These symbols represent columns in the arithmetization and the types of values that can be assigned to
+such symbols and the references to the symbols are different from their declared type.</p>
+<p>If you assign a value to a <code>col</code> symbol, that value is expected to have type <code>int -&gt; fe</code> or <code>int -&gt; int</code> (or an array thereof).
+This allows the simple declaration of a fixed column <code>let byte: col = |i| i &amp; 0xff;</code> without complicated conversions.
+The integer value is converted to a field element during evaluation, but it has to be non-negative and less than
+the field modulus.</p>
+<p>Symbols of declared type <code>col</code> are fixed (those with value) or witness columns (those without value).</p>
+<p>A symbol of declared type <code>inter</code> is an intermediate column. You can assign it a value of type <code>expr</code>.
+The idea of an intermediate column is that it is an algebraic expression of other columns that you do
+not want to compute multiple times.</p>
+<blockquote>
+<p>Note that if you use <code>let x: expr = a * b;</code>, the symbol <code>x</code> is just a name in the PIL environment,
+this will not create an intermediate column. The difference between <code>inter</code> and <code>expr</code> in this case
+is that if you use <code>let x: inter = ...</code>, the expression might not be inlined into constraints (depending on the backend),
+while if you use <code>let x: expr = ...</code>, it will always be inlined.</p>
+</blockquote>
+<p>If you reference a symbol of declared type <code>inter</code> or <code>col</code>, the type of the reference is <code>expr</code> (or <code>expr[]</code>).
+A byte constraint is as easy as <code>[ X ] in [ byte ]</code>, since the expected types in plookup columns is <code>expr</code>.
+The downside is that you cannot evaluate columns as functions. If you want to do that, you either have to assign
+a copy to an <code>int -&gt; int</code> symbol: <code>let byte_f: int -&gt; int = |i| i &amp; 0xff; let byte: col = byte_f;</code>.
+Or you can use the built-in function <code>std::prover::eval</code> if you want to do that inside a prover query or hint.</p>
+<p>All other symbols use their declared type both for their value and for references to these symbols.</p>
+<h2 id="built-in-traits"><a class="header" href="#built-in-traits">Built-in Traits</a></h2>
+<p><code>FromLiteral</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>. The type of a number literal needs to implement <code>FromLiteral</code>.</p>
+<p><code>Add</code>: Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>, <code>T[]</code>, <code>string</code>. Used by <code>&lt;T: Add&gt; +: T, T -&gt; T</code> (binary plus).</p>
+<p><code>Sub</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>. Used by <code>&lt;T: Sub&gt; -: T, T -&gt; T</code> (binary minus).</p>
+<p><code>Neg</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>. Used by <code>&lt;T: Neg&gt; -: T -&gt; T</code> (unary minus).</p>
+<p><code>Mul</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>. Used by <code>&lt;T: Mul&gt; *: T, T -&gt; T</code> (binary multiplication).</p>
+<p><code>Pow</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>, Used by <code>&lt;T: Pow&gt; **: T, int -&gt; T</code> (exponentiation).</p>
+<p><code>Ord</code>:
+Implemented by <code>int</code>. Used by <code>&lt;T: Ord&gt; op: T, T, -&gt; bool</code> for <code>op</code> being one of <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>.</p>
+<p><code>Eq</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>. Used by <code>&lt;T: Eq&gt; op: T, T -&gt; bool</code> for <code>op</code> being one of <code>==</code>, <code>!=</code>.</p>
+<h2 id="list-of-types"><a class="header" href="#list-of-types">List of Types</a></h2>
+<h3 id="bool"><a class="header" href="#bool">Bool</a></h3>
+<p>Type name: <code>bool</code></p>
+<p>Booleans are the results of comparisons. They allow the following operators:</p>
+<ul>
+<li><code>&amp;&amp;</code>: logical conjunction</li>
+<li><code>||</code>: logical disjunction</li>
+<li><code>!</code>: logical negation</li>
+</ul>
+<p>Short-circuiting is <em>not</em> performed when evaluating boolean operators.
+This means that <code>(1 == 1) || std::check::panic("reason")</code> will cause a panic abort.</p>
+<h3 id="integer"><a class="header" href="#integer">Integer</a></h3>
+<p>Type name: <code>int</code></p>
+<p>Integers in powdr-pil have unlimited size.
+Array index requires an integer and row indices (for example the input to a fixed
+column defined through a function) are also integers.</p>
+<p>Integer implements <code>FromLiteral</code>, which means that literal numbers can be used in contexts where <code>int</code> is expected.</p>
+<p>Integers allow the following operators, whose result is always an integer:</p>
+<ul>
+<li><code>+</code>: addition</li>
+<li><code>-</code>: subtraction (also unary negation)</li>
+<li><code>*</code>: multiplication</li>
+<li><code>/</code>: integer division rounding towards zero, division by zero results in a runtime error</li>
+<li><code>**</code>: exponentiation, the exponent needs to be non-negative and fit 32 bits, otherwise a runtime error is triggered</li>
+<li><code>%</code>: remainder after division, (for signed arguments, <code>p % q == sgn(p) * abs(p) % abs(q)</code>), remainder by zero results in a runtime error</li>
+<li><code>&amp;</code>: bit-wise conjunction</li>
+<li><code>|</code>: bit-wise disjunction</li>
+<li><code>^</code>: bit-wise exclusive or</li>
+<li><code>&lt;&lt;</code>: bit-wise shift left, the shift amount needs to be non-negative and fit 32 bits, otherwise a runtime error is triggered</li>
+<li><code>&gt;&gt;</code>: bit-wise shift right, the shift amount needs to be non-negative and fit 32 bits, otherwise a runtime error is triggered</li>
+</ul>
+<p>The exponentiation operator on field elements requires a non-negative integer as exponent.
+It has the signature <code>**: fe, int -&gt; fe</code>.</p>
+<p>In addition, the following comparison operators are allowed, the result is a boolean:</p>
+<ul>
+<li><code>&lt;</code>: less than</li>
+<li><code>&lt;=</code>: less or equal</li>
+<li><code>==</code>: equal</li>
+<li><code>!=</code>: not equal</li>
+<li><code>&gt;=</code>: greater or equal</li>
+<li><code>&gt;</code>: greater than</li>
+</ul>
+<h3 id="field-element"><a class="header" href="#field-element">Field Element</a></h3>
+<p>Type name: <code>fe</code></p>
+<p>Field elements are elements of a particular but unspecified prime field. The exact field is
+chosen when powdr is run. The modulus of that field can be accessed via <code>std::field::modulus()</code>.</p>
+<p>Field elements are the values stored in (fixed and witness) columns.
+Arithmetic inside constraints (algebraic expressions) is also always finite field arithmetic.</p>
+<p>The type <code>fe</code> implements <code>FromLiteral</code>, which means that literal numbers can be used in contexts where <code>fe</code> is expected.
+If the literal number is not less than the field modulus, a runtime error is caused.</p>
+<p>Field elements allow the following operators, where the result is always a field element:</p>
+<ul>
+<li><code>+</code>: finite field addition</li>
+<li><code>-</code>: finite field subtraction (also unary negation)</li>
+<li><code>*</code>: finite field multiplication</li>
+</ul>
+<p>There is also an exponentiation operator <code>**</code> on field elements. It requires the exponent
+to be a non-negative integer and thus has the signature <code>**: fe, int -&gt; fe</code>. If the exponent is negative, a runtime error is triggered. <code>0**0</code> is defined as <code>1</code>.</p>
+<p>The following comparison operators exist for field elements, whose result is a boolean:</p>
+<ul>
+<li><code>==</code>: equality comparison</li>
+<li><code>!=</code>: inequality comparison</li>
+</ul>
+<p>Since finite fields do not have an inherent order as integers do, if you want to
+compare them using <code>&lt;</code>, you have to first convert them to integers.</p>
+<h3 id="string"><a class="header" href="#string">String</a></h3>
+<p>Type name: <code>string</code></p>
+<p>String literals are written as <code>"string content"</code>. They are mainly used for debugging or
+documentation purposes, since they cannot occur in constraints.</p>
+<p>They allow the following operators:</p>
+<ul>
+<li><code>+</code>: string concatenation</li>
+</ul>
+<h3 id="tuple"><a class="header" href="#tuple">Tuple</a></h3>
+<p>Type name: <code>(..., ..., ...)</code></p>
+<p>Tuples are complex types that are composed from other types, either zero or two or more. There is no tuple type with a single element (<code>(int)</code> is the same as <code>int</code>).
+The empty tuple type is written as <code>()</code>.</p>
+<p>Examples include <code>(int, int)</code> (a pair of integers) and <code>((fe[], int), ())</code>
+(a tuple consisting of a tuple that contains an array of field elements and an integer
+and an empty tuple).</p>
+<p>Tuples values are constructed using parentheses: <code>(1, 2)</code> constructs the tuple that consists of
+a one and a two.</p>
+<p>Tuples do not allow any operators.</p>
+<h3 id="array"><a class="header" href="#array">Array</a></h3>
+<p>Type name: <code>_[]</code></p>
+<p>Arrays are statically or dynamically-sized collections of elements each of the same type
+denoted for example as <code>int[]</code> (a dynamically-sized array of integers) or <code>int[2]</code> (an array of integers with static size two).
+Array values can be constructed inline using <code>[1, 2]</code> (the array containing the
+two elements one and two).</p>
+<p>The built-in function <code>std::array::len</code> can be used to retrieve the length of an array (statically or dynamically sized)
+and the elements of an array <code>a</code> can be accessed using <code>a[0]</code>, <code>a[1]</code>, etc.</p>
+<p>The type checker currently only knows dynamically-sized arrays, which means that it does not compare the sizes of statically-sized array types.</p>
+<p>Arrays allow the following operators:</p>
+<ul>
+<li><code>+</code>: array concatenation</li>
+<li><code>_[]</code>: array index access, the index needs to be a non-negative integer that is less than the length of the array, otherwise a runtime error is triggered</li>
+</ul>
+<h3 id="function"><a class="header" href="#function">Function</a></h3>
+<p>Type name: <code>T1, T2, ..., Tn -&gt; T0</code></p>
+<p>Function type names are for example denoted as <code>int, fe -&gt; int</code> or <code>-&gt; int</code>.
+Note that <code>(int, fe) -&gt; int</code> is a function that takes a single tuple as parameter
+while <code>int, fe -&gt; int</code> takes two parameters of type integer and field element.</p>
+<p>Functions can be constructed using the lambda expression notation.
+For example <code>|x, y| x + y</code> returns a function that performs addition.
+The lambda expression <code>|| 7</code> is a function that returns a constant (has no parameters).
+Lambda functions can capture anything in their environment and thus form closures.</p>
+<p>Functions allow the following operators:</p>
+<ul>
+<li><code>_(...)</code>: function evaluation</li>
+</ul>
+<p>Powdr-pil is usually side-effect free, but there are some built-in functions that have
+side-effects:
+These are <code>std::debug::print</code> and <code>std::check::panic</code> and all functions that call them.
+Expressions are eagerly evaluated from left to right.</p>
+<h3 id="expression"><a class="header" href="#expression">Expression</a></h3>
+<p>Type name: <code>expr</code></p>
+<p>Expressions are the elements of the algebraic expressions used in constraints.</p>
+<p>References to columns have type <code>expr</code> and <code>expr</code> also implements <code>FromLiteral</code>,
+which means that literal numbers can be used in contexts where <code>expr</code> is expected.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let x: col;
+let y: col;
+let f: -&gt; expr = || x + y;
+let g = || 7;
+f() = g();</code></pre>
+<p>The first two lines define the witness columns <code>x</code> and <code>y</code>.
+The next two lines define the utility functions <code>f</code> and <code>g</code>.
+The function <code>f</code> adds the two columns <code>x</code> and <code>y</code> symbolically - it essentially returns the expression <code>x + y</code>.
+The last line is at statement level and it is expected that it evaluates to a constraint, in this case, a polynomial identity.
+Because of that, <code>g</code> is inferred to have type <code>-&gt; expr</code>, which is compatible with the literal <code>7</code>.</p>
+<p>Since expressions are built from abstract column references, applying operators
+does not perform any operations but instead constructs an abstract expression structure / syntax tree.</p>
+<p>Expressions allow the following operators, which always construct new expressions:</p>
+<ul>
+<li><code>+</code>: additive combination of expressions</li>
+<li><code>-</code>: subtractive combination of expressions (also unary negation)</li>
+<li><code>*</code>: multiplicative combination of expressions</li>
+<li><code>**</code>: exponential combination of an expression with an integer constant</li>
+<li><code>'</code>: reference to the next row of a column, can only be applied directly to columns and only once</li>
+</ul>
+<p>The operator <code>=</code> on expressions constructs a constraint (see [../builtins#Constr]).</p>
+<h3 id="bottom-type"><a class="header" href="#bottom-type">Bottom Type</a></h3>
+<p>Type name: <code>!</code></p>
+<p>The bottom type essentially is the return type of a function that never returns, which currently only happens
+if you call the <code>panic</code> function. The bottom type is compatible with any other type, which means
+that you can call the <code>panic</code> function in any context.</p>
+<h3 id="enum-types"><a class="header" href="#enum-types">Enum Types</a></h3>
+<p>Enums are user-defined types that can hold different named alternatives plus data. An enum type has a (namespaced) name
+that uniquely identifies it and is also used to reference the type.</p>
+<p>Enums are declared in the following way:</p>
+<pre><code class="language-rust">enum EnumName {
+    Variant1,
+    Variant2(),
+    Variant3(int),
+    Variant4(int, int[], EnumName),
+}</code></pre>
+<p>The variants must have unique names inside the enum and they can optionally take additional data.
+Each variant declares a type constructor function that can be used to create a value of the enum:</p>
+<pre><code class="language-rust">let a = EnumName::Variant1;
+let b = EnumName::Variant2();
+let c = EnumName::Variant3(3);
+let d = EnumName::Variant4(1, [2, 3], EnumName::Variant1);</code></pre>
+<p>Recursive enums are allowed.</p>
+<p>Enums do not allow any operators.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../pil/patterns.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../pil/fixed_columns.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../pil/patterns.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../pil/fixed_columns.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

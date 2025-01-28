@@ -22,7 +22,10 @@ machine SplitGL(byte_compare: ByteCompare) with
     let select_byte: fe, int -> fe = |input, byte| std::convert::fe((std::convert::int(input) >> (byte * 8)) & 0xff);
     col witness bytes;
     query |i| {
-        std::prover::provide_value(bytes, i, select_byte(std::prover::eval(in_acc'), (i + 1) % 8));
+        std::prover::compute_from(bytes, i, [in_acc'], |values| match values {
+            [in_acc_next] => select_byte(in_acc_next, (i + 1) % 8),
+            _ => std::check::panic(""),
+        })
     };
     // Puts the bytes together to form the input
     col witness in_acc;

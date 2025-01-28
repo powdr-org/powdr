@@ -20,6 +20,27 @@ let provide_if_unknown: expr, int, (-> fe) -> () = query |column, row, f| match 
     _ => (),
 };
 
+/// Computes the value of a column based on the values of other columns.
+let compute_from: expr, int, expr[], (fe[] -> fe) -> () = query |dest_col, row, input_cols, f|
+    match try_eval(dest_col) {
+        // If the destination column is already known, do nothing.
+        Option::Some(_) => (),
+        Option::None => {
+            // Try to evaluate the input columns.
+            let maybe_values = std::array::map(input_cols, |c| try_eval(c));
+            // Collect the values into an Option<fe[]>.
+            let values = std::array::fold(maybe_values, Option::Some([]), |acc, value| match (acc, value) {
+                (Option::Some(a), Option::Some(v)) => Option::Some(a + [v]),
+                _ => Option::None,
+            });
+            match values {
+                // If all input columns are known, compute the value and provide it.
+                Option::Some(vals) => provide_value(dest_col, row, f(vals)),
+                Option::None => (),
+            }
+        }
+    };
+
 /// Retrieves a field element from a prover-provided (untrusted and not committed) input channel.
 /// The parameters are the channel id and the index in the channel.
 /// Index zero is the length of the channel (number of bytes) and index 1 is the first element.

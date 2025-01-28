@@ -488,9 +488,9 @@ impl PILAnalyzer {
                 let mut counters = self.symbol_counters.take().unwrap();
                 let items =
                     StatementProcessor::new(self.driver(), &mut counters, self.polynomial_degree)
-                        .handle_statement(statement)?;
+                        .handle_statement(statement);
                 self.symbol_counters = Some(counters);
-                for item in items {
+                for item in items? {
                     match item {
                         PILItem::Definition(symbol, value) => {
                             let name = symbol.absolute_name.clone();

@@ -257,11 +257,17 @@ params[2] = Add::c[0];"
             col witness sel, a, b, c;
             a + b = 0;
         ";
-        let err_str = generate_for_block_machine(input, "Unconstrained", 2, 1)
-            .err()
-            .unwrap();
-        assert!(err_str
-            .contains("The following variables or values are still missing: Unconstrained::c"));
+        let code = generate_for_block_machine(input, "Unconstrained", 2, 1)
+            .unwrap()
+            .code;
+        assert_eq!(
+            format_code(&code),
+            "Unconstrained::sel[0] = 1;
+Unconstrained::a[0] = params[0];
+Unconstrained::b[0] = params[1];
+params[2] = 0;
+Unconstrained::c[0] = 0;"
+        );
     }
 
     #[test]
@@ -352,5 +358,44 @@ params[3] = main_binary::C[3];"
     fn poseidon() {
         let input = read_to_string("../test_data/pil/poseidon_gl.pil").unwrap();
         generate_for_block_machine(&input, "main_poseidon", 12, 4).unwrap();
+    }
+
+    #[test]
+    fn bitfield_opid() {
+        // The issue with this machine is that if we pass 0 as the operation_id, the machine
+        // is fully unconstrained.
+        let input = "
+        namespace Main(256);
+            col witness x, a, b, c;
+            [x, a, b, c] is [
+                Arith::is_add + 2 * Arith::is_mul, Arith::X, Arith::Y, Arith::Z];
+        namespace Arith(256);
+            col witness is_add, is_mul, X, Y, Z;
+            is_add * (1 - is_add) = 0;
+            is_mul * (1 - is_mul) = 0;
+            is_add * (X + Y - Z) = 0;
+            is_mul * (X * Y - Z) = 0;
+        ";
+        let code = generate_for_block_machine(input, "Arith", 3, 1);
+        assert_eq!(
+            format_code(&code.unwrap().code),
+            "Arith::is_add[0] = (params[0] & 0x1);
+Arith::is_mul[0] = ((params[0] & 0x2) // 2);
+assert (params[0] & 0xfffffffffffffffc) == 0;
+Arith::X[0] = params[1];
+Arith::Y[0] = params[2];
+if (Arith::is_add[0] == 1) {
+    Arith::Z[0] = (Arith::X[0] + Arith::Y[0]);
+    params[3] = Arith::Z[0];
+} else {
+    if (Arith::is_mul[0] == 1) {
+        Arith::Z[0] = (Arith::X[0] * Arith::Y[0]);
+        params[3] = Arith::Z[0];
+    } else {
+        params[3] = 0;
+        Arith::Z[0] = 0;
+    }
+}"
+        );
     }
 }

@@ -87,6 +87,8 @@ impl<'a, T: FieldElement> SingleStepProcessor<'a, T> {
             requested_known,
             SINGLE_STEP_MACHINE_MAX_BRANCH_DEPTH,
         )
+        // We set a block size of two because in the end, each identity needs to be completed on both rows.
+        .with_block_size(2)
         .generate_code(can_process, witgen)
         .map_err(|e| e.to_string())
         .map(|r| r.code)
@@ -201,16 +203,23 @@ namespace M(256);
 
     #[test]
     fn no_progress() {
-        let input = "namespace M(256); let X; let Y; X' = X;";
+        let input = "namespace M(256); let X; let Y; X' = X * X';";
         let err = generate_single_step(input, "M").err().unwrap();
         assert_eq!(
             err.to_string(),
             "Unable to derive algorithm to compute required values: \
-            No variable available to branch on.\nThe following variables or values are still missing: M::Y[1]\n\
+            No variable available to branch on.\nThe following variables or values are still missing: M::X[1], M::Y[1]\n\
+            The following identities have not been fully processed:\n\
+--------------[ identity 0 on row 0: ]--------------
+M::X' = ( M::X   * M::X')
+ ???  =  <known>    ???  
+      =                  
+M::X' = ( M::X   * M::X')
+ ???  =  <known>    ???  
+      =                  \n\
             The following branch decisions were taken:\n\
             \n\
-            Generated code so far:\n\
-            M::X[1] = M::X[0];"
+            No code generated so far."
         );
     }
 
@@ -320,8 +329,11 @@ VM::instr_mul[1] = 1;"
             col witness X, Y, Z;
             Z = X + Y;
         ";
+
         match generate_single_step(input, "Main") {
-            Ok(_) => panic!("Expected error"),
+            Ok(r) => {
+                panic!("Expected error, got code:\n{}", format_code(&r));
+            }
             Err(e) => {
                 let start = e
                     .find("The following identities have not been fully processed:")

@@ -12,7 +12,7 @@ use crate::{
 
 mod display;
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct Location {
     limbs: Vec<String>,
 }
@@ -41,8 +41,7 @@ impl Location {
 
 #[derive(Clone)]
 pub struct MachineInstanceGraph {
-    pub main: Machine,
-    pub entry_points: Vec<Operation>,
+    pub main: Location,
     pub objects: BTreeMap<Location, Object>,
     /// List of module-level PIL statements (utility functions,
     /// data structures, etc) by module path
@@ -60,8 +59,11 @@ pub struct Object {
     pub latch: Option<String>,
     /// call selector array
     pub call_selectors: Option<String>,
-    /// true if this machine has a PC
-    pub has_pc: bool,
+    /// the operation id for this machine
+    /// TODO: This could be made non optional for simplicity: in the case where we have a single operation, it could be optimized away
+    pub operation_id: Option<String>,
+    /// the operations for this machine
+    pub operations: BTreeMap<String, Operation>,
 }
 
 #[derive(Clone, Debug)]
@@ -75,7 +77,7 @@ pub struct Link {
     pub is_permutation: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LinkFrom {
     /// the instruction flag, if this is an instruction link
     pub instr_flag: Option<Expression>,
@@ -85,32 +87,16 @@ pub struct LinkFrom {
     pub params: CallableParams,
 }
 
-#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
 pub struct LinkTo {
     /// the machine we link to
-    pub machine: Machine,
+    pub machine: Location,
     /// the operation we link to
-    pub operation: Operation,
-    /// index into the permutation selector (None if lookup)
-    pub selector_idx: Option<u64>,
-}
-
-#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq)]
-pub struct Machine {
-    /// the location of this instance
-    pub location: Location,
-    /// its latch
-    pub latch: Option<String>,
-    /// call selector array
-    pub call_selectors: Option<String>,
-    /// its operation id
-    pub operation_id: Option<String>,
+    pub operation: String,
 }
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq)]
 pub struct Operation {
-    /// the name of the operation
-    pub name: String,
     /// the value of the operation id of this machine which activates this operation
     pub id: Option<BigUint>,
     /// the parameters

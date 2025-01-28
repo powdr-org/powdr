@@ -467,7 +467,7 @@ fn permutation_to_block() {
 }
 
 #[test]
-#[should_panic = "Column main_bin::pc_update is not stackable in a 1-row block, conflict in rows -1 and 0"]
+#[should_panic = "Witness generation failed."]
 fn permutation_to_vm() {
     // TODO: witgen issue: Machine incorrectly detected as block machine.
     let f = "asm/permutations/vm_to_vm.asm";

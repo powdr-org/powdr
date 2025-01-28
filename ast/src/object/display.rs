@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter, Result};
 
 use crate::{asm_analysis::combine_flags, write_items_indented};
 
-use super::{Link, LinkFrom, LinkTo, Location, Machine, MachineInstanceGraph, Object, Operation};
+use super::{Link, LinkFrom, LinkTo, Location, MachineInstanceGraph, Object, Operation};
 
 impl Display for Location {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -30,6 +30,13 @@ impl Display for MachineInstanceGraph {
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         writeln!(f, "// Degree {}", self.degree)?;
+        if !self.operations.is_empty() {
+            writeln!(f, "// Operations:")?;
+            for (name, operation) in &self.operations {
+                writeln!(f, "// {name}: {operation}")?;
+            }
+        }
+        writeln!(f, "// PIL:")?;
         for s in &self.pil {
             writeln!(f, "{s}")?;
         }
@@ -62,22 +69,11 @@ impl Display for LinkTo {
     }
 }
 
-impl Display for Machine {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f,
-            "object at location \"{}\" with latch \"{:?}\" and operation_id \"{:?}\"",
-            self.location, self.latch, self.operation_id
-        )
-    }
-}
-
 impl Display for Operation {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
-            "operation \"{}\" with id {:?} with params {}",
-            self.name,
+            "operation with id {:?} with params {}",
             self.id.as_ref().map(|id| id.to_string()),
             self.params,
         )

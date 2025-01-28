@@ -1,4 +1,4 @@
-use std::protocols::permutation_via_bus::permutation_send;
+use std::protocols::bus::bus_send;
 use std::protocols::permutation_via_bus::permutation_receive;
 
 machine Main with degree: 8 {
@@ -16,7 +16,6 @@ machine Main with degree: 8 {
 
     // Add the bus permutation constraints
     let ID = 123;
-    let permutation_constraint = sel $ [x, y] is sub_sel $ [sub_x, sub_y];
-    permutation_send(ID, permutation_constraint);
-    permutation_receive(ID, permutation_constraint);
+    bus_send(ID, [x, y], sel);
+    permutation_receive(ID, sub_sel, [sub_x, sub_y]);
 }

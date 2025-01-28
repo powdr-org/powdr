@@ -10,9 +10,6 @@ repository = { workspace = true }
 [dependencies]
 powdr-ast.workspace = true
 powdr-number.workspace = true
-powdr-analysis.workspace = true
-
-log = "0.4.17"
 
 itertools = "0.13"
 

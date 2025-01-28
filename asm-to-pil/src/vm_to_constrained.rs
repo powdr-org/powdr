@@ -60,6 +60,7 @@ const ROM_OPERATION_ID: &str = "operation_id";
 const ROM_LATCH: &str = "latch";
 pub const ROM_SUBMACHINE_NAME: &str = "_rom";
 const ROM_ENTRY_POINT: &str = "get_line";
+const CALL_SELECTORS: &str = "call_selectors";
 
 fn rom_machine<'a>(
     degree: MachineDegree,
@@ -277,6 +278,9 @@ impl<T: FieldElement> VMConverter<T> {
             },
             is_permutation: false,
         });
+
+        assert!(input.call_selectors.is_none());
+        input.call_selectors = Some(CALL_SELECTORS.into());
 
         if !self.pil.is_empty() {
             input.pil.extend(self.pil);

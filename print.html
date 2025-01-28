@@ -1,0 +1,2538 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>powdr</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">powdr</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<p>powdrVM is a versatile zkVM built on the <a href="./powdr_sdk_intro.html">powdr</a> stack, supporting std Rust,
+multiple proof systems, and zk-continuations for unbounded execution.
+Designed for flexibility, powdrVM enables efficient proof generation for complex applications with minimal setup.</p>
+<h2 id="contributing"><a class="header" href="#contributing">Contributing</a></h2>
+<p>powdrVM is free and open source.
+You can find the source code on <a href="https://github.com/powdr-labs/powdr">GitHub</a>.
+Issues and feature requests can be posted on the <a href="https://github.com/powdr-labs/powdr/issues">GitHub issue tracker</a>.</p>
+<h2 id="license"><a class="header" href="#license">License</a></h2>
+<!-- markdown-link-check-disable-next-line -->
+<p>The powdr source and documentation are released under the <a href="https://opensource.org/license/mit/">MIT License</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+<p>The easiest way to start making ZK proofs with powdrVM is to install <code>cargo-powdr</code>:</p>
+<pre><code class="language-console">cargo install cargo-powdr
+</code></pre>
+<p><code>cargo-powdr</code> is used to create and manage powdrVM projects, similar to <code>cargo</code> itself.</p>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<p>You will need the <a href="https://rust-lang.org">Rust</a> compiler and Cargo, the Rust package manager.
+The easiest way to install both is with <a href="https://rustup.rs/"><code>rustup.rs</code></a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h1>
+<p>First, create a new powdrVM project with</p>
+<pre><code class="language-console">cargo-powdr new my-host
+</code></pre>
+<ul>
+<li>Your new crate <code>my-host</code> is the host of the virtual machine's execution,
+and is responsible for preparing data and running the prover.</li>
+<li>The <code>guest</code> crate in your new project contains the Rust code whose execution will be proven.</li>
+</ul>
+<p>Most of these details are abstracted by the <code>powdr</code> library.</p>
+<p>Now that your project is set up, just run</p>
+<pre><code class="language-console">cargo run -r
+</code></pre>
+<p>The host manages a <code>powdr::Session</code> which can be used to share data
+with the guest, test the execution, and generate ZK proofs.</p>
+<pre><code class="language-rust">use powdr::Session;
+
+fn main() {
+    env_logger::init();
+
+    let some_data = vec![1, 2, 3, 4, 5];
+
+    // Create a new powdr session to make proofs for the `guest` crate.
+    // Store all temporary and final artifacts in `powdr-target`.
+    let mut session = Session::builder()
+        .guest_path("./guest")
+        .out_path("powdr-target")
+        // powdrVM splits long execution traces into chunks
+        // which are proven individually.
+        // The default size of a chunk is 2^20 = 1048576 rows.
+        // For experiments and smaller traces/proofs, it may be beneficial to reduce the chunk size.
+        // Create a new powdr session with a custom chunk size.
+        // 2^18 = 262144 rows per chunk.
+        .chunk_size_log2(18)
+        .build()
+        // Write `some_data` to channel 1 and the sum of `some_data` to channel 2.
+        // Any serde-serializable type can be written to a channel.
+        .write(1, &amp;some_data)
+        .write(2, &amp;some_data.iter().sum::&lt;u32&gt;());
+
+    // Fast dry run to test execution.
+    session.run();
+
+    // Uncomment to compute the proof.
+    //session.prove();
+}</code></pre>
+<p>The guest contains the custom logic that should be proved.</p>
+<pre><code class="language-rust">use powdr_riscv_runtime;
+use powdr_riscv_runtime::io::read;
+
+fn main() {
+    // Any serde-deserializable type can be read from a channel.
+    // Read some data from channel 1.
+    let data: Vec&lt;u32&gt; = read(1);
+    // Read the claimed sum from channel 2.
+    let sum: u32 = read(2);
+
+    // Check that the claimed sum is correct.
+    assert_eq!(data.iter().sum::&lt;u32&gt;(), sum);
+}</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="introduction-1"><a class="header" href="#introduction-1">Introduction</a></h1>
+<p><strong>powdr</strong> is a modular compiler stack to build zkVMs.
+It is ideal for implementing existing VMs and experimenting with new designs with minimal boilerplate.</p>
+<ul>
+<li>Domain specific languages are used to specify the VM and its underlying constraints, not low level Rust code</li>
+<li>Automated witness generation</li>
+<li>Support for multiple provers as well as aggregation schemes</li>
+<li>Support for hand-optimized co-processors when performance is critical</li>
+<li>Built in Rust 🦀</li>
+</ul>
+<h2 id="contributing-1"><a class="header" href="#contributing-1">Contributing</a></h2>
+<p>powdr is free and open source. You can find the source code on
+<a href="https://github.com/powdr-labs/powdr">GitHub</a>. Issues and feature requests can be posted on
+the <a href="https://github.com/powdr-labs/powdr/issues">GitHub issue tracker</a>.</p>
+<h2 id="license-1"><a class="header" href="#license-1">License</a></h2>
+<!-- markdown-link-check-disable-next-line -->
+<p>The powdr source and documentation are released under the <a href="https://opensource.org/license/mit/">MIT License</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="installation-1"><a class="header" href="#installation-1">Installation</a></h1>
+<p>The only way to install powdr currently is to build it from source.
+There are two binaries,</p>
+<ul>
+<li><code>powdr</code> compiles powdr-asm files to powdr-PIL and generates
+witnesses and proofs.</li>
+<li><code>powdr-rs</code> compiles Rust crates to powdr-asm via RISCV, and executes
+powdr-asm code with given inputs.</li>
+</ul>
+<h2 id="prerequisites-1"><a class="header" href="#prerequisites-1">Prerequisites</a></h2>
+<p>You will need the <a href="https://rust-lang.org">Rust</a> compiler and Cargo, the Rust package manager.
+The easiest way to install both is with <a href="https://rustup.rs/"><code>rustup.rs</code></a>.</p>
+<p>On Windows, you will also need a recent version of <a href="https://visualstudio.microsoft.com/downloads/">Visual Studio</a>,
+installed with the "Desktop Development With C++" Workloads option.</p>
+<p>If you want to enable the <code>estark-polygon</code> feature, you also need the following
+runtime dependencies:</p>
+<ul>
+<li><code>gcc</code></li>
+<li><code>nlohmann-json3-dev</code></li>
+</ul>
+<p>You will also need the following build time dependencies:</p>
+<ul>
+<li><code>make</code></li>
+<li><code>pkg-config</code></li>
+<li><code>libpqxx-dev</code> (Ubuntu) | <code>libpqxx</code> (Arch Linux)</li>
+<li><code>nasm</code></li>
+</ul>
+<h2 id="building-powdr"><a class="header" href="#building-powdr">Building <em>powdr</em></a></h2>
+<p>Using a single Cargo command, enabling the Halo2 and Plonky3 backends:</p>
+<pre><code class="language-sh">cargo install --git https://github.com/powdr-labs/powdr --features halo2,plonky3 powdr-cli
+</code></pre>
+<p>With SIMD support for the provers that support it:</p>
+<pre><code class="language-sh">RUSTFLAGS='-C target-cpu=native' cargo install --git https://github.com/powdr-labs/powdr --features halo2,plonky3,plonky3-simd powdr-cli
+</code></pre>
+<p>Or, by manually building from a local copy of the <a href="https://github.com/powdr-labs/powdr">powdr repository</a>:</p>
+<pre><code class="language-sh"># clone the repository
+git clone https://github.com/powdr-labs/powdr.git
+cd powdr
+# install powdr-cli
+cargo install --features halo2,plonky3 --path ./cli
+# install powdr-cli with SIMD support (only for the crates that support it)
+RUSTFLAGS='-C target-cpu=native' cargo install --features halo2,plonky3,plonky3-simd --path ./cli
+</code></pre>
+<h2 id="building-powdr-rs"><a class="header" href="#building-powdr-rs">Building <em>powdr-rs</em></a></h2>
+<p>Using a single Cargo command:</p>
+<pre><code class="language-sh">cargo install --git https://github.com/powdr-labs/powdr powdr-rs-cli
+</code></pre>
+<p>Or, by manually building from a local copy of the <a href="https://github.com/powdr-labs/powdr">powdr repository</a>:</p>
+<pre><code class="language-sh"># clone the repository
+git clone https://github.com/powdr-labs/powdr.git
+cd powdr
+# install powdr-rs-cli
+cargo install --path ./cli-rs
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="hello-world"><a class="header" href="#hello-world">Hello World</a></h1>
+<p>Let's write <a href="https://github.com/powdr-labs/powdr/blob/main/test_data/asm/book/hello_world.asm">a minimal VM</a> and generate proofs!</p>
+<pre><code>machine HelloWorld with degree: 8 {
+    reg pc[@pc];
+    reg X[&lt;=];
+    reg Y[&lt;=];
+    reg A;
+
+    instr incr X -&gt; Y {
+        Y = X + 1
+    }
+
+    instr decr X -&gt; Y {
+        Y = X - 1
+    }
+
+    instr assert_zero X {
+        X = 0
+    }
+
+    function main {
+        // assign the first prover input to A
+        A &lt;=X= ${ std::prelude::Query::Input(0, 1) };
+
+        // increment A
+        A &lt;== incr(A);
+
+        // decrement A
+        A &lt;== decr(A);
+
+        // assert that A is zero
+        assert_zero A;
+
+        return;
+    }
+}
+</code></pre>
+<p>Let's go through different possible usages of powdr, starting with using the powdr CLI.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="hello-world-using-the-cli"><a class="header" href="#hello-world-using-the-cli">Hello World using the CLI</a></h1>
+<p>Let's generate a proof of execution for the valid prover input <code>0</code> (since <code>0 + 1 - 1 == 0</code>)</p>
+<pre><code class="language-console">powdr pil test_data/asm/book/hello_world.asm --field bn254 --inputs 1 --prove-with halo2
+</code></pre>
+<p>We observe that several artifacts are created in the current directory:</p>
+<ul>
+<li><code>hello_world.pil</code>: the compiled PIL file.</li>
+<li><code>hello_world_opt.pil</code>: the optimized PIL file.</li>
+<li><code>hello_world_constants.bin</code>: the computed fixed columns which only have to be computed once per PIL file.</li>
+<li><code>hello_world_commits.bin</code>: the computed witness which needs to be computed for each proof.</li>
+<li><code>hello_world_proof.bin</code>: the ZK proof!</li>
+</ul>
+<blockquote>
+<p>Note that the output directory can be specified with option <code>-o|--output</code>, and <code>.</code> is used by default.</p>
+</blockquote>
+<p>Now let's try for the invalid input <code>1</code>:</p>
+<pre><code class="language-console">powdr pil test_data/asm/book/hello_world.asm --field bn254 --inputs 2 --prove-with halo2
+</code></pre>
+<p>In this case witness generation fails, and no proof is created.</p>
+<h1 id="setup--verification"><a class="header" href="#setup--verification">Setup &amp; Verification</a></h1>
+<p>The example above omits some important steps in proof generation: Setup and
+Verification key generation. Some proof systems such as Halo2 , require a Setup to be performed before the proof. Such Setup can be
+specific to the program or universal, where its artifact is a binary usually
+called <code>parameters</code> or <code>params</code>. STARKs do not require a Setup.</p>
+<p>Another step required before the proof is computed is key generation. A
+<code>proving key</code> and a <code>verification key</code> are generated taking into account the
+constraints and potentially Setup parameters. The <code>proving key</code> is used by the
+prover to generate the proof, and the verification key is used by the verifier
+to verify such a proof. A single verification key can be used to verify any
+number of different proofs for a given program.</p>
+<p>Therefore, when computing a proof, it is important that the Setup parameters
+and the verification key are available as artifacts.</p>
+<p>Below we reproduce the same proof as in the example above, keeping the
+artifacts needed for verification:</p>
+<p>First we run the Setup, where the number given must match the <code>degree</code> of our
+source file (<code>degree 8</code>). The command below generates file <code>params.bin</code>.</p>
+<pre><code class="language-console">powdr setup 8 --backend halo2 --field bn254
+</code></pre>
+<p>We can now compute the verification key, output in <code>vkey.bin</code>:</p>
+<pre><code class="language-console">powdr verification-key test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --params "params.bin"
+</code></pre>
+<blockquote>
+<p>The command above can read previously generated constants from the directory
+specified via <code>-d|--dir</code>, where <code>.</code> is used by default. If the constants are not present
+it computes them before generating the verification key.</p>
+</blockquote>
+<p>The next command compiles and optimizes the given source, generating the file
+<code>hello_world_opt.pil</code>. It also computes both the fixed data and the witness
+needed for the proof, stored respectively in <code>hello_world_constants.bin</code> and
+<code>hello_world_commits.bin</code>.</p>
+<pre><code class="language-console">powdr pil test_data/asm/book/hello_world.asm --field bn254 --force --inputs 0
+</code></pre>
+<p>We can now generate the proof:</p>
+<pre><code class="language-console">powdr prove test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --params "params.bin" --vkey "vkey.bin"
+</code></pre>
+<p>The proof can be verified by anyone via:</p>
+<pre><code class="language-console">powdr verify test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --vkey "vkey.bin" --params "params.bin" --proof "hello_world_proof.bin"
+</code></pre>
+<blockquote>
+<p>Note that CLI proof verification works analogously for eSTARK, without the setup step and using the Goldilocks field instead of Bn254.</p>
+</blockquote>
+<p>Another aspect that was omitted in this example is the fact that this proof
+uses a Poseidon transcript and cannot be verified in a cheap way on Ethereum,
+even though we can verify it efficiently via powdr.
+There are two ways to enable verification on Ethereum:</p>
+<ol>
+<li>Use a different transcript when generating this proof. See section
+<a href="./hello_world_ethereum.html">Hello World on Ethereum</a> for the same example targeting EVM verification.</li>
+<li>Use proof aggregation to compress the proof using a
+circuit that can be verified on Ethereum. See section
+<a href="./hello_world_ethereum_aggregation.html">Hello World on Ethereum via proof aggregation</a> to learn how to do that.</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="hello-world-using-powdr-as-a-library"><a class="header" href="#hello-world-using-powdr-as-a-library">Hello World using powdr as a library</a></h1>
+<p>Besides the CLI, powdr can also be used as a Rust library.
+The <a href="https://github.com/powdr-labs/powdr/tree/main/powdr">powdr crate</a>
+exposes internal crates and data structures needed to compile code,
+generate witnesses, and compute proofs.</p>
+<p>Add <code>powdr</code> to your crate's dependencies:</p>
+<pre><code class="language-toml">[dependencies]
+powdr = { git = "https://github.com/powdr-labs/powdr", branch = "main" }
+</code></pre>
+<p>The following Rust code has the same workflow as our previous "Hello World"
+example. The full project can be found
+<a href="https://github.com/powdr-labs/powdr-hello-world">here</a>, and as an example in
+the powdr crate. To run the example in the <a href="https://github.com/powdr-labs/powdr">powdr
+repository</a>, run:</p>
+<pre><code class="language-bash">cargo run --example powdr_crate_usage
+</code></pre>
+<p>You can also enable logs to know what is happening internally:</p>
+<pre><code class="language-bash">RUST_LOG=info cargo run --example powdr_crate_usage
+</code></pre>
+<pre><code class="language-rust">use powdr_test::halo2_pipeline;
+
+fn main() {
+    env_logger::init();
+
+    halo2_pipeline(
+        "test_data/asm/book/hello_world.asm",
+        vec![0.into()],
+        vec![],
+        8,
+    );
+}</code></pre>
+<pre><code class="language-rust">use powdr::backend::BackendType;
+use powdr::number::buffered_write_file;
+use powdr::Bn254Field;
+use powdr::Pipeline;
+
+use std::path::Path;
+
+pub fn halo2_pipeline(
+    pil: &amp;str,
+    prover_inputs: Vec&lt;Bn254Field&gt;,
+    publics: Vec&lt;Bn254Field&gt;,
+    setup_size: u64,
+) {
+    // Straightforward case
+    let _proof = Pipeline::&lt;Bn254Field&gt;::default()
+        .from_file(pil.into())
+        .with_prover_inputs(prover_inputs.clone())
+        .with_backend(BackendType::Halo2, None)
+        .compute_proof()
+        .unwrap();
+
+    // Step-by-step case
+
+    // First we create the universal setup of size 8
+    buffered_write_file(Path::new("params.bin"), |writer| {
+        BackendType::Halo2
+            .factory::&lt;Bn254Field&gt;()
+            .generate_setup(setup_size, writer)
+            .unwrap()
+    })
+    .unwrap();
+
+    // Configure a pipeline
+    let mut pipeline = Pipeline::&lt;Bn254Field&gt;::default()
+        .from_file(pil.into())
+        .with_prover_inputs(prover_inputs)
+        .with_backend(BackendType::Halo2, None)
+        .with_setup_file(Some("params.bin".into()));
+
+    // Create the verification key
+    buffered_write_file(Path::new("vkey.bin"), |w| {
+        pipeline.export_verification_key(w).unwrap()
+    })
+    .unwrap();
+
+    // Add the verification key to a fresh pipeline and create a proof
+    let mut pipeline_fresh = pipeline.clone().with_vkey_file(Some("vkey.bin".into()));
+
+    let proof = pipeline_fresh.compute_proof().unwrap();
+
+    // Create yet another fresh pipeline only for proof verification
+    let mut pipeline = pipeline
+        .with_backend(BackendType::Halo2, None)
+        .with_setup_file(Some("params.bin".into()))
+        .with_vkey_file(Some("vkey.bin".into()));
+
+    // Verify a proof created by a different Pipeline
+    pipeline.verify(proof, &amp;[publics]).unwrap();
+}</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="hello-world-on-ethereum"><a class="header" href="#hello-world-on-ethereum">Hello World on Ethereum</a></h1>
+<p>This example is a variation of the previous <a href="./hello_world.html">Hello World</a>,
+targeting verification on Ethereum. In this example we will cover how to
+generate proofs directly using a Keccak transcript instead of the Poseidon
+transcript of the previous example, which will enable us to verify proofs
+onchain. There are almost no differences from the CLI perspective.</p>
+<p>Since the following command creates a proof, a Solidity verifier, and verifies
+the proof on the EVM, we need to have <code>solc</code> available in the system. One easy
+way to install it is by using <a href="https://github.com/alloy-rs/svm-rs">svm</a>.</p>
+<pre><code class="language-console">powdr pil test_data/asm/book/hello_world.asm --field bn254 --inputs 0 --prove-with halo2 --backend-options "snark_single" -f --params params.bin
+</code></pre>
+<p>The extra parameter <code>--backend-options snark_single</code> tells powdr to produce a single
+SNARK that uses Keccak. The option <code>-f</code> forces overwriting the compiled files
+that have been generated before, which is useful if you are running the examples
+in the same directory.</p>
+<p>When the proof is generated, it is verified on a simulated EVM transaction as well!</p>
+<pre><code class="language-console">Verifying SNARK in the EVM...
+</code></pre>
+<p>We can observe again that a proof was created at <code>hello_world_proof.bin</code>.</p>
+<p>Now we can generate a Solidity verifier, using the same setup (<code>params</code>) as the
+previous example:</p>
+<pre><code class="language-console">powdr export-verifier test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "snark_single" --params params.bin
+</code></pre>
+<p>A Solidity file <code>verifier.sol</code> is generated. You can verify the same proof that
+we just generated by passing it to the contract together with the public inputs
+(which we have not used so far).</p>
+<blockquote>
+<p>Note that the more complex your VM is, the larger the verifier contract will be. In some cases, it might exceed Ethereum's contract size limit. You can mitigate that by using proof recursion on proofs that use Poseidon transcripts. See the <a href="./hello_world_ethereum_aggregation.html">next section for details</a>.</p>
+</blockquote>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="hello-world-on-ethereum-with-proof-aggregation"><a class="header" href="#hello-world-on-ethereum-with-proof-aggregation">Hello World on Ethereum with proof aggregation</a></h1>
+<p>As noted in the previous section, complex VMs can lead to large
+Solidity verifiers that exceed the contract size limit on Ethereum. One
+solution to that problem is to create proofs using the Poseidon transcript, as
+we did in the <a href="./hello_world.html">first example</a>, and then use proof
+recursion to create a proof that we know we will be able to verify on Ethereum.</p>
+<p>A recursive SNARK works by generating a proof for a circuit that verifies
+another proof. The circuit we are using here to prove our initial proof
+recursively is <a href="https://github.com/privacy-scaling-explorations/snark-verifier/">PSE's snark-verifier</a>. This circuit is large enough
+to be able to prove complex programs that were proven initial with the Poseidon
+transcript, like our first example. Because of that our aggregation setup
+<code>params</code> and <code>verification key</code> are going to be larger than before and take
+longer to compute. The good news are that (i) we can use a pre-computed setup
+from a previous ceremony, and (ii) the verification key only has to be computed
+once per program.</p>
+<p>First, we need a setup of "size" 2^22. This is the maximum execution trace length of the recursion circuit.</p>
+<p>You can generate it using the command line below, or download a pre-computed
+one <a href="https://drive.google.com/file/d/1xG_O_KqooiRR3QJno3tXIiNELSB2AQMH/view?usp=drive_link">here</a>.</p>
+<p>This will take a couple minutes if you decide to compute it yourself:</p>
+<pre><code class="language-console">powdr setup 4194304 --backend halo2 --field bn254
+</code></pre>
+<p>We can re-use the new large <code>params.bin</code> for both initial and recursive proofs.
+Let's start by re-computing our Poseidon proof like in the <a href="./hello_world.html">first example</a>,
+but using our new setup file:</p>
+<pre><code class="language-console">powdr pil test_data/asm/book/hello_world.asm --field bn254 --inputs 0 --prove-with halo2 --backend-options "poseidon" -f --params params.bin
+</code></pre>
+<p>This generates the initial proof <code>hello_world_proof.bin</code>.
+We'll also need a verification key:</p>
+<pre><code class="language-console">powdr verification-key test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "poseidon" --params params.bin
+</code></pre>
+<p>Let's verify the proof with our fresh verification key to make sure we're on the right track:</p>
+<pre><code class="language-console">powdr verify test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "poseidon" --params params.bin --vkey vkey.bin --proof hello_world_proof.bin
+</code></pre>
+<p>In order to avoid confusion between the application's artifacts
+that we've just generated and the recursion one we're going to generate
+later, let's rename them:</p>
+<pre><code class="language-console">mv vkey.bin vkey_app.bin
+mv hello_world_proof.bin hello_world_proof_app.bin
+</code></pre>
+<p>We can now generate a verification key for the Halo2 circuit that verifies our proofs recursively. This might take up to a minute.</p>
+<pre><code class="language-console">powdr verification-key test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "snark_aggr" --params params.bin --vkey-app vkey_app.bin
+</code></pre>
+<blockquote>
+<p>Note that this verification key can only be used to verify recursive proofs that verify other proofs using the application's key <code>vkey_app.bin</code>.</p>
+</blockquote>
+<p>We can now generate the recursive proof (this typically takes a few minutes and uses around 28gb RAM):</p>
+<pre><code class="language-console">powdr prove test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "snark_aggr" --params params.bin --vkey vkey.bin --vkey-app vkey_app.bin --proof hello_world_proof_app.bin
+</code></pre>
+<p>We have a proof! Note that it contains two fields, <code>proof</code> and
+<code>publics</code>.  The <code>proof</code> object contains the binary encoding of the proof
+points, and the <code>publics</code> object contains the public accumulator limbs that we
+need in order to verify the recursive proof.</p>
+<p>We can now verify the proof, using the <code>publics</code> object as input (your numbers will be different):</p>
+<pre><code class="language-console">powdr verify test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "snark_aggr" --params params.bin --vkey vkey.bin --proof hello_world_proof_aggr.bin --publics "269487626280642378794,9378970522278219882,62304027188881225691,811176493438944,234778270138968319485,3212529982775999134,171155758373806079356,207910400337448,188563849779606300850,155626297629081952942,194348356185923309508,433061951018270,34598221006207900280,283775241405787955338,79508596887913496910,354189825580534"
+</code></pre>
+<p>Since the goal of the recursive proof was to be able to verify it on Ethereum, let's do that!</p>
+<pre><code class="language-console">powdr export-verifier test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "snark_aggr" --params params.bin --vkey vkey.bin
+</code></pre>
+<p>A Solidity verifier is created in <code>verifier.sol</code>. The contract expects an array of the accumulators' limbs followed by a tightly packed proof, where each accumulator limb uses 32 bytes, and there is no function signature.</p>
+<p>Note that this verifier can be used to verify any recursive proof that verifies exactly one Poseidon proof of the given circuit.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="examples"><a class="header" href="#examples">Examples</a></h1>
+<p>Besides the Hello World examples, you are encouraged to check out these more
+complex and real-world use cases:</p>
+<ul>
+<li><a href="https://github.com/powdr-labs/powdr-revme">Ethereum state tests via powdr-RISCV + revm</a></li>
+<li><a href="https://github.com/leonardoalt/powdr-brainfuck">Brainfuck VM in 3 different implementations (powdr-asm interpreter, powdr-asm ISA, Rust interpreter + powdr-RISCV)</a></li>
+<li><a href="https://github.com/Machine-Learning-zk-VM/ml-zkvm">Machine Learning zkVM Compiler</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="using-publics"><a class="header" href="#using-publics">Using publics</a></h1>
+<p>Public values are a small but important part of verifying ZK proofs. Often, the
+verifier is interested in inputs and/or outputs to a public function.</p>
+<p>In the toy example below, the prover can show that they know the square root of
+a public value that is published with the proof.</p>
+<p>You can also run this example directly in the <a href="https://github.com/powdr-labs/powdr">powdr
+repository</a>:</p>
+<pre><code class="language-bash">cargo run --example sqrt_with_public
+</code></pre>
+<p>You can also enable logs to know what is happening internally:</p>
+<pre><code class="language-bash">RUST_LOG=info cargo run --example sqrt_with_public
+</code></pre>
+<pre><code class="language-rust">machine Square with degree: 8 {
+    reg pc[@pc];
+    reg X[&lt;=];
+    reg Y[&lt;=];
+    reg A;
+
+    // Expose the register value of A in the last time step
+    public N = A(7);
+
+    instr square X -&gt; Y {
+        Y = X * X
+    }
+	
+    function main {
+        A &lt;=X= ${ std::prelude::Query::Input(0, 1) };
+        A &lt;== square(A);
+    }
+}</code></pre>
+<p>This example uses a small VM with <code>jump</code> and a <code>square</code> instructions.  The
+program reads the private input from the prover, squares it, and enters an
+infinite loop to ensure that all the remaining rows are filled with the result of <code>A^2</code>.
+Since the length of our execution trace is fixed and equals 8, we can tag the
+8-th row of <code>A</code> (<code>A[7]</code>) as the publicly exposed number.</p>
+<p>Let's run all steps needed to generate and verify a proof that 3<sup>2</sup> = 9:</p>
+<ol>
+<li>Setup step:</li>
+</ol>
+<pre><code class="language-console">powdr setup 8 --backend halo2 --field bn254
+</code></pre>
+<ol start="2">
+<li>Witness generation:</li>
+</ol>
+<pre><code class="language-console">powdr pil test_data/asm/sqrt_with_public.asm --field bn254 -i 3
+</code></pre>
+<ol start="3">
+<li>Verification Key generation:</li>
+</ol>
+<pre><code class="language-console">powdr verification-key test_data/asm/sqrt_with_public.asm --field bn254 --backend halo2 --params params.bin
+</code></pre>
+<ol start="4">
+<li>Proof generation:</li>
+</ol>
+<pre><code class="language-console">powdr prove test_data/asm/sqrt_with_public.asm --field bn254 --backend halo2 --params params.bin --vkey vkey.bin
+</code></pre>
+<ol start="5">
+<li>Proof verification:</li>
+</ol>
+<pre><code class="language-console">powdr verify test_data/asm/sqrt_with_public.asm --field bn254 --backend halo2 --params params.bin --vkey vkey.bin --proof sqrt_with_public_proof.bin --publics 9
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="command-line-help-for-powdr"><a class="header" href="#command-line-help-for-powdr">Command-Line Help for <code>powdr</code></a></h1>
+<p>This document contains the help content for the <code>powdr</code> command-line program.</p>
+<p><strong>Command Overview:</strong></p>
+<ul>
+<li><a href="cli/index.html#powdr"><code>powdr</code>↴</a></li>
+<li><a href="cli/index.html#powdr-pil"><code>powdr pil</code>↴</a></li>
+<li><a href="cli/index.html#powdr-prove"><code>powdr prove</code>↴</a></li>
+<li><a href="cli/index.html#powdr-verify"><code>powdr verify</code>↴</a></li>
+<li><a href="cli/index.html#powdr-verification-key"><code>powdr verification-key</code>↴</a></li>
+<li><a href="cli/index.html#powdr-export-verifier"><code>powdr export-verifier</code>↴</a></li>
+<li><a href="cli/index.html#powdr-setup"><code>powdr setup</code>↴</a></li>
+<li><a href="cli/index.html#powdr-reformat"><code>powdr reformat</code>↴</a></li>
+<li><a href="cli/index.html#powdr-optimize-pil"><code>powdr optimize-pil</code>↴</a></li>
+<li><a href="cli/index.html#powdr-test"><code>powdr test</code>↴</a></li>
+</ul>
+<h2 id="powdr"><a class="header" href="#powdr"><code>powdr</code></a></h2>
+<p>powdr CLI to compile powdr-asm and powdr-pil programs</p>
+<p><strong>Usage:</strong> <code>powdr [OPTIONS] [COMMAND]</code></p>
+<h6 id="subcommands"><a class="header" href="#subcommands"><strong>Subcommands:</strong></a></h6>
+<ul>
+<li><code>pil</code> — Runs compilation and witness generation for .pil and .asm files. First converts .asm files to .pil, if needed. Then converts the .pil file to json and generates fixed and witness column data files</li>
+<li><code>prove</code> —</li>
+<li><code>verify</code> —</li>
+<li><code>verification-key</code> —</li>
+<li><code>export-verifier</code> —</li>
+<li><code>setup</code> —</li>
+<li><code>reformat</code> — Parses and prints the PIL file on stdout</li>
+<li><code>optimize-pil</code> — Optimizes the PIL file and outputs it on stdout</li>
+<li><code>test</code> — Executes all functions starting with <code>test_</code> in every module called <code>test</code> (or sub-module thereof) starting from the given module</li>
+</ul>
+<h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--log-level &lt;LOG_LEVEL&gt;</code> — Set log filter value [ off, error, warn, info, debug, trace ]</p>
+<p>Default value: <code>INFO</code></p>
+</li>
+</ul>
+<h2 id="powdr-pil"><a class="header" href="#powdr-pil"><code>powdr pil</code></a></h2>
+<p>Runs compilation and witness generation for .pil and .asm files. First converts .asm files to .pil, if needed. Then converts the .pil file to json and generates fixed and witness column data files</p>
+<p><strong>Usage:</strong> <code>powdr pil [OPTIONS] &lt;FILE&gt;</code></p>
+<h6 id="arguments"><a class="header" href="#arguments"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;FILE&gt;</code> — Input file</li>
+</ul>
+<h6 id="options-1"><a class="header" href="#options-1"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--field &lt;FIELD&gt;</code> — The field to use</p>
+<p>Default value: <code>gl</code></p>
+<p>Possible values: <code>bb</code>, <code>kb</code>, <code>m31</code>, <code>gl</code>, <code>bn254</code></p>
+</li>
+<li>
+<p><code>-o</code>, <code>--output-directory &lt;OUTPUT_DIRECTORY&gt;</code> — Output directory for the PIL file, json file and fixed and witness column data</p>
+<p>Default value: <code>.</code></p>
+</li>
+<li>
+<p><code>-w</code>, <code>--witness-values &lt;WITNESS_VALUES&gt;</code> — Path to a CSV file containing externally computed witness values</p>
+</li>
+<li>
+<p><code>-i</code>, <code>--inputs &lt;INPUTS&gt;</code> — Comma-separated list of free inputs (numbers)</p>
+<p>Default value: ``</p>
+</li>
+<li>
+<p><code>-f</code>, <code>--force</code> — Force overwriting of PIL output file</p>
+<p>Default value: <code>false</code></p>
+</li>
+<li>
+<p><code>--pilo</code> — Whether to output the pilo PIL object</p>
+<p>Default value: <code>false</code></p>
+</li>
+<li>
+<p><code>-p</code>, <code>--prove-with &lt;PROVE_WITH&gt;</code> — Generate a proof with a given backend</p>
+<p>Possible values: <code>mock</code>, <code>halo2</code>, <code>halo2-composite</code>, <code>halo2-mock</code>, <code>halo2-mock-composite</code>, <code>plonky3</code>, <code>plonky3-composite</code></p>
+</li>
+<li>
+<p><code>--params &lt;PARAMS&gt;</code> — File containing previously generated setup parameters</p>
+</li>
+<li>
+<p><code>--backend-options &lt;BACKEND_OPTIONS&gt;</code> — Backend options. Halo2: "poseidon", "snark_single" or "snark_aggr". EStark and PilStarkCLI: "stark_gl", "stark_bn" or "snark_bn"</p>
+</li>
+<li>
+<p><code>--linker-mode &lt;LINKER_MODE&gt;</code> — Linker mode, deciding how to reduce links to constraints</p>
+<p>Possible values: <code>native</code>, <code>bus</code></p>
+</li>
+<li>
+<p><code>--degree-mode &lt;DEGREE_MODE&gt;</code> — Degree mode, deciding whether to use a single monolithic table or a set of dynamically sized tables</p>
+</li>
+<li>
+<p><code>--export-witness-csv</code> — Generate a CSV file containing the witness column values</p>
+<p>Default value: <code>false</code></p>
+</li>
+<li>
+<p><code>--export-all-columns-csv</code> — Generate a CSV file containing all fixed and witness column values. Useful for debugging purposes</p>
+<p>Default value: <code>false</code></p>
+</li>
+<li>
+<p><code>--csv-mode &lt;CSV_MODE&gt;</code> — How to render field elements in the csv file</p>
+<p>Default value: <code>hex</code></p>
+<p>Possible values: <code>i</code>, <code>ui</code>, <code>hex</code></p>
+</li>
+</ul>
+<h2 id="powdr-prove"><a class="header" href="#powdr-prove"><code>powdr prove</code></a></h2>
+<p><strong>Usage:</strong> <code>powdr prove [OPTIONS] --backend &lt;BACKEND&gt; &lt;FILE&gt;</code></p>
+<h6 id="arguments-1"><a class="header" href="#arguments-1"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;FILE&gt;</code> — Input PIL file</li>
+</ul>
+<h6 id="options-2"><a class="header" href="#options-2"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>-d</code>, <code>--dir &lt;DIR&gt;</code> — Directory to find the committed and fixed values</p>
+<p>Default value: <code>.</code></p>
+</li>
+<li>
+<p><code>--field &lt;FIELD&gt;</code> — The field to use</p>
+<p>Default value: <code>gl</code></p>
+<p>Possible values: <code>bb</code>, <code>kb</code>, <code>m31</code>, <code>gl</code>, <code>bn254</code></p>
+</li>
+<li>
+<p><code>-b</code>, <code>--backend &lt;BACKEND&gt;</code> — Generate a proof with a given backend</p>
+<p>Possible values: <code>mock</code>, <code>halo2</code>, <code>halo2-composite</code>, <code>halo2-mock</code>, <code>halo2-mock-composite</code>, <code>plonky3</code>, <code>plonky3-composite</code></p>
+</li>
+<li>
+<p><code>--backend-options &lt;BACKEND_OPTIONS&gt;</code> — Backend options. Halo2: "poseidon", "snark_single" or "snark_aggr". EStark and PilStarkCLI: "stark_gl", "stark_bn" or "snark_bn"</p>
+</li>
+<li>
+<p><code>--proof &lt;PROOF&gt;</code> — File containing previously generated proof for aggregation</p>
+</li>
+<li>
+<p><code>--vkey &lt;VKEY&gt;</code> — File containing previously generated verification key</p>
+</li>
+<li>
+<p><code>--vkey-app &lt;VKEY_APP&gt;</code> — File containing the verification key of a proof to be verified recursively</p>
+</li>
+<li>
+<p><code>--params &lt;PARAMS&gt;</code> — File containing previously generated setup parameters</p>
+</li>
+</ul>
+<h2 id="powdr-verify"><a class="header" href="#powdr-verify"><code>powdr verify</code></a></h2>
+<p><strong>Usage:</strong> <code>powdr verify [OPTIONS] --backend &lt;BACKEND&gt; --proof &lt;PROOF&gt; --vkey &lt;VKEY&gt; &lt;FILE&gt;</code></p>
+<h6 id="arguments-2"><a class="header" href="#arguments-2"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;FILE&gt;</code> — Input PIL file</li>
+</ul>
+<h6 id="options-3"><a class="header" href="#options-3"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>-d</code>, <code>--dir &lt;DIR&gt;</code> — Directory to find the fixed values</p>
+<p>Default value: <code>.</code></p>
+</li>
+<li>
+<p><code>--field &lt;FIELD&gt;</code> — The field to use</p>
+<p>Default value: <code>gl</code></p>
+<p>Possible values: <code>bb</code>, <code>kb</code>, <code>m31</code>, <code>gl</code>, <code>bn254</code></p>
+</li>
+<li>
+<p><code>-b</code>, <code>--backend &lt;BACKEND&gt;</code> — Generate a proof with a given backend</p>
+<p>Possible values: <code>mock</code>, <code>halo2</code>, <code>halo2-composite</code>, <code>halo2-mock</code>, <code>halo2-mock-composite</code>, <code>plonky3</code>, <code>plonky3-composite</code></p>
+</li>
+<li>
+<p><code>--backend-options &lt;BACKEND_OPTIONS&gt;</code> — Backend options. Halo2: "poseidon", "snark_single" or "snark_aggr". EStark and PilStarkCLI: "stark_gl", "stark_bn" or "snark_bn"</p>
+</li>
+<li>
+<p><code>--proof &lt;PROOF&gt;</code> — File containing the proof</p>
+</li>
+<li>
+<p><code>--publics &lt;PUBLICS&gt;</code> — Comma-separated list of public inputs (numbers)</p>
+<p>Default value: ``</p>
+</li>
+<li>
+<p><code>--vkey &lt;VKEY&gt;</code> — File containing the verification key</p>
+</li>
+<li>
+<p><code>--params &lt;PARAMS&gt;</code> — File containing the params</p>
+</li>
+</ul>
+<h2 id="powdr-verification-key"><a class="header" href="#powdr-verification-key"><code>powdr verification-key</code></a></h2>
+<p><strong>Usage:</strong> <code>powdr verification-key [OPTIONS] --backend &lt;BACKEND&gt; &lt;FILE&gt;</code></p>
+<h6 id="arguments-3"><a class="header" href="#arguments-3"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;FILE&gt;</code> — Input PIL file</li>
+</ul>
+<h6 id="options-4"><a class="header" href="#options-4"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>-d</code>, <code>--dir &lt;DIR&gt;</code> — Directory to find the fixed values</p>
+<p>Default value: <code>.</code></p>
+</li>
+<li>
+<p><code>--field &lt;FIELD&gt;</code> — The field to use</p>
+<p>Default value: <code>gl</code></p>
+<p>Possible values: <code>bb</code>, <code>kb</code>, <code>m31</code>, <code>gl</code>, <code>bn254</code></p>
+</li>
+<li>
+<p><code>-b</code>, <code>--backend &lt;BACKEND&gt;</code> — Chosen backend</p>
+<p>Possible values: <code>mock</code>, <code>halo2</code>, <code>halo2-composite</code>, <code>halo2-mock</code>, <code>halo2-mock-composite</code>, <code>plonky3</code>, <code>plonky3-composite</code></p>
+</li>
+<li>
+<p><code>--backend-options &lt;BACKEND_OPTIONS&gt;</code> — Backend options. Halo2: "poseidon", "snark_single" or "snark_aggr". EStark and PilStarkCLI: "stark_gl", "stark_bn" or "snark_bn"</p>
+</li>
+<li>
+<p><code>--params &lt;PARAMS&gt;</code> — File containing previously generated setup parameters. This will be needed for SNARK verification keys but not for STARK</p>
+</li>
+<li>
+<p><code>--vkey-app &lt;VKEY_APP&gt;</code> — File containing the verification key of a proof to be verified recursively</p>
+</li>
+</ul>
+<h2 id="powdr-export-verifier"><a class="header" href="#powdr-export-verifier"><code>powdr export-verifier</code></a></h2>
+<p><strong>Usage:</strong> <code>powdr export-verifier [OPTIONS] --backend &lt;BACKEND&gt; &lt;FILE&gt;</code></p>
+<h6 id="arguments-4"><a class="header" href="#arguments-4"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;FILE&gt;</code> — Input PIL file</li>
+</ul>
+<h6 id="options-5"><a class="header" href="#options-5"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>-d</code>, <code>--dir &lt;DIR&gt;</code> — Directory to find the fixed values</p>
+<p>Default value: <code>.</code></p>
+</li>
+<li>
+<p><code>--field &lt;FIELD&gt;</code> — The field to use</p>
+<p>Default value: <code>gl</code></p>
+<p>Possible values: <code>bb</code>, <code>kb</code>, <code>m31</code>, <code>gl</code>, <code>bn254</code></p>
+</li>
+<li>
+<p><code>-b</code>, <code>--backend &lt;BACKEND&gt;</code> — Chosen backend</p>
+<p>Possible values: <code>mock</code>, <code>halo2</code>, <code>halo2-composite</code>, <code>halo2-mock</code>, <code>halo2-mock-composite</code>, <code>plonky3</code>, <code>plonky3-composite</code></p>
+</li>
+<li>
+<p><code>--backend-options &lt;BACKEND_OPTIONS&gt;</code> — Backend options. Halo2: "poseidon", "snark_single" or "snark_aggr". EStark and PilStarkCLI: "stark_gl", "stark_bn" or "snark_bn"</p>
+</li>
+<li>
+<p><code>--params &lt;PARAMS&gt;</code> — File containing previously generated setup parameters. This will be needed for SNARK verification keys but not for STARK</p>
+</li>
+<li>
+<p><code>--vkey &lt;VKEY&gt;</code> — File containing previously generated verification key</p>
+</li>
+</ul>
+<h2 id="powdr-setup"><a class="header" href="#powdr-setup"><code>powdr setup</code></a></h2>
+<p><strong>Usage:</strong> <code>powdr setup [OPTIONS] --backend &lt;BACKEND&gt; &lt;SIZE&gt;</code></p>
+<h6 id="arguments-5"><a class="header" href="#arguments-5"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;SIZE&gt;</code> — Size of the parameters</li>
+</ul>
+<h6 id="options-6"><a class="header" href="#options-6"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>-d</code>, <code>--dir &lt;DIR&gt;</code> — Directory to output the generated parameters</p>
+<p>Default value: <code>.</code></p>
+</li>
+<li>
+<p><code>--field &lt;FIELD&gt;</code> — The field to use</p>
+<p>Default value: <code>gl</code></p>
+<p>Possible values: <code>bb</code>, <code>kb</code>, <code>m31</code>, <code>gl</code>, <code>bn254</code></p>
+</li>
+<li>
+<p><code>-b</code>, <code>--backend &lt;BACKEND&gt;</code> — Generate a proof with a given backend</p>
+<p>Possible values: <code>mock</code>, <code>halo2</code>, <code>halo2-composite</code>, <code>halo2-mock</code>, <code>halo2-mock-composite</code>, <code>plonky3</code>, <code>plonky3-composite</code></p>
+</li>
+</ul>
+<h2 id="powdr-reformat"><a class="header" href="#powdr-reformat"><code>powdr reformat</code></a></h2>
+<p>Parses and prints the PIL file on stdout</p>
+<p><strong>Usage:</strong> <code>powdr reformat &lt;FILE&gt;</code></p>
+<h6 id="arguments-6"><a class="header" href="#arguments-6"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;FILE&gt;</code> — Input file</li>
+</ul>
+<h2 id="powdr-optimize-pil"><a class="header" href="#powdr-optimize-pil"><code>powdr optimize-pil</code></a></h2>
+<p>Optimizes the PIL file and outputs it on stdout</p>
+<p><strong>Usage:</strong> <code>powdr optimize-pil [OPTIONS] &lt;FILE&gt;</code></p>
+<h6 id="arguments-7"><a class="header" href="#arguments-7"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;FILE&gt;</code> — Input file</li>
+</ul>
+<h6 id="options-7"><a class="header" href="#options-7"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--field &lt;FIELD&gt;</code> — The field to use</p>
+<p>Default value: <code>gl</code></p>
+<p>Possible values: <code>bb</code>, <code>kb</code>, <code>m31</code>, <code>gl</code>, <code>bn254</code></p>
+</li>
+</ul>
+<h2 id="powdr-test"><a class="header" href="#powdr-test"><code>powdr test</code></a></h2>
+<p>Executes all functions starting with <code>test_</code> in every module called <code>test</code> (or sub-module thereof) starting from the given module</p>
+<p><strong>Usage:</strong> <code>powdr test [OPTIONS] &lt;FILE&gt;</code></p>
+<h6 id="arguments-8"><a class="header" href="#arguments-8"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;FILE&gt;</code> — Input file</li>
+</ul>
+<h6 id="options-8"><a class="header" href="#options-8"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--field &lt;FIELD&gt;</code> — The field to use</p>
+<p>Default value: <code>gl</code></p>
+<p>Possible values: <code>bb</code>, <code>kb</code>, <code>m31</code>, <code>gl</code>, <code>bn254</code></p>
+</li>
+</ul>
+<hr/>
+<p><small><i>
+This document was generated automatically by
+<a href="https://crates.io/crates/clap-markdown"><code>clap-markdown</code></a>.
+</i></small></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="asm"><a class="header" href="#asm">asm</a></h1>
+<p>powdr-asm is the higher level of abstraction in powdr. It allows defining Instruction Set Architectures (ISA) using virtual and constrained machines.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="modules"><a class="header" href="#modules">Modules</a></h1>
+<p>powdr exposes a module system to help organise and reuse code.</p>
+<pre><code class="language-rust">use my_module::Other as LocalOther;
+
+// we can define a module at `./submodule.asm`
+mod submodule;
+
+// we can define a module at `./submodule_in_folder/mod.asm`
+mod submodule_in_folder;
+
+use submodule::Other as SubmoduleOther;
+use submodule_in_folder::Other as FolderSubmoduleOther;
+
+let zero: int = 0;
+
+// we can also define modules inline
+mod utils {
+    // Each module has a fresh symbol list. Every external symbol needs to be imported,
+    // even from the parent module.
+    use super::zero;
+
+    let one = zero + 1;
+}
+
+machine Main with degree: 8 {
+    // use a machine from another module by relative path
+    my_module::Other a;
+
+    // use a machine from another module using a local binding
+    LocalOther b;
+
+    // use a machine from another module defined in a different file
+    SubmoduleOther c;
+
+    // use a machine from another module defined in a different directory
+    FolderSubmoduleOther d;
+
+    reg pc[@pc];
+    reg X[&lt;=];
+    reg Y[&lt;=];
+    reg A;
+
+    instr identity X -&gt; Y link =&gt; Y = a.identity(X);
+    instr also_identity X -&gt; Y link =&gt; Y = a.identity(X);
+    instr still_identity X -&gt; Y link =&gt; Y = a.identity(X);
+    instr identity_again X -&gt; Y link =&gt; Y = a.identity(X);
+
+    function main {
+        A &lt;== identity(A);
+        A &lt;== also_identity(A);
+        A &lt;== still_identity(A);
+        A &lt;== identity_again(A);
+        return;
+    }
+}
+
+mod my_module {
+    machine Other with
+        degree: 8,
+        latch: latch,
+        operation_id: operation_id
+    {
+        operation identity&lt;0&gt; x -&gt; y;
+
+        col witness x;
+        col witness y;
+        x = y;
+        col fixed latch = [1]*;
+        col fixed operation_id = [0]*;
+    }
+}</code></pre>
+<p>Note that a module can't be called <code>std</code>, as this name is reserved for the powdr standard library.</p>
+<p>Similar to Rust, any reference that cannot be resolved is looked up once more in <code>std::prelude</code>.
+This module exposes basic types and values such as <code>Option</code>, <code>true</code> and <code>false</code>.
+This means that you can use <code>Option</code> anywhere without prefix.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="declarations"><a class="header" href="#declarations">Declarations</a></h1>
+<p>Symbols can be defined via <code>let &lt;name&gt; = &lt;value&gt;;</code>, or via <code>let &lt;name&gt;: &lt;type&gt; = &lt;value&gt;;</code> if you want to
+specify the type explicitly. The value is an arbitrary <a href="asm/../pil/expressions.html">PIL-expression</a>.
+For details, see the <a href="asm/../pil/declarations.html">Declarations</a> section in the PIL part.</p>
+<p>Other symbols available in the current module can be accessed by name, but it is also possible to specify
+full relative paths in the form of e.g. <code>super::super::module_name::symbol</code>.</p>
+<p>Here are some examples of how to define and use symbols:</p>
+<pre><code class="language-rust">mod utils {
+    // This defines a function by means of a lambda expression that
+    // computes the sum of an array of values. We fully specify its type.
+    let sum: int, int[] -&gt; int = |len, arr| match len {
+        0 =&gt; 0,
+        _ =&gt; arr[len - 1] + sum(len - 1, arr)
+    };
+    // A simple function that returns the input incremented by one,
+    // as an expression.
+    let incremented: expr -&gt; expr = |x| x + 1;
+    // This is a function that takes an expression as input and returns
+    // a constraint enforcing this expression increments by a certain value
+    // between rows.
+    // The type will be inferred here because `'` is only valid on `expr`.
+    let constrain_incremented_by = |x, inc| x' = x + inc;
+}
+
+machine Main with degree: 4 {
+    // Machines create local scopes in the way functions create local scopes:
+    // - all symbols in the machine's module are available without prefix,
+    // - new symbols can be defined but are only available inside the machine.
+    reg A;
+    reg pc[@pc];
+
+    // This defines a witness column,
+    let x;
+    // and now we force it to stay unchanged.
+    utils::constrain_incremented_by(x, 0);
+
+    // We define an instruction that uses a complicated way to increment a register.
+    instr incr_a { A' = utils::incremented(A) }
+
+    function main {
+        incr_a;
+        return;
+    }
+}</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="machines"><a class="header" href="#machines">Machines</a></h1>
+<p>Machines are the first main concept in powdr-asm. They can currently be of two types: virtual or constrained.</p>
+<h2 id="virtual-machines"><a class="header" href="#virtual-machines">Virtual machines</a></h2>
+<p>Dynamic machines are defined by:</p>
+<ul>
+<li>a <a href="asm/./degree_range.html">degree range</a>, indicating the number of execution steps</li>
+<li>a set of <a href="asm/./registers.html">registers</a>, including a program counter</li>
+<li>an <a href="asm/./instructions.html">instruction set</a></li>
+<li>a set of <a href="asm/../pil/">powdr-pil</a> statements</li>
+<li>a set of <a href="asm/./functions.html">functions</a></li>
+<li>a set of submachines</li>
+</ul>
+<p>An example of a simple dynamic machine is the following:</p>
+<pre><code class="language-rust">machine HelloWorld with degree: 8 {
+    reg pc[@pc];
+    reg X[&lt;=];
+    reg Y[&lt;=];
+    reg A;
+
+    instr incr X -&gt; Y {
+        Y = X + 1
+    }
+
+    instr decr X -&gt; Y {
+        Y = X - 1
+    }
+
+    instr assert_zero X {
+        X = 0
+    }
+
+    function main {
+        // assign the first prover input to A
+        A &lt;=X= ${ std::prelude::Query::Input(0, 1) };
+
+        // increment A
+        A &lt;== incr(A);
+
+        // decrement A
+        A &lt;== decr(A);
+
+        // assert that A is zero
+        assert_zero A;
+
+        return;
+    }
+}</code></pre>
+<h2 id="constrained-machines"><a class="header" href="#constrained-machines">Constrained machines</a></h2>
+<p>Constrained machines are a lower-level type of machine. They do not have registers, and instead rely on simple committed and fixed columns. They are used to implement hand-optimized computation.</p>
+<p>They are defined by:</p>
+<ul>
+<li>a <a href="asm/./degree_range.html">degree range</a>, indicating the number of execution steps</li>
+<li>a set of <a href="asm/./operations.html">operations</a></li>
+<li>an <code>operation_identifier</code> column, used to make constraints conditional over which function is called. It can be omitted with <code>_</code> if the machine has at most one operation.</li>
+<li>a <code>latch</code> column, used to identify rows at which the machine can be accessed from the outside (where the inputs and outputs are passed). It can be omitted if the machine has no operations.</li>
+<li>a set of submachines</li>
+<li>a set of <a href="asm/links.html">links</a></li>
+</ul>
+<p>An example of a simple constrained machine is the following:</p>
+<pre><code class="language-rust">machine SimpleStatic with
+    degree: 8,
+    latch: latch,
+    operation_id: operation_id
+{
+    operation power_4&lt;0&gt; x -&gt; y;
+
+    col fixed operation_id = [0]*;
+    col fixed latch = [0, 0, 0, 1]*;
+    col witness x;
+    col witness y;
+
+    // initialise y to x at the beginning of each block
+    latch * (y' - x') = 0;
+    // x is unconstrained at the beginning of the block
+
+    // x is constant within a block
+    (1 - latch) * (x' - x) = 0;
+    // y is multiplied by x at each row
+    (1 - latch) * (y' - x * y) = 0;
+}</code></pre>
+<p>For more details on the powdr-pil statements, check out the <a href="asm/../pil">pil</a> section of this book. Note that the parameters of the operation are columns defined in powdr-pil statements.</p>
+<h2 id="submachines"><a class="header" href="#submachines">Submachines</a></h2>
+<p>Machines can have submachines which they access by defining <a href="asm/./instructions.html">external instructions</a> or <a href="asm/./links.html">links</a>. They are declared as follows:</p>
+<pre><code class="language-rust">machine MySubmachine {
+    ...
+}
+
+machine MyMachine {
+    MySubmachine my_submachine;
+}</code></pre>
+<p>Machines can also receive submachines as construction parameters.
+A machine passed in as an argument can be accessed in the same way as locally declared submachines:</p>
+<pre><code class="language-rust">machine MachineWithParam(subm: MySubmachine) {
+    // `subm` can be accessed as a submachine
+    ...
+}
+
+machine MyMachine {
+    MySubmachine my_submachine;
+    // `my_submachine` is passed to `another_submachine` as a construction argument
+    MachineWithParam another_submachine(my_submachine);
+}</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="registers"><a class="header" href="#registers">Registers</a></h1>
+<p>Registers are central to a machine. powdr supports a few types of registers:</p>
+<h2 id="program-counter"><a class="header" href="#program-counter">Program counter</a></h2>
+<p>Each machine can have at most one program counter. In the absence of a program counter, the machine is considered static, and no other register can be declared. The program counter is defined as follows:</p>
+<pre><code class="language-rust">reg pc[@pc]</code></pre>
+<p>At each step execution step, the program counter points to the <a href="asm/./functions.html">function</a> line to execute.
+The program counter behaves like a <a href="asm/registers.html#write-registers">write register</a>, with the exception that its value is incremented by default after each step.</p>
+<h2 id="write-registers"><a class="header" href="#write-registers">Write registers</a></h2>
+<p>Write registers are the default type for registers. They are declared as follows:</p>
+<pre><code class="language-rust">reg A;</code></pre>
+<p>They hold a field element, are initialized as 0 at the beginning of a function and keep their value by default. They can be read from and written to.</p>
+<pre><code class="language-rust">// write to A
+A &lt;=X= 1;
+// A is 1
+
+// read from A
+B &lt;=X= A;
+// A is still 1</code></pre>
+<h2 id="assignment-registers"><a class="header" href="#assignment-registers">Assignment registers</a></h2>
+<p>Assignment registers are transient to an execution step: their value is not persisted across steps. They are required in order to pass inputs and receive outputs from instructions, as well as in assignments.
+For example, if we want to assert that write register <code>A</code> is <code>0</code>, we can use the following instruction:</p>
+<pre><code class="language-rust">reg pc[@pc];
+reg A;
+
+instr assert_A_is_zero {
+    A = 0
+}
+
+function main {
+    assert_A_is_zero;
+    return;
+}</code></pre>
+<p>However, if we want the instruction to accept any write register as input, we use an assignment register.</p>
+<pre><code class="language-rust">reg pc[@pc];
+reg X[&lt;=];
+reg A;    
+
+instr assert_zero X {
+    X = 0
+}
+
+function main {
+    assert_zero A;
+    return;
+}</code></pre>
+<h2 id="read-only-registers"><a class="header" href="#read-only-registers">Read-only registers</a></h2>
+<p>Read-only registers are used for function inputs. However, powdr creates them automatically based on functions arguments, so that they do not need to be declared explicitly.</p>
+<blockquote>
+<p>Read-only registers are only mentioned for completeness here and are currently only used inside the compiler. We advise against using them.</p>
+</blockquote>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="functions"><a class="header" href="#functions">Functions</a></h1>
+<p>Functions are the entry points to a virtual machine. They can be called from another machine or from the outside.</p>
+<p>In this section, we describe functions with this simple virtual machine:</p>
+<pre><code class="language-rust">
+machine Machine with degree: 16 {
+    reg pc[@pc];
+    reg X[&lt;=];
+    reg Y[&lt;=];
+    reg Z[&lt;=];
+    reg CNT;
+    reg A;
+    reg B;
+
+    // an instruction to assert that a number is zero
+    instr assert_zero X {
+        X = 0
+    }
+
+    // an instruction to jump to a label
+    instr jmp l: label {
+        pc' = l 
+    }
+
+    // an instruction to jump to a label iff `X` is `0`, otherwise continue
+    instr jmpz X, l: label { 
+        pc' = XIsZero * l + (1 - XIsZero) * (pc + 1) 
+    }
+    
+    // an instruction to return the square of an input as well as its double
+    instr square_and_double X -&gt; Y, Z {
+        Y = X * X,
+        Z = 2 * X
+    }
+
+    function main {
+        // initialise `A` to 2
+        A &lt;=X= 2;
+        // initialise `CNT` to `3`
+        CNT &lt;=X= 3;
+        start:
+        // if `CNT` is `0`, jump to `end`
+        jmpz CNT, end;
+        // decrement `CNT`
+        CNT &lt;=X= CNT - 1;
+        // get the square and the double of `A`
+        A, B &lt;== square_and_double(A);
+        // jump back to `start`
+        jmp start;
+        end:
+        // check that `A == ((2**2)**2)**2`
+        assert_zero A - ((2**2)**2)**2;
+        // check that `B == ((2**2)**2)*2`
+        assert_zero B - ((2**2)**2)*2;
+        return;
+    }
+
+    // some superpowers on `X` to allow us to check if it's 0
+    col witness XInv;
+    col witness XIsZero;
+    XIsZero  = 1 - X * XInv;
+    XIsZero * X = 0;
+    XIsZero * (1 - XIsZero) = 0;
+}
+</code></pre>
+<h2 id="function-inputs-and-outputs"><a class="header" href="#function-inputs-and-outputs">Function inputs and outputs</a></h2>
+<blockquote>
+<p>Function inputs and outputs are not supported yet</p>
+</blockquote>
+<h2 id="statements"><a class="header" href="#statements">Statements</a></h2>
+<h3 id="labels"><a class="header" href="#labels">Labels</a></h3>
+<p>Labels allow referring to a location in a function by name.</p>
+<pre><code class="language-rust">        start:</code></pre>
+<h3 id="assignments"><a class="header" href="#assignments">Assignments</a></h3>
+<p>Assignments allow setting the values of some write registers to the values of some expressions <a href="asm/functions.html#expressions">expression</a> using assignment registers.</p>
+<pre><code class="language-rust">        CNT &lt;=X= 3;</code></pre>
+<p>If the right-hand side of the assignment is an instruction, assignment registers can be inferred and are optional:</p>
+<pre><code class="language-rust">        A, B &lt;== square_and_double(A);</code></pre>
+<p>This will be inferred to be the same as <code>A, B &lt;=Y, Z= square_and_double(A);</code> from the definition of the instruction:</p>
+<pre><code class="language-rust">    instr square_and_double X -&gt; Y, Z {
+        Y = X * X,
+        Z = 2 * X
+    }</code></pre>
+<h3 id="instructions"><a class="header" href="#instructions">Instructions</a></h3>
+<p>Instructions which do not return outputs can be used as statements.</p>
+<pre><code class="language-rust">        assert_zero A - ((2**2)**2)**2;</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="expressions"><a class="header" href="#expressions">Expressions</a></h1>
+<h2 id="field-element-literals"><a class="header" href="#field-element-literals">Field element literals</a></h2>
+<p>Field element literals are signed elements of the prime field.</p>
+<pre><code class="language-rust">        CNT &lt;=X= 3;</code></pre>
+<h2 id="registers-and-columns"><a class="header" href="#registers-and-columns">Registers and columns</a></h2>
+<p>Registers can be used as expressions, with the exception of assignment registers.</p>
+<pre><code class="language-rust">        CNT &lt;=X= CNT - 1;</code></pre>
+<h2 id="instructions-1"><a class="header" href="#instructions-1">Instructions</a></h2>
+<p>Instructions which return outputs can be used as expressions.</p>
+<pre><code class="language-rust">        A, B &lt;== square_and_double(A);</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="instructions-2"><a class="header" href="#instructions-2">Instructions</a></h1>
+<p>Instructions are declared as part of a powdr virtual machine.
+Once defined, they can be called by any function in this machine.
+An instruction is composed of:</p>
+<ul>
+<li>a name</li>
+<li>a set of inputs (<a href="asm/./registers.html">assignment registers</a> or labels)</li>
+<li>a set of outputs (assignment registers)</li>
+<li>a set of <a href="asm/../pil/">powdr-pil</a> constraints to activate when the instruction is called</li>
+<li>a set of links calling into functions/operations in submachines</li>
+</ul>
+<h1 id="local-instructions"><a class="header" href="#local-instructions">Local instructions</a></h1>
+<p>A local instruction is the simplest type of instruction.
+It is called local because its behavior is defined by a set of constraints over registers and columns of the machine it is defined in.</p>
+<pre><code class="language-rust">instr add X, Y -&gt; Z {
+    X + Y = Z
+}</code></pre>
+<h1 id="instructions-with-links"><a class="header" href="#instructions-with-links">Instructions with links</a></h1>
+<p>Instructions may also delegate all or part of their implementation to functions/operations in submachines.
+Each <code>link</code> in an instruction defines the inputs and outputs of a call to a specific function/operation in a submachine.</p>
+<p>Assume we have a submachine with a single operation <code>add</code>:</p>
+<pre><code class="language-rust">machine SubMachine with
+    degree: 32,
+    latch: latch,
+    operation_id: operation_id
+{
+    col witness operation_id;
+    col fixed latch = [1]*;
+
+    operation add&lt;0&gt; x, y -&gt; z;
+
+    col witness x;
+    col witness y;
+    col witness z;
+    z = y + x;
+}</code></pre>
+<p>An instruction calling into this operation can be declared as follows:</p>
+<pre><code class="language-rust">    SubMachine submachine;
+
+    instr add X, Y -&gt; Z link =&gt; Z = submachine.add(X, Y); // - trivial usage: only instruction inputs/outputs used in the call</code></pre>
+<p>In the previous example, only assignment registers (instruction inputs and outputs) were used to call the submachine.
+The following example shows more complex usage of <code>link</code> calls:</p>
+<pre><code class="language-rust">machine Main with degree: 32 {
+    reg pc[@pc];
+    reg X[&lt;=];
+    reg Y[&lt;=];
+    reg Z[&lt;=];
+    reg A;
+    reg B;
+    reg C;
+
+    SubMachine submachine;
+
+    instr add X, Y -&gt; Z link =&gt; Z = submachine.add(X, Y); // - trivial usage: only instruction inputs/outputs used in the call
+    instr add_to_A X, Y link =&gt; A' = submachine.add(X, Y);// - output to a regular register
+    instr addAB -&gt; X link =&gt; X = submachine.add(A, B);    // - inputs from regular registers
+    instr addAB_to_C link =&gt; C' = submachine.add(A, B);   // - inputs and output from regular registers
+    instr addAB_to_A link =&gt; A' = submachine.add(A, B);   // - reusing an input register as output
+    instr sub X, Y -&gt; Z link =&gt; X = submachine.add(Y, Z); // - swapping input/output
+    // expressions can also be used as call parameters
+    instr add5 X -&gt; Z link =&gt; Z = submachine.add(X, 3+2); // - literal expression as argument
+    col fixed STEP(i) { i };
+    instr add_current_time_step X -&gt; Z link =&gt; Z = submachine.add(X, STEP);// - machine columns can be referenced
+    let arr = [1,2,3,4,5];                          // - functions can be used
+    instr add_arr_sum X -&gt; Z link =&gt; Z = submachine.add(X, std::array::sum(arr));
+
+    instr assert_eq X, Y { X = Y }
+
+    function main {
+        A &lt;== add(2, 3);
+        assert_eq A, 5;
+        add_to_A 6, 7;
+        assert_eq A, 13;
+
+        A &lt;== sub(6, 5);
+        assert_eq A, 1;
+        B &lt;=X= 20;
+        C &lt;== addAB();
+        assert_eq C, 21;
+
+        A &lt;=X= 2;
+        B &lt;=X= 3;
+        addAB_to_C;
+        assert_eq C, 5;
+
+        A &lt;=X= 33;
+        B &lt;=X= 44;
+        addAB_to_A;
+        assert_eq A, 77;
+
+        A &lt;== add5(2);
+        assert_eq A, 7;
+        A &lt;== add_arr_sum(3);
+        assert_eq A, 18;
+
+        // Note that the result of this operation depends on when it executed (STEP column)
+        A &lt;== add_current_time_step(42);
+        B &lt;== add_current_time_step(42);
+        assert_eq B - A, 1;
+
+        return;
+    }
+}</code></pre>
+<p>A single instruction can activate multiple <code>links</code>, and may also include a set of constraints.
+Furthermore, each link can be activated conditionally, based on a given boolean flag:</p>
+<pre><code class="language-rust">machine Main with degree: 16 {
+    reg pc[@pc];
+    reg X[&lt;=];
+    reg Y[&lt;=];
+    reg Z[&lt;=];
+    reg W[&lt;=];
+    reg A;
+    col witness B;
+    col witness C;
+
+    SubMachine submachine;
+
+    // multiple links can be activated by a single instruction,
+    // witness columns can be used for temporary values,
+    // and additional constraints can be used
+    instr double_then_mul X, Y -&gt; Z
+        link =&gt; B = submachine.add(X, X)
+        link =&gt; C = submachine.add(Y, Y)
+    {
+        Z = B * C
+    }
+
+    // links activated conditional on a boolean flag
+    instr add_or_sub W, X, Y -&gt; Z
+        link if W =&gt; Z = submachine.add(X, Y)
+        link if (1 - W) =&gt; Z = submachine.sub(X, Y);
+
+    instr assert_eq X, Y { X = Y }
+
+    function main {
+        A &lt;== double_then_mul(3, 2);
+        assert_eq A, 24;
+
+        A &lt;== add_or_sub(1, 3, 2);
+        assert_eq A, 5;
+        A &lt;== add_or_sub(0, 3, 2);
+        assert_eq A, 1;
+
+        return;
+    }
+}</code></pre>
+<blockquote>
+<p>Note that links cannot currently call functions from the same machine: they delegate computation to a submachine.</p>
+</blockquote>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="operations"><a class="header" href="#operations">Operations</a></h1>
+<p>Operations enable a constrained machine to expose behavior to the outside.
+If a machine has a single operation, it can simply be declared with its name and parameters:</p>
+<pre><code class="language-rust">machine Add with
+    degree: 32,
+    latch: latch
+{
+    // operation name, with column names as inputs and outputs
+    operation add a, b -&gt; c;
+
+    col fixed latch = [1]*;
+
+    col witness a;
+    col witness b;
+    col witness c;
+
+    // constraint "implementing" the operation
+    c = a + b;
+}</code></pre>
+<p>The parameters of the operation (inputs and outputs) must be columns declared in the machine.</p>
+<p>If a machine exposes more than one operation, the machine itself needs an operation id column (<code>op_id</code> in the following).
+Then, each operation needs to be declared with its own unique operation id:</p>
+<pre><code class="language-rust">// machine declaration must include an operation id column name
+machine AddSub with
+    degree: 32,
+    latch: latch,
+    operation_id: op_id
+{
+    // each operation has its own unique operation id
+    operation add&lt;0&gt; a, b -&gt; c;
+    operation sub&lt;1&gt; a, b -&gt; c;
+
+    col fixed latch = [1]*;
+        // it also needs to be declared as a column
+    col witness op_id;
+
+    col witness a;
+    col witness b;
+    col witness c;
+
+    // constraint "implementing" both operations, depending on `op_id`
+    c = (1 - op_id) * (a + b) + op_id * (a - b);
+}</code></pre>
+<p>The actual behavior of an operation is defined by the machine constraints on the columns used as inputs and outputs.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="links"><a class="header" href="#links">Links</a></h1>
+<p>Links enable a constrained machine to call into another machine.
+They are defined by a call to an operation, where inputs and outputs are expressions.
+An optional boolean flag restricts the rows in which the link is active.
+Links without a boolean flag are active in every row.</p>
+<pre><code>machine Add4 with
+    degree: 32,
+    latch: latch,
+    operation_id: operation_id
+{
+    Add adder;
+
+    operation add4&lt;0&gt; x, y, z, w -&gt; r;
+
+    // Links without a flag are active on every row.
+    // - constrain the values of `x`, `y`, and `n` so that `n = adder.add(x, y)`
+    link =&gt; n = adder.add(x, y);
+    // - constrain the values of `z`, `w`, and `m` so that `m = adder.add(z, w)`
+    link =&gt; m = adder.add(z, w);
+    // - constrain the values of `m`, `n` and `r` so that `r = adder.add(m,n)`
+    link =&gt; r = adder.add(m, n);
+
+    col fixed operation_id = [0]*;
+    col fixed latch = [1]*;
+
+    col witness x;
+    col witness y;
+    col witness z;
+    col witness w;
+    col witness r;
+    col witness m;
+    col witness n;
+}
+
+machine Add with
+    degree: 32,
+    latch: latch
+{
+    // operation name, with column names as inputs and outputs
+    operation add a, b -&gt; c;
+
+    col fixed latch = [1]*;
+
+    col witness a;
+    col witness b;
+    col witness c;
+
+    // constraint "implementing" the operation
+    c = a + b;
+}
+</code></pre>
+<p>If a boolean flag is given, the link is only active in rows where the flag evaluates to <code>1</code>.
+Whenever a link is active, the columns mapped as inputs and outputs are constrained by the operation implementation.
+The following example demonstrates how to use links with flags.</p>
+<pre><code>col fixed odd_row = [0,1]*;
+
+link if odd_row =&gt; z = submachine.foo(x, y); // active on odd rows only
+link if (1 - odd_row) =&gt; z = submachine.bar(x, y); // active on even rows only
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="pil"><a class="header" href="#pil">PIL</a></h1>
+<p>powdr-pil is the lower level of abstraction in powdr. It is strongly inspired by <a href="https://github.com/0xPolygonHermez/pilcom/">Polygon zkEVM PIL</a>. We refer to the <a href="https://docs.polygon.technology/zkEVM/spec/pil">Polygon zkEVM PIL documentation</a> and document deviations from the original design here.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="declarations-1"><a class="header" href="#declarations-1">Declarations</a></h1>
+<p>Powdr-pil allows the same syntax to declare various kinds of symbols. This includes
+constants, fixed columns, witness columns and even higher-order functions. It deduces the symbol kind
+from the type of the symbol and the way the symbol is used.</p>
+<p>Symbols can be declared using <code>let &lt;name&gt;;</code> and they can be declared and defined
+using <code>let &lt;name&gt; = &lt;value&gt;;</code>, where <code>&lt;value&gt;</code> is an expression. The <a href="pil/./types.html">type</a> of the symbol
+can be explicitly specified using <code>let &lt;name&gt;: &lt;type&gt;;</code> and <code>let &lt;name&gt;: &lt;type&gt; = &lt;value&gt;;</code>.
+Symbols with a generic type can be defined using <code>let&lt;TV1, TV1, ..&gt; &lt;name&gt;: &lt;type&gt; = &lt;value&gt;;</code>,
+where the <code>TV</code> are newly created type variables that can be used in the type.</p>
+<p>This syntax can be used for constants, fixed columns, witness columns and even (higher-order)
+functions that can transform expressions. The kind of symbol is deduced by its type and whether
+it is has a value:</p>
+<ul>
+<li>Symbols without a value are witness columns or arrays of witness columns. Their type can be omitted. If it is given, it must be <code>col</code> or <code>col[k]</code>.</li>
+<li>Symbols defined with a value and type <code>col</code> (or <code>col[k]</code>) are fixed columns (or arrays of fixed columns).</li>
+<li>Symbols defined with a value and type <code>inter</code> (or <code>inter[k]</code>) are intermediate columns (or arrays of intermediate columns).</li>
+<li>Everything else is a "generic symbol" that is not a column.</li>
+</ul>
+<p>Examples:</p>
+<pre><code class="language-rust">    // This defines a integer constant. We can omit the type when it is used
+    // somewhere that constrains its type. Since it is not used below,
+    // we have to specify `: int` (another option would be `fe`, field element).
+    let rows: int = 16;
+    // This defines a fixed column that contains the row number in each row.
+    // Only symbols whose type is "col" are considered fixed columns.
+    let step: col = |i| i;
+    // Here, we have a witness column, the do not need an explicit `: col`.
+    let x;
+    // This functions defines a fixed column where each cell contains the
+    // square of its row number.
+    let square: col = |x| x*x;
+    // This is a generic function that computes the sum of an array
+    // given its length.
+    // It is not stored as a column.
+    // If it is used in a constraint, it has to be evaulated, while
+    // columns must be used symbolically.
+    let&lt;T: Add + FromLiteral&gt; sum: T[], int -&gt; T = |a, len| match len {
+        0 =&gt; 0,
+        _ =&gt; sum(a, len - 1) + a[len - 1],
+    };
+    // This is a constraint that uses the `sum` function:
+    sum([x, step], 2) = 0;</code></pre>
+<p>Name lookup is performed as follows:</p>
+<p>Lookup is performed starting from the current namespace, going up to the root component by component
+where the first match is used. If all lookups fail, a last attempt is done
+inside the <code>std::prelude</code> namespace.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="expressions-1"><a class="header" href="#expressions-1">Expressions</a></h1>
+<p>Depending on the context, powdr allows more or less features for expressions.</p>
+<p>Inside values for declarations, you can use a very flexible language which includes
+many different operators, function calls, lambda functions, tuple types, statement blocks,
+match statements and others.</p>
+<p>In statements and expressions that are required to evaluate to constraints / polynomial identities, only a much more restrictive
+language can be used. Expressions in that language are called Algebraic Expressions. While you can use
+the full language everywhere, in the context of a constraint, the result after function evaluation
+and constant propagation has to be an algebraic expression.</p>
+<h2 id="generic-expressions"><a class="header" href="#generic-expressions">Generic Expressions</a></h2>
+<p>The expression language allows the following operators, in order of increased precedence:</p>
+<ul>
+<li>lambda functions: <code>|params| body</code>. Examples: <code>|i| i</code> (the identity), <code>|a, b| a + b</code> (sum)</li>
+<li><code>||</code> - logical or</li>
+<li><code>&amp;&amp;</code> - logical and</li>
+<li><code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code>, <code>&gt;=</code>, <code>&gt;</code> - comparisons and <code>=</code> - identity operator</li>
+<li><code>|</code> - bitwise or</li>
+<li><code>^</code> - bitwise xor</li>
+<li><code>&amp;</code> - bitwise and</li>
+<li><code>&lt;&lt;</code>, <code>&gt;&gt;</code> - left and right shift</li>
+<li><code>+</code>, <code>-</code> - addition and subtraction (binary operator)</li>
+<li><code>*</code>, <code>/</code>, <code>%</code> - multiplication, division and modulo</li>
+<li><code>**</code> - exponentiation</li>
+<li><code>-</code>, <code>!</code> - numerical and logical negation (unary operators, prefix)</li>
+<li><code>'</code> - "next row" operator (suffix)</li>
+<li><code>[]</code>, <code>()</code> - array index access and function calls</li>
+</ul>
+<p>Elementary expressions are</p>
+<ul>
+<li>number literals (integers)</li>
+<li>string literals, written in double quotes, e.g. <code>"hello"</code></li>
+<li>array literals written in square brackets, e.g. <code>[1, 2, 3]</code></li>
+<li>tuples, having at least two elements, e.g. <code>(1, "abc")</code></li>
+<li>statement blocks (see below)</li>
+<li>match expressions (see below).</li>
+<li>if expressions (see below).</li>
+</ul>
+<p>Parentheses are allowed at any point to force precedence.</p>
+<h3 id="lambda-functions"><a class="header" href="#lambda-functions">Lambda Functions</a></h3>
+<p>The only way to declare a function in pil is by assigning a lambda function to a symbol.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let x = |i| i + 1;</code></pre>
+<p>If you want to specify the types of parameters or return values explicitly, you have to do it
+on the symbol, you cannot do it on the parameters:</p>
+<pre><code class="language-rust">let x: int -&gt; int = |i| i + 1;</code></pre>
+<p>It is possible to use <a href="pil/./patterns.html">patterns</a> in the function parameters:</p>
+<pre><code class="language-rust">let y: (int, int), int -&gt; int = |(i, j), _| i + j;</code></pre>
+<p>If you use patterns, they have to be irrefutable, which means that the pattern has to
+be able to match any value of the given type.</p>
+<h3 id="statement-blocks"><a class="header" href="#statement-blocks">Statement Blocks</a></h3>
+<p>A <code>{</code>-<code>}</code>-delimited block can be used everywhere where an expression is expected.</p>
+<p>It has the form <code>{ &lt;statement&gt; ; &lt;statement&gt; ; ... ; &lt;expression&gt; }</code>,
+i.e. a sequence of statements followed by an expression.
+The statements can either be expressions (<code>f();</code>, only inside <a href="pil/expressions.html#constr-and-query-functions"><code>constr</code>-functions</a>)
+or let statements: <code>let x = ...;</code> / <code>let x;</code></p>
+<p>The value of the statement block is the value of the final expression.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let plus_one_squared = |x| { let y = x + 1; y * y };</code></pre>
+<p>Let statements with value can be used everywhere, they just bind an expression to a local variable
+and allow to avoid repeating the expression. You can use <a href="pil/./patterns.html">patterns</a> for the
+left hand side of let statements to destructure values.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let f = |i| (i / 2, i % 2);
+let (quot, rem) = f(7);</code></pre>
+<p>The second let statement will create two local variables <code>x</code> and <code>y</code>. You can also ignore values using
+the <code>_</code> pattern element. For details, please see the <a href="pil/./patterns.html">patterns</a> section.</p>
+<p>Let statements without value (<code>let x;</code>) create a new witness column and are only allowed inside <a href="pil/expressions.html#constr-and-query-functions"><code>constr</code>-functions</a>.</p>
+<p>Similarly, an expression at statement level (e.g. <code>x * (x - 1) = 0;</code>) can be used to create new constraints that are added to the global constraint set
+and this can only be done inside a <a href="pil/expressions.html#constr-and-query-functions"><code>constr</code>-functions</a>.</p>
+<p>Note that you can always create constraints and return them from a function, even in <a href="pil/expressions.html#constr-and-query-functions">pure function</a>.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let constrain_to_bool: expr -&gt; Constr = |x| x * (x - 1) = 0;</code></pre>
+<h3 id="match-expressions"><a class="header" href="#match-expressions">Match Expressions</a></h3>
+<p>Match expressions take the form <code>match &lt;value&gt; { &lt;pattern 1&gt; =&gt; &lt;value 1&gt;, &lt;pattern 2&gt; =&gt; &lt;value 2&gt;, _ =&gt; &lt;default value&gt; }</code>,
+with an arbitrary number of match arms.</p>
+<p>The semantics are that the first match arm where the pattern equals the value after the <code>match</code> keyword is evaluated.</p>
+<p>Patterns can be used to destructure more complex data types and to capture values inside new local variables.
+For more details, please see the <a href="pil/./patterns.html">patterns</a> section.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let fib = |i| match i {
+    0 =&gt; 1,
+    1 =&gt; 1,
+    _ =&gt; fib(i - 2) + fib(i - 1),
+};</code></pre>
+<h3 id="if-expressions"><a class="header" href="#if-expressions">If Expressions</a></h3>
+<p>If expressions take the form <code>if &lt;condition&gt; { &lt;true value&gt; } else { &lt;false value&gt; }</code>, where the "else" part is not optional.</p>
+<p>If the condition evaluates to <code>true</code>, then <code>&lt;true value&gt;</code> is evaluated, otherwise <code>&lt;false value&gt;</code> is.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let is_seven = |i| if i == 7 { 1 } else { 0 };</code></pre>
+<h2 id="algebraic-expressions"><a class="header" href="#algebraic-expressions">Algebraic Expressions</a></h2>
+<p>For constraints (or functions called at a place where a constraint is expected), the expression syntax is limited:
+After evaluating function calls and performing constant propagation, the resulting expression has to
+be an "algebraic expression". These are restricted in the following way:</p>
+<ul>
+<li>You can freely use the operators  <code>+</code>, <code>-</code>,<code>*</code>.</li>
+<li>The operator <code>**</code> must have a number as exponent.</li>
+<li>The operator <code>[i]</code> must have a column name on the left-hand side and the index must be a number.</li>
+<li>The operator <code>'</code> must have a column or <code>[i]</code> on the left-hand-side.</li>
+<li>No other operators are allowed.</li>
+</ul>
+<p>Arbitrary parentheses are allowed.</p>
+<p>The following example illustrates how you can still use the generic language:</p>
+<pre><code class="language-rust">namespace Main(16);
+    // Returns folder(...folder(folder(0, f(0)), f(1)) ..., f(length - 1))
+    // This is a generic function.
+    let&lt;T1, T2&gt; fold: int, (int -&gt; T1), T2, (T2, T1 -&gt; T2) -&gt; T2 =
+        |length, f, initial, folder| match length {
+            0 =&gt; initial,
+            _ =&gt; folder(fold(length - 1, f, initial, folder), f(length - 1))
+        };
+    // returns f(0) + f(1) + ... + f(length - 1)
+    let sum = |length, f| fold(length, f, 0, |acc, e| acc + e);
+    // This function takes an algebraic expression (a column or expression
+    // involving columns) and returns an identity that forces this expression
+    // to equal 20. Note that `=` is not an assignment but creates an identity constraint.
+    let equals_twenty: expr -&gt; Constr = |x| x = 20;
+    // This declares an array of 16 witness columns.
+    col witness wit[16];
+    // This expression has to evaluate to an identity, but we can still use
+    // higher order functions and all the flexibility of the language.
+    // The sub-expression `sum(16, |i| wit[i])` evaluates to the algebraic
+    // expression "wit[0] + wit[1] + ... + wit[15]", which is then
+    // turned into the identity by `equals_twenty`
+    // wit[0] + wit[1] + ... + wit[15] = 20.
+    equals_twenty(sum(16, |i| wit[i]));
+
+    // We constrained the sum to equal twenty, but there is no unique solution
+    // to that constraint. In order to fully constrain the system, we need to
+    // add something more: The first fifteen columns should all be one.
+
+    // returns [f(0), f(1), ..., f(length - 1)]
+    let make_array = |length, f| fold(length, f, [], |acc, e| acc + [e]);
+    // If an expression evaluates to an array of constraints, all the
+    // constraints in the array are added to the system.
+    make_array(15, |i| wit[i] = 1);</code></pre>
+<h2 id="constr-and-query-functions"><a class="header" href="#constr-and-query-functions">Constr and Query Functions</a></h2>
+<p>Every function in PIL is either a pure, a <code>constr</code> or a <code>query</code> function. They are denoted by</p>
+<ul>
+<li><code>|...| ...</code></li>
+<li><code>constr |...| ...</code></li>
+<li><code>query |...| ...</code></li>
+</ul>
+<p>Inside <code>constr</code> functions, it is possible to create new witness columns
+and add constraints to the set of constraints (see the <a href="pil/expressions.html#statement-blocks">Statement Blocks</a> section for details).</p>
+<p>Inside <code>query</code> functions, it is possible to evaluate the value of a column on the "current" row
+using the <code>std::prover::eval</code> function.</p>
+<p>Both actions require a certain context to be available, which is not the case for example when
+the values of a fixed column are computed.</p>
+<p>A <code>query</code> function can only be used in the query or hint part of a witness column while <code>constr</code> functions
+can only be evaluated in the constraint part of a namespace or machine.</p>
+<p>You can define and call new <code>constr</code> functions inside a <code>constr</code> function and you can call and define
+new <code>query</code> functions inside <code>query</code> functions, but as soon as you enter a pure function, this is not possible any more.</p>
+<p>Examples:</p>
+<pre><code class="language-rust">// This function creates and returns a new witness column.
+let new_wit = constr || { let x; x };
+// Queries the current value of a column and returns its square.
+let square_of = query |x| { let v = std::prover::eval(x); v * v };
+// Creates a new witness column, constrains it to be boolean and returns it.
+let new_bool = constr |x| { let x = new_wit(); x * (x - 1) = 0; x };
+// This is a pure function that only returns a constraint, but does not add it
+// to the global set of constraints.
+let bool_constraint: expr -&gt; Constr = |x| x * (x - 1) = 0;</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="patterns"><a class="header" href="#patterns">Patterns</a></h1>
+<p>Patterns are a way to destructure or match certain values. They are valid in <code>match</code> arms,
+function parameters or left hand sides of let statements in blocks.</p>
+<p>A pattern is built up in from the following components:</p>
+<ul>
+<li><code>_</code> - the "catch all" pattern that matches anything</li>
+<li><code>x</code> - for an identifier <code>x</code>, matches anything and assigns the value to the new local variable of that name</li>
+<li><code>k</code> - for a literal number <code>k</code>, matches the exact number, either as an <code>int</code> or a <code>fe</code></li>
+<li><code>-k</code> - for a literal number <code>k</code>, matches the exact negated number, either as an <code>int</code> or a <code>fe</code></li>
+<li><code>"text"</code> - for a string literal, matches the exact string literal as a <code>string</code></li>
+<li><code>(a, b, c)</code> - for a tuple, matches a tuple-typed value if all the components match</li>
+<li><code>[a, b, c]</code> - for an array, matches array values of exactly the same length if all the components match</li>
+<li><code>[a, .., b, c]</code> - matches an array that has an initial segment of <code>a</code> and ends in <code>b, c</code>. The omitted part can be empty.</li>
+<li><code>X::Y(a, b)</code> - for an enum variant <code>X::Y</code>, matches that enum variant if all the enum fields match.</li>
+</ul>
+<p>Patterns can be nested, which means that the components of tuple and array patterns
+are themselves patterns.</p>
+<p>Some examples:</p>
+<pre><code class="language-rust">// This pattern de-structures the first function parameter.
+let f: (int, int), int -&gt; int = |(a, b), c| (a + c, b);
+// Matches a tuple, ignores the second component.
+let (x, _) = f((6, 7), 3);
+// The match statement typically uses patterns to check for certain values
+// but it can also destructure and create new local variables valid inside
+// the match arm.
+let t = match (x, f((1, x), 2)) {
+    (0, _) =&gt; 0,
+    (1, _) =&gt; 7,
+    (_, y) =&gt; y,
+    _ =&gt; 9
+};
+let head: int[] -&gt; int = |x| match x {
+    // Matches the first element of a non-empty array and binds it to a local variable.
+    [a, ..] =&gt; a,
+    [] =&gt; std::check::panic("Called 'head' on empty array."),
+};</code></pre>
+<blockquote>
+<p>Note that PIL does not check that patterns in a match expression are exhaustive.</p>
+</blockquote>
+<h2 id="ir-refutability"><a class="header" href="#ir-refutability">(Ir-)refutability</a></h2>
+<p>A pattern is refutable if there is a value of the correct type that the pattern does not match.
+An example is the pattern <code>7</code> since it does not match all integers, or the patten <code>[x, ..]</code>, because it
+does not match the empty array.</p>
+<p>Refutable patterns are fine in match arms, because if the pattern does not match, the evaluator will
+just continue trying the next match arm, but they are disallowed in let statements and in function
+parameters, because there we do not have the option of "trying the next arm".</p>
+<p>Example:</p>
+<pre><code class="language-rust">let f: int -&gt; int[] = |i| match i {
+    // This is a refutable pattern, but it is fine
+    // because we will try the next match arm.
+    0 =&gt; [],
+    _ =&gt; f(i - 1) + [i],
+};
+// This pattern does not match all `int[]`, because it requires a length
+// of at least one.
+let [x, ..] = f(8);</code></pre>
+<p>The following patterns are refutable:</p>
+<ul>
+<li>all integer literal patterns</li>
+<li>all string literal patterns</li>
+<li>enum variant patterns</li>
+<li>tuple patterns that have refutable components</li>
+<li>array patterns that are not <code>[..]</code>.</li>
+</ul>
+<p>Variable patterns and <code>_</code> are always irrefutable.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="types"><a class="header" href="#types">Types</a></h1>
+<p>The powdr-pil language has the following types:</p>
+<ul>
+<li><code>bool</code></li>
+<li><code>int</code> (integer)</li>
+<li><code>fe</code> (field element)</li>
+<li><code>string</code></li>
+<li>tuple</li>
+<li>array</li>
+<li>function type</li>
+<li><code>expr</code> (expression)</li>
+<li><code>!</code> ("bottom" or "unreachable" type)</li>
+<li>enum types</li>
+</ul>
+<blockquote>
+<p>In addition, there are the <code>col</code> and <code>inter</code> types, but they are special in that
+they are only used for declaring columns, but cannot appear as the type of an expression.
+See <a href="pil/types.html#declaring-and-referencing-columns">Declaring and Referencing Columns</a> for details.</p>
+</blockquote>
+<p>Powdr-pil performs Hindley-Milner type inference. This means that, similar to Rust, the type of
+a symbol does not always have to be specified. The compiler will try to find a type for every
+symbol depending both on the value assigned to the symbol and on the context the symbol is used in.
+It is an error if the type is not uniquely determined.</p>
+<p>Symbols can have a generic type, but in those cases, you have to explicitly specify the generic type.
+Such declarations can require type variables to satisfy certain trait bounds.
+Currently, only built-in traits are supported (see the next section).</p>
+<p>Literal numbers do not have a specific type, they can be either <code>int</code>, <code>fe</code> or <code>expr</code> (the types that
+implement the <code>FromLiteral</code> trait), and their type can also stay generic until evaluation.</p>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<p>The following snippet defines a function that takes a value of a generic type and returns the value incremented by one.
+The type bounds on the generic type are <code>FromLiteral</code> and <code>Add</code>. The type checker will complain if we do not specify
+the type bounds. The bound <code>Add</code> is required because we use the <code>+</code> operator in the function and <code>FromLiteral</code> is needed
+because we use the literal <code>1</code> as a value of that type.</p>
+<pre><code class="language-rust">let&lt;T: FromLiteral + Add&gt; add_one: T -&gt; T = |i| i + 1;</code></pre>
+<h2 id="declaring-and-referencing-columns"><a class="header" href="#declaring-and-referencing-columns">Declaring and Referencing Columns</a></h2>
+<p>A symbol declared to have type <code>col</code> or <code>inter</code> (or <code>col[k]</code> / <code>inter[k]</code>) is a bit special:</p>
+<p>These symbols represent columns in the arithmetization and the types of values that can be assigned to
+such symbols and the references to the symbols are different from their declared type.</p>
+<p>If you assign a value to a <code>col</code> symbol, that value is expected to have type <code>int -&gt; fe</code> or <code>int -&gt; int</code> (or an array thereof).
+This allows the simple declaration of a fixed column <code>let byte: col = |i| i &amp; 0xff;</code> without complicated conversions.
+The integer value is converted to a field element during evaluation, but it has to be non-negative and less than
+the field modulus.</p>
+<p>Symbols of declared type <code>col</code> are fixed (those with value) or witness columns (those without value).</p>
+<p>A symbol of declared type <code>inter</code> is an intermediate column. You can assign it a value of type <code>expr</code>.
+The idea of an intermediate column is that it is an algebraic expression of other columns that you do
+not want to compute multiple times.</p>
+<blockquote>
+<p>Note that if you use <code>let x: expr = a * b;</code>, the symbol <code>x</code> is just a name in the PIL environment,
+this will not create an intermediate column. The difference between <code>inter</code> and <code>expr</code> in this case
+is that if you use <code>let x: inter = ...</code>, the expression might not be inlined into constraints (depending on the backend),
+while if you use <code>let x: expr = ...</code>, it will always be inlined.</p>
+</blockquote>
+<p>If you reference a symbol of declared type <code>inter</code> or <code>col</code>, the type of the reference is <code>expr</code> (or <code>expr[]</code>).
+A byte constraint is as easy as <code>[ X ] in [ byte ]</code>, since the expected types in plookup columns is <code>expr</code>.
+The downside is that you cannot evaluate columns as functions. If you want to do that, you either have to assign
+a copy to an <code>int -&gt; int</code> symbol: <code>let byte_f: int -&gt; int = |i| i &amp; 0xff; let byte: col = byte_f;</code>.
+Or you can use the built-in function <code>std::prover::eval</code> if you want to do that inside a prover query or hint.</p>
+<p>All other symbols use their declared type both for their value and for references to these symbols.</p>
+<h2 id="built-in-traits"><a class="header" href="#built-in-traits">Built-in Traits</a></h2>
+<p><code>FromLiteral</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>. The type of a number literal needs to implement <code>FromLiteral</code>.</p>
+<p><code>Add</code>: Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>, <code>T[]</code>, <code>string</code>. Used by <code>&lt;T: Add&gt; +: T, T -&gt; T</code> (binary plus).</p>
+<p><code>Sub</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>. Used by <code>&lt;T: Sub&gt; -: T, T -&gt; T</code> (binary minus).</p>
+<p><code>Neg</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>. Used by <code>&lt;T: Neg&gt; -: T -&gt; T</code> (unary minus).</p>
+<p><code>Mul</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>. Used by <code>&lt;T: Mul&gt; *: T, T -&gt; T</code> (binary multiplication).</p>
+<p><code>Pow</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>, Used by <code>&lt;T: Pow&gt; **: T, int -&gt; T</code> (exponentiation).</p>
+<p><code>Ord</code>:
+Implemented by <code>int</code>. Used by <code>&lt;T: Ord&gt; op: T, T, -&gt; bool</code> for <code>op</code> being one of <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>.</p>
+<p><code>Eq</code>:
+Implemented by <code>int</code>, <code>fe</code>, <code>expr</code>. Used by <code>&lt;T: Eq&gt; op: T, T -&gt; bool</code> for <code>op</code> being one of <code>==</code>, <code>!=</code>.</p>
+<h2 id="list-of-types"><a class="header" href="#list-of-types">List of Types</a></h2>
+<h3 id="bool"><a class="header" href="#bool">Bool</a></h3>
+<p>Type name: <code>bool</code></p>
+<p>Booleans are the results of comparisons. They allow the following operators:</p>
+<ul>
+<li><code>&amp;&amp;</code>: logical conjunction</li>
+<li><code>||</code>: logical disjunction</li>
+<li><code>!</code>: logical negation</li>
+</ul>
+<p>Short-circuiting is <em>not</em> performed when evaluating boolean operators.
+This means that <code>(1 == 1) || std::check::panic("reason")</code> will cause a panic abort.</p>
+<h3 id="integer"><a class="header" href="#integer">Integer</a></h3>
+<p>Type name: <code>int</code></p>
+<p>Integers in powdr-pil have unlimited size.
+Array index requires an integer and row indices (for example the input to a fixed
+column defined through a function) are also integers.</p>
+<p>Integer implements <code>FromLiteral</code>, which means that literal numbers can be used in contexts where <code>int</code> is expected.</p>
+<p>Integers allow the following operators, whose result is always an integer:</p>
+<ul>
+<li><code>+</code>: addition</li>
+<li><code>-</code>: subtraction (also unary negation)</li>
+<li><code>*</code>: multiplication</li>
+<li><code>/</code>: integer division rounding towards zero, division by zero results in a runtime error</li>
+<li><code>**</code>: exponentiation, the exponent needs to be non-negative and fit 32 bits, otherwise a runtime error is triggered</li>
+<li><code>%</code>: remainder after division, (for signed arguments, <code>p % q == sgn(p) * abs(p) % abs(q)</code>), remainder by zero results in a runtime error</li>
+<li><code>&amp;</code>: bit-wise conjunction</li>
+<li><code>|</code>: bit-wise disjunction</li>
+<li><code>^</code>: bit-wise exclusive or</li>
+<li><code>&lt;&lt;</code>: bit-wise shift left, the shift amount needs to be non-negative and fit 32 bits, otherwise a runtime error is triggered</li>
+<li><code>&gt;&gt;</code>: bit-wise shift right, the shift amount needs to be non-negative and fit 32 bits, otherwise a runtime error is triggered</li>
+</ul>
+<p>The exponentiation operator on field elements requires a non-negative integer as exponent.
+It has the signature <code>**: fe, int -&gt; fe</code>.</p>
+<p>In addition, the following comparison operators are allowed, the result is a boolean:</p>
+<ul>
+<li><code>&lt;</code>: less than</li>
+<li><code>&lt;=</code>: less or equal</li>
+<li><code>==</code>: equal</li>
+<li><code>!=</code>: not equal</li>
+<li><code>&gt;=</code>: greater or equal</li>
+<li><code>&gt;</code>: greater than</li>
+</ul>
+<h3 id="field-element"><a class="header" href="#field-element">Field Element</a></h3>
+<p>Type name: <code>fe</code></p>
+<p>Field elements are elements of a particular but unspecified prime field. The exact field is
+chosen when powdr is run. The modulus of that field can be accessed via <code>std::field::modulus()</code>.</p>
+<p>Field elements are the values stored in (fixed and witness) columns.
+Arithmetic inside constraints (algebraic expressions) is also always finite field arithmetic.</p>
+<p>The type <code>fe</code> implements <code>FromLiteral</code>, which means that literal numbers can be used in contexts where <code>fe</code> is expected.
+If the literal number is not less than the field modulus, a runtime error is caused.</p>
+<p>Field elements allow the following operators, where the result is always a field element:</p>
+<ul>
+<li><code>+</code>: finite field addition</li>
+<li><code>-</code>: finite field subtraction (also unary negation)</li>
+<li><code>*</code>: finite field multiplication</li>
+</ul>
+<p>There is also an exponentiation operator <code>**</code> on field elements. It requires the exponent
+to be a non-negative integer and thus has the signature <code>**: fe, int -&gt; fe</code>. If the exponent is negative, a runtime error is triggered. <code>0**0</code> is defined as <code>1</code>.</p>
+<p>The following comparison operators exist for field elements, whose result is a boolean:</p>
+<ul>
+<li><code>==</code>: equality comparison</li>
+<li><code>!=</code>: inequality comparison</li>
+</ul>
+<p>Since finite fields do not have an inherent order as integers do, if you want to
+compare them using <code>&lt;</code>, you have to first convert them to integers.</p>
+<h3 id="string"><a class="header" href="#string">String</a></h3>
+<p>Type name: <code>string</code></p>
+<p>String literals are written as <code>"string content"</code>. They are mainly used for debugging or
+documentation purposes, since they cannot occur in constraints.</p>
+<p>They allow the following operators:</p>
+<ul>
+<li><code>+</code>: string concatenation</li>
+</ul>
+<h3 id="tuple"><a class="header" href="#tuple">Tuple</a></h3>
+<p>Type name: <code>(..., ..., ...)</code></p>
+<p>Tuples are complex types that are composed from other types, either zero or two or more. There is no tuple type with a single element (<code>(int)</code> is the same as <code>int</code>).
+The empty tuple type is written as <code>()</code>.</p>
+<p>Examples include <code>(int, int)</code> (a pair of integers) and <code>((fe[], int), ())</code>
+(a tuple consisting of a tuple that contains an array of field elements and an integer
+and an empty tuple).</p>
+<p>Tuples values are constructed using parentheses: <code>(1, 2)</code> constructs the tuple that consists of
+a one and a two.</p>
+<p>Tuples do not allow any operators.</p>
+<h3 id="array"><a class="header" href="#array">Array</a></h3>
+<p>Type name: <code>_[]</code></p>
+<p>Arrays are statically or dynamically-sized collections of elements each of the same type
+denoted for example as <code>int[]</code> (a dynamically-sized array of integers) or <code>int[2]</code> (an array of integers with static size two).
+Array values can be constructed inline using <code>[1, 2]</code> (the array containing the
+two elements one and two).</p>
+<p>The built-in function <code>std::array::len</code> can be used to retrieve the length of an array (statically or dynamically sized)
+and the elements of an array <code>a</code> can be accessed using <code>a[0]</code>, <code>a[1]</code>, etc.</p>
+<p>The type checker currently only knows dynamically-sized arrays, which means that it does not compare the sizes of statically-sized array types.</p>
+<p>Arrays allow the following operators:</p>
+<ul>
+<li><code>+</code>: array concatenation</li>
+<li><code>_[]</code>: array index access, the index needs to be a non-negative integer that is less than the length of the array, otherwise a runtime error is triggered</li>
+</ul>
+<h3 id="function"><a class="header" href="#function">Function</a></h3>
+<p>Type name: <code>T1, T2, ..., Tn -&gt; T0</code></p>
+<p>Function type names are for example denoted as <code>int, fe -&gt; int</code> or <code>-&gt; int</code>.
+Note that <code>(int, fe) -&gt; int</code> is a function that takes a single tuple as parameter
+while <code>int, fe -&gt; int</code> takes two parameters of type integer and field element.</p>
+<p>Functions can be constructed using the lambda expression notation.
+For example <code>|x, y| x + y</code> returns a function that performs addition.
+The lambda expression <code>|| 7</code> is a function that returns a constant (has no parameters).
+Lambda functions can capture anything in their environment and thus form closures.</p>
+<p>Functions allow the following operators:</p>
+<ul>
+<li><code>_(...)</code>: function evaluation</li>
+</ul>
+<p>Powdr-pil is usually side-effect free, but there are some built-in functions that have
+side-effects:
+These are <code>std::debug::print</code> and <code>std::check::panic</code> and all functions that call them.
+Expressions are eagerly evaluated from left to right.</p>
+<h3 id="expression"><a class="header" href="#expression">Expression</a></h3>
+<p>Type name: <code>expr</code></p>
+<p>Expressions are the elements of the algebraic expressions used in constraints.</p>
+<p>References to columns have type <code>expr</code> and <code>expr</code> also implements <code>FromLiteral</code>,
+which means that literal numbers can be used in contexts where <code>expr</code> is expected.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let x: col;
+let y: col;
+let f: -&gt; expr = || x + y;
+let g = || 7;
+f() = g();</code></pre>
+<p>The first two lines define the witness columns <code>x</code> and <code>y</code>.
+The next two lines define the utility functions <code>f</code> and <code>g</code>.
+The function <code>f</code> adds the two columns <code>x</code> and <code>y</code> symbolically - it essentially returns the expression <code>x + y</code>.
+The last line is at statement level and it is expected that it evaluates to a constraint, in this case, a polynomial identity.
+Because of that, <code>g</code> is inferred to have type <code>-&gt; expr</code>, which is compatible with the literal <code>7</code>.</p>
+<p>Since expressions are built from abstract column references, applying operators
+does not perform any operations but instead constructs an abstract expression structure / syntax tree.</p>
+<p>Expressions allow the following operators, which always construct new expressions:</p>
+<ul>
+<li><code>+</code>: additive combination of expressions</li>
+<li><code>-</code>: subtractive combination of expressions (also unary negation)</li>
+<li><code>*</code>: multiplicative combination of expressions</li>
+<li><code>**</code>: exponential combination of an expression with an integer constant</li>
+<li><code>'</code>: reference to the next row of a column, can only be applied directly to columns and only once</li>
+</ul>
+<p>The operator <code>=</code> on expressions constructs a constraint (see [../builtins#Constr]).</p>
+<h3 id="bottom-type"><a class="header" href="#bottom-type">Bottom Type</a></h3>
+<p>Type name: <code>!</code></p>
+<p>The bottom type essentially is the return type of a function that never returns, which currently only happens
+if you call the <code>panic</code> function. The bottom type is compatible with any other type, which means
+that you can call the <code>panic</code> function in any context.</p>
+<h3 id="enum-types"><a class="header" href="#enum-types">Enum Types</a></h3>
+<p>Enums are user-defined types that can hold different named alternatives plus data. An enum type has a (namespaced) name
+that uniquely identifies it and is also used to reference the type.</p>
+<p>Enums are declared in the following way:</p>
+<pre><code class="language-rust">enum EnumName {
+    Variant1,
+    Variant2(),
+    Variant3(int),
+    Variant4(int, int[], EnumName),
+}</code></pre>
+<p>The variants must have unique names inside the enum and they can optionally take additional data.
+Each variant declares a type constructor function that can be used to create a value of the enum:</p>
+<pre><code class="language-rust">let a = EnumName::Variant1;
+let b = EnumName::Variant2();
+let c = EnumName::Variant3(3);
+let d = EnumName::Variant4(1, [2, 3], EnumName::Variant1);</code></pre>
+<p>Recursive enums are allowed.</p>
+<p>Enums do not allow any operators.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="fixed-columns"><a class="header" href="#fixed-columns">Fixed columns</a></h1>
+<p>powdr-pil requires the definition of fixed columns at the time of declaration.</p>
+<p>For example:</p>
+<pre><code class="language-rust">col fixed ONES = [1]*; // this is valid
+// col fixed ONES; // this is invalid</code></pre>
+<p>A number of mechanisms are supported to declare fixed columns. Let <code>N</code> be the total length of the column we're defining.</p>
+<h2 id="values-with-repetitions"><a class="header" href="#values-with-repetitions">Values with repetitions</a></h2>
+<p>powdr-pil supports a basic language to define the value of constant columns using:</p>
+<ul>
+<li>arrays, for example <code>[1, 2, 3]</code></li>
+<li>repetition, for example <code>[1, 2]*</code></li>
+<li>concatenation, for example <code>[1, 2] + [3, 4]</code></li>
+</ul>
+<p>These mechanisms can be combined, as long as a single repetition is used per column definition.</p>
+<pre><code class="language-rust">// valid, as for a given total length, only one column fits this definition for a given `N`
+col fixed A = [1, 2] + [3, 4]* + [5];
+
+// invalid, as many columns fit this definition
+// col fixed A = [1, 2]* + [3, 4]*</code></pre>
+<h2 id="mappings"><a class="header" href="#mappings">Mappings</a></h2>
+<p>A column can be seen as a mapping from integers to field elements. In this context, different functions are supported:</p>
+<pre><code class="language-rust">col fixed B(i) { i + 1 };
+
+col fixed C(i) {match i {
+    0 =&gt; 1,
+    _ =&gt; 0
+}};</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="built-ins"><a class="header" href="#built-ins">Built-ins</a></h1>
+<h2 id="functions-1"><a class="header" href="#functions-1">Functions</a></h2>
+<p>The following functions are built into the compiler.
+They need to be defined to be accessible, but their assigned value is ignored and the compiler replaces it with the following.</p>
+<h3 id="array-length"><a class="header" href="#array-length">Array length</a></h3>
+<pre><code class="language-rust">let&lt;T&gt; std::array::len: T[] -&gt; int</code></pre>
+<p>Returns the length of an array as an integer.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let x = [1, 2, 3];
+let l = std::array::len(x); // returns 3</code></pre>
+<h3 id="panic"><a class="header" href="#panic">Panic</a></h3>
+<pre><code class="language-rust">let std::check::panic: string -&gt; !</code></pre>
+<p>Aborts evaluation and prints its argument as error message as a
+side-effect of its evaluation.</p>
+<p>Since <code>panic</code> does not generate a constraint, it cannot be used
+for correctness checks. The verifier only checks constraints / identities and
+thus ignores anything that could lead to a panic. Panic should only
+be used to check prover-internal consistency.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let secp256k1_inverse = |x|
+    if x == std::convert::fe(0) {
+        panic!("Tried to compute the inverse of zero.")
+    } else {
+        std::math::ff::inverse(x, secp256k1_modulus);
+    };</code></pre>
+<h3 id="conversions"><a class="header" href="#conversions">Conversions</a></h3>
+<pre><code class="language-rust">let&lt;T: FromLiteral&gt; std::convert::fe: T -&gt; fe</code></pre>
+<p>This function is meant to be used on <code>int</code>, but also works on <code>fe</code> for convenience.</p>
+<p>It converts a non-negative integer less than the field modulus to a field element.
+Causes a type error in all other cases.</p>
+<p>If the argument is already a field element, it is returned without modification.</p>
+<pre><code class="language-rust">let&lt;T: FromLiteral&gt; std::convert::int: T -&gt; int</code></pre>
+<p>This function is meant to be used on <code>fe</code>, but also works on <code>int</code> for convenience.</p>
+<p>It converts a field element to an integer.</p>
+<p>If the argument is already an integer, it is returned without modification.</p>
+<pre><code class="language-rust">let&lt;T: FromLiteral&gt; std::convert::expr: T -&gt; expr</code></pre>
+<p>This function is meant to be used on <code>int</code>, but also works on <code>fe</code> and <code>expr</code> for convenience.</p>
+<p>It converts an integer to an expr.</p>
+<p>If the argument is already an expr, it is returned without modification.</p>
+<h3 id="printing"><a class="header" href="#printing">Printing</a></h3>
+<pre><code class="language-rust">let std::debug::print: string -&gt; Constr[]</code></pre>
+<p>This function takes a string and prints it on the standard output during evaluation, as a side-effect of its evaluation.</p>
+<p>This function should only be used for debugging purposes.</p>
+<p>Note that the function does not append a newline at the end.</p>
+<p>It returns an empty <code>Constr</code> array so that it can be used at statement level where
+constraints are expected.</p>
+<h3 id="modulus"><a class="header" href="#modulus">Modulus</a></h3>
+<pre><code class="language-rust">let std::field::modulus: -&gt; int</code></pre>
+<p>Returns the current field's modulus as an integer.</p>
+<p>Example:</p>
+<pre><code class="language-rust">// Inside a machine
+if std::field::modulus() != 2**64 - 2**32 + 1 {
+    panic!("This machine can only be used with the Goldilocks field.")
+} else {
+    []
+};</code></pre>
+<h3 id="evaluate"><a class="header" href="#evaluate">Evaluate</a></h3>
+<pre><code class="language-rust">let std::prover::eval: expr -&gt; fe</code></pre>
+<p>Evaluates a column (potentially with <code>'</code> applied) on the current row.</p>
+<p>This function can only be used for prover queries or hints and it only
+works on columns (and those with <code>'</code> applied). This means you cannot use
+<code>std::prover::eval(x + 1)</code>.</p>
+<p>In the following example, the column <code>x</code> is evaluated in a prover
+hint that returns the square root of a number.
+Example:</p>
+<pre><code class="language-rust">machine Sqrt {
+    let sqrt_hint: fe -&gt; fe = |x| match x {
+        // Code to compute the square root of x goes here.
+    };
+
+    col witness x;
+    col witness y(i) query std::prelude::Query::Hint(sqrt_hint(std::prover::eval(x)));
+
+    y * y = x;
+
+}}</code></pre>
+<h3 id="challenges"><a class="header" href="#challenges">Challenges</a></h3>
+<pre><code class="language-rust">let std::prelude::challenge: int, int -&gt; expr</code></pre>
+<p>Constructs a challenge object, essentially asking the verifier for a random number.</p>
+<p>The first argument is the proof stage and the second is the identifier of the challenge.</p>
+<p>If you want two challenges to be different, you have to choose different IDs.</p>
+<h3 id="degree"><a class="header" href="#degree">Degree</a></h3>
+<pre><code class="language-rust">let std::prover::min_degree: -&gt; int
+let std::prover::max_degree: -&gt; int
+let std::prover::degree: -&gt; int</code></pre>
+<p>The <code>degree</code> function returns the number of rows / the length of the witness columns, also
+known as the degree. Outside of fixed column definitions, <code>degree</code> fails if <code>min_degree</code> and <code>max_degree</code> are different.</p>
+<h3 id="hints"><a class="header" href="#hints">Hints</a></h3>
+<pre><code class="language-rust">let std::prelude::set_hint: expr, (int -&gt; std::prelude::Query) -&gt; ()</code></pre>
+<p>This function can be used to set a "query function" for a witness column.
+Query functions are used during witness generation and allow witness column cells
+to receive a value even though they are not uniquely constrained by the constraints.</p>
+<p>The first argument must be a witness column and the function can only be called
+once per witness column.</p>
+<h2 id="types-1"><a class="header" href="#types-1">Types</a></h2>
+<p>There are some types that are not proper built-in types (in the sense that they are not treated
+specially in the type system), but they are defined in the
+standard library and are referenced by built-in functions.</p>
+<h3 id="constr"><a class="header" href="#constr">Constr</a></h3>
+<p>The type <code>Constr</code> or more specifically, <code>std::prelude::Constr</code> is the type of a constraint.
+Expressions at statement level are required to evaluate either to <code>Constr</code> or <code>Constr[]</code>.</p>
+<p>It is defined as follows:</p>
+<pre><code class="language-rust">enum Constr {
+    /// A polynomial identity.
+    Identity(expr, expr),
+    /// A lookup constraint with selectors.
+    Lookup((Option&lt;expr&gt;, Option&lt;expr&gt;), (expr, expr)[]),
+    /// A permutation constraint with selectors.
+    Permutation((Option&lt;expr&gt;, Option&lt;expr&gt;), (expr, expr)[]),
+    /// A connection constraint (copy constraint).
+    Connection((expr, expr)[])
+}</code></pre>
+<p>The operator <code>=</code> can be applied on two <code>expr</code> values and results in a <code>Constr::Identity</code>.</p>
+<p>The type implements no traits and allows no operators.</p>
+<h2 id="operators"><a class="header" href="#operators">Operators</a></h2>
+<p>The following operators are supported by powdr-pil with their respective signatures.</p>
+<pre><code>let&lt;T: Add&gt; +: T, T -&gt; T
+let&lt;T: Sub&gt; -: T, T -&gt; T
+let&lt;T: Neg&gt; -: T -&gt; T
+
+let&lt;T: Mul&gt; *: T, T -&gt; T
+let /: int, int -&gt; int
+let %: int, int -&gt; int
+let&lt;T: Pow&gt; **: T, int -&gt; T
+
+let &lt;&lt;: int, int -&gt; int
+let &gt;&gt;: int, int -&gt; int
+let &amp;: int, int -&gt; int
+let |: int, int -&gt; int
+let ^: int, int -&gt; int
+
+let&lt;T: Ord&gt; &lt;: T, T -&gt; bool
+let&lt;T: Ord&gt; &lt;=: T, T -&gt; bool
+let&lt;T: Ord&gt; &gt;: T, T -&gt; bool
+let&lt;T: Ord&gt; &gt;=: T, T -&gt; bool
+
+let&lt;T: Eq&gt; ==: T, T -&gt; bool
+let&lt;T: Eq&gt; !=: T, T -&gt; bool
+
+let =: expr, expr -&gt; Constr
+let ': expr -&gt; expr
+
+let ||: bool, bool -&gt; bool
+let &amp;&amp;: bool, bool -&gt; bool
+let !: bool -&gt; bool
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="frontends"><a class="header" href="#frontends">Frontends</a></h1>
+<p>While any frontend VM can be implemented in powdr-asm, powdr comes with several frontends for popular instruction set architectures.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="riscv"><a class="header" href="#riscv">RISCV</a></h1>
+<p>A <a href="https://riscv.org/technical/specifications/">RISCV</a> frontend for powdr is already available.</p>
+<h2 id="how-to-run-the-rust-riscv-example"><a class="header" href="#how-to-run-the-rust-riscv-example">How to run the Rust-RISCV example</a></h2>
+<pre><code class="language-sh"># Install the riscv target for the rust compiler
+rustup target add riscv32imac-unknown-none-elf
+# Run the powdr-rs compiler. It will generate files in ./output/
+powdr-rs compile riscv/tests/riscv_data/sum -o output
+# Run powdr to compile powdr-asm to powdr-PIL and generate the witness
+# -i specifies the prover witness input (see below)
+powdr pil output/sum.asm -o output -f -i 10,2,4,6
+</code></pre>
+<p>The example Rust code verifies that a supplied list of integers sums up to a specified value.</p>
+<pre><code class="language-rust">#![no_main]
+#![no_std]
+
+extern crate alloc;
+use alloc::vec::Vec;
+
+use powdr_riscv_runtime::io::read_u32;
+
+#[no_mangle]
+pub fn main() {
+    // This is the sum claimed by the prover.
+    let proposed_sum = read_u32(0);
+    // The number of integers we want to sum.
+    let len = read_u32(1) as usize;
+    // Read the numbers from the prover and store them
+    // in a vector.
+    let data: Vec&lt;_&gt; = (2..(len + 2)).map(|idx| read_u32(idx as u32)).collect();
+    // Compute the sum.
+    let sum: u32 = data.iter().sum();
+    // Check that our sum matches the prover's.
+    assert_eq!(sum, proposed_sum);
+}</code></pre>
+<p>The function <code>read_u32</code> reads a number from the list supplied with <code>-i</code>.</p>
+<p>This is just a first mechanism to provide access to the outside world.
+The plan is to be able to call arbitrary user-defined <code>ffi</code> functions that will translate to prover queries,
+and can then ask for e.g. the value of a storage slot at a certain address or the root hash of a Merkle tree.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="riscv-and-zk-continuations"><a class="header" href="#riscv-and-zk-continuations">RISCV and ZK-Continuations</a></h1>
+<p>ZK-continuations can be used to make proofs for unbounded execution traces of
+Rust programs, where the trace is split into many different <code>chunks</code>. A proof
+is computed for each chunk, and all proofs can be combined with
+recursion/aggregation until a single proof remains.</p>
+<p>For the details of how memory is handled in the ZK-continuations case please
+see <a href="https://github.com/powdr-labs/powdr/issues/814">this</a>.</p>
+<p><code>powdr-rs</code> has experimental support to ZK-continuations, which can be used as follows.</p>
+<p>Let's use as example test <code>many chunks</code> from the <code>riscv</code> crate:</p>
+<pre><code class="language-rust">#![no_main]
+#![no_std]
+
+extern crate alloc;
+extern crate powdr_riscv_runtime;
+use alloc::vec::Vec;
+
+#[no_mangle]
+pub fn main() {
+    let mut foo = Vec::new();
+    foo.push(1);
+
+    for _ in 0..100 {
+        foo.push(foo.iter().sum());
+    }
+
+    // Compute some fibonacci numbers
+    // -&gt; Does not access memory but also does not get optimized out...
+    let mut a = 1;
+    let mut b = 1;
+    for _ in 0..150000 {
+        let tmp = a + b;
+        a = b;
+        b = tmp;
+    }
+    // Don't optimize me away :/
+    assert!(a &gt; 0);
+}</code></pre>
+<p>First we need to compile the Rust code to powdr-asm:</p>
+<pre><code class="language-console">powdr-rs compile riscv/tests/riscv_data/many_chunks
+</code></pre>
+<p>Now we can use powdr's RISCV executor to estimate how many cycles are needed:</p>
+<pre><code class="language-console">powdr-rs execute many_chunks.asm
+</code></pre>
+<pre><code class="language-console">...
+Execution trace length: 750329
+</code></pre>
+<p>By default, powdr-RISCV uses chunks of length 2^18. That means we will need at
+least 3 chunks.</p>
+<p>For the continuations case, the compiled assembly code looks different because
+of the external memory commitments, so we need to recompile using the
+<code>--continuations</code> flag:</p>
+<pre><code class="language-console">powdr-rs compile riscv/tests/riscv_data/many_chunks --continuations
+</code></pre>
+<p>We can now execute the program with continuations enabled:</p>
+<pre><code class="language-console">powdr-rs -- execute many_chunks.asm --continuations
+</code></pre>
+<p>The output now is longer:</p>
+<pre><code class="language-console">Running chunk 0...
+Building bootloader inputs for chunk 0...
+26 unique memory accesses over 2 accessed pages: {31, 32}
+Estimating the shutdown routine to use 1362 rows.
+Bootloader inputs length: 1285
+Simulating chunk execution...
+Initial memory root hash: 44cd91c12033ad4c6a6b19793b73f1a66d99a0e0bf63494c12ceb1f451ec9452
+Final memory root hash: e6a6fd63d864c734d6a4df4988f733738790262af9c7b014a1c036679baf1125
+Chunk trace length: 260782
+Validating chunk...
+Bootloader used 3134 rows.
+  =&gt; 257648 / 262144 (98%) of rows are used for the actual computation!
+Proved 257647 rows.
+
+Running chunk 1...
+Building bootloader inputs for chunk 1...
+0 unique memory accesses over 0 accessed pages: {}
+Estimating the shutdown routine to use 42 rows.
+Bootloader inputs length: 83
+Simulating chunk execution...
+Initial memory root hash: e6a6fd63d864c734d6a4df4988f733738790262af9c7b014a1c036679baf1125
+Final memory root hash: e6a6fd63d864c734d6a4df4988f733738790262af9c7b014a1c036679baf1125
+Chunk trace length: 262102
+Validating chunk...
+Bootloader used 62 rows.
+  =&gt; 262040 / 262144 (99%) of rows are used for the actual computation!
+Proved 262039 rows.
+
+Running chunk 2...
+Building bootloader inputs for chunk 2...
+2 unique memory accesses over 1 accessed pages: {31}
+Estimating the shutdown routine to use 702 rows.
+Bootloader inputs length: 684
+Simulating chunk execution...
+Initial memory root hash: e6a6fd63d864c734d6a4df4988f733738790262af9c7b014a1c036679baf1125
+Final memory root hash: e6a6fd63d864c734d6a4df4988f733738790262af9c7b014a1c036679baf1125
+Chunk trace length: 232057
+Validating chunk...
+Bootloader used 1610 rows.
+  =&gt; 259832 / 262144 (99%) of rows are used for the actual computation!
+Done!
+</code></pre>
+<p>The step above is informational, but for the proofs we also need the full witness:</p>
+<pre><code class="language-console">powdr-rs execute many_chunks.asm --witness
+</code></pre>
+<p>The witnesses are written in <code>./chunk_0/commits.bin</code>, <code>./chunk_1/commits.bin</code>
+and <code>./chunk_2/commits.bin</code>.</p>
+<p>Now that we have the witnesses for all chunks we can use <code>powdr</code> (instead of
+<code>powdr-rs</code>) to compute proofs for each chunk:</p>
+<pre><code class="language-console">powdr prove many_chunks.asm -d chunk_0 --backend estark-dump
+powdr prove many_chunks.asm -d chunk_1 --backend estark-dump
+powdr prove many_chunks.asm -d chunk_2 --backend estark-dump
+</code></pre>
+<p>These proofs are mock proofs for the sake of the example, but any backend
+should work here.</p>
+<p>After generating real proofs, each specific proof system can be used for the
+recursion/aggregation parts.  A follow-up tutorial on that is coming soon.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valida"><a class="header" href="#valida">Valida</a></h1>
+<p>A <a href="https://github.com/valida-xyz/valida-compiler/issues/2">Valida</a> front end for powdr is under development. If you are interested, feel free to <a href="https://matrix.to/#/#powdr:matrix.org">reach out</a>!</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="evm"><a class="header" href="#evm">EVM</a></h1>
+<p>An <a href="https://ethereum.org/en/developers/docs/evm/">EVM</a> frontend for powdr is under development. If you are interested, feel free to <a href="https://matrix.to/#/#powdr:matrix.org">reach out</a>!</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="backends"><a class="header" href="#backends">Backends</a></h1>
+<p>powdr aims to have full flexibility when it comes to generating proofs and comes with a few built-in backends to get started with zkVMs.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="plonky3"><a class="header" href="#plonky3">Plonky3</a></h1>
+<p>powdr partially supports <a href="https://github.com/Plonky3/Plonky3">plonky3</a> with the Goldilocks, BabyBear, KoalaBear, and Mersenne31 fields.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="halo2"><a class="header" href="#halo2">Halo2</a></h1>
+<p>powdr supports the <a href="https://github.com/privacy-scaling-explorations/halo2">PSE fork of halo2</a> with the bn254 field.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="estark"><a class="header" href="#estark">eSTARK</a></h1>
+<p>powdr supports the <a href="https://eprint.iacr.org/2023/474">eSTARK</a> proof system with the Goldilocks field,
+implemented by the <a href="https://github.com/0xEigenLabs/eigen-zkvm/">starky library from eigen-zkvm</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="architecture"><a class="header" href="#architecture">Architecture</a></h1>
+<p>powdr applies a number of steps in order to reduce a powdr-asm program into PIL.</p>
+<p>We provide a high level overview of these steps.</p>
+<pre><code class="language-ascii">            ┌────────────┐           ┌──────────┐
+            │            │           │          │
+ powdr-asm  │            │ AIR graph │          │  PIL
+───────────►│  compiler  ├───────────┤  linker  ├──────►
+            │            │           │          │
+            │            │           │          │
+            └────────────┘           └──────────┘
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="compiler"><a class="header" href="#compiler">Compiler</a></h1>
+<p>In this section, we explain how the powdr compiler reduces a program made of virtual and constrained machines to a set of AIRs.</p>
+<h2 id="virtual-machine-reduction"><a class="header" href="#virtual-machine-reduction">Virtual machine reduction</a></h2>
+<p>The first step is to reduce virtual machines to constrained machines. This step is run on all machines and does not affect constrained machines.
+As a result of this step, for each machine:</p>
+<ul>
+<li><a href="architecture/../asm/instructions.html#local-instructions">Local instructions</a> are reduced to constraints</li>
+<li><a href="architecture/../asm/instructions.html#external-instructions">External instructions</a> are reduced to links</li>
+<li><a href="architecture/../asm/functions.html">Functions</a> are reduced to <a href="architecture/../asm/operations.html">operations</a></li>
+</ul>
+<h2 id="block-enforcement"><a class="header" href="#block-enforcement">Block enforcement</a></h2>
+<p>Block enforcement applies on constrained machines. It makes sure that the <code>operation_id</code> is constant within each machine block.</p>
+<h2 id="air-generation"><a class="header" href="#air-generation">AIR generation</a></h2>
+<p>At this point, all machines contain only:</p>
+<ul>
+<li>an optional degree range</li>
+<li>constraints</li>
+<li>links to other machines</li>
+<li>operations</li>
+</ul>
+<p>Let's define AIR as a data structure with only these elements.</p>
+<p>Starting from the main machine's type, we create a tree of AIR objects by traversing its submachines, recursively instantiating each machine as an AIR.
+Let's define the AIR tree as the resulting tree.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="linker"><a class="header" href="#linker">Linker</a></h1>
+<p>A linker is used to turn an <a href="architecture/./compiler.html#air-generation">AIR tree</a> into a single PIL file.
+The linking process operates in the following way:</p>
+<ol>
+<li>Create an empty PIL file</li>
+<li>Start from the main AIR. Let <code>main_degree_range</code> be its degree.</li>
+<li>For each AIR
+<ol>
+<li>Create a new namespace in the PIL file
+2a. If <code>degrees-mode</code> is <code>vadcop</code>, set the namespace degree to that of the AIR
+2b. If <code>degrees-mode</code> is <code>monolithic</code>, set the namespace degree to <code>main_degree_range</code></li>
+<li>Add the constraints to the namespace</li>
+<li>Turn the links into lookups and permutations and add them to the namespace</li>
+</ol>
+</li>
+</ol>
+<p>The result is a monolithic AIR where:</p>
+<ul>
+<li>each machine instance is a namespace</li>
+<li>each namespace defines its own degree range</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+    </div>
+    </body>
+</html>

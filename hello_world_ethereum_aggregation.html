@@ -1,0 +1,266 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>verified on Ethereum with proof aggregation - powdr</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">powdr</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="hello-world-on-ethereum-with-proof-aggregation"><a class="header" href="#hello-world-on-ethereum-with-proof-aggregation">Hello World on Ethereum with proof aggregation</a></h1>
+<p>As noted in the previous section, complex VMs can lead to large
+Solidity verifiers that exceed the contract size limit on Ethereum. One
+solution to that problem is to create proofs using the Poseidon transcript, as
+we did in the <a href="./hello_world.html">first example</a>, and then use proof
+recursion to create a proof that we know we will be able to verify on Ethereum.</p>
+<p>A recursive SNARK works by generating a proof for a circuit that verifies
+another proof. The circuit we are using here to prove our initial proof
+recursively is <a href="https://github.com/privacy-scaling-explorations/snark-verifier/">PSE's snark-verifier</a>. This circuit is large enough
+to be able to prove complex programs that were proven initial with the Poseidon
+transcript, like our first example. Because of that our aggregation setup
+<code>params</code> and <code>verification key</code> are going to be larger than before and take
+longer to compute. The good news are that (i) we can use a pre-computed setup
+from a previous ceremony, and (ii) the verification key only has to be computed
+once per program.</p>
+<p>First, we need a setup of "size" 2^22. This is the maximum execution trace length of the recursion circuit.</p>
+<p>You can generate it using the command line below, or download a pre-computed
+one <a href="https://drive.google.com/file/d/1xG_O_KqooiRR3QJno3tXIiNELSB2AQMH/view?usp=drive_link">here</a>.</p>
+<p>This will take a couple minutes if you decide to compute it yourself:</p>
+<pre><code class="language-console">powdr setup 4194304 --backend halo2 --field bn254
+</code></pre>
+<p>We can re-use the new large <code>params.bin</code> for both initial and recursive proofs.
+Let's start by re-computing our Poseidon proof like in the <a href="./hello_world.html">first example</a>,
+but using our new setup file:</p>
+<pre><code class="language-console">powdr pil test_data/asm/book/hello_world.asm --field bn254 --inputs 0 --prove-with halo2 --backend-options "poseidon" -f --params params.bin
+</code></pre>
+<p>This generates the initial proof <code>hello_world_proof.bin</code>.
+We'll also need a verification key:</p>
+<pre><code class="language-console">powdr verification-key test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "poseidon" --params params.bin
+</code></pre>
+<p>Let's verify the proof with our fresh verification key to make sure we're on the right track:</p>
+<pre><code class="language-console">powdr verify test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "poseidon" --params params.bin --vkey vkey.bin --proof hello_world_proof.bin
+</code></pre>
+<p>In order to avoid confusion between the application's artifacts
+that we've just generated and the recursion one we're going to generate
+later, let's rename them:</p>
+<pre><code class="language-console">mv vkey.bin vkey_app.bin
+mv hello_world_proof.bin hello_world_proof_app.bin
+</code></pre>
+<p>We can now generate a verification key for the Halo2 circuit that verifies our proofs recursively. This might take up to a minute.</p>
+<pre><code class="language-console">powdr verification-key test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "snark_aggr" --params params.bin --vkey-app vkey_app.bin
+</code></pre>
+<blockquote>
+<p>Note that this verification key can only be used to verify recursive proofs that verify other proofs using the application's key <code>vkey_app.bin</code>.</p>
+</blockquote>
+<p>We can now generate the recursive proof (this typically takes a few minutes and uses around 28gb RAM):</p>
+<pre><code class="language-console">powdr prove test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "snark_aggr" --params params.bin --vkey vkey.bin --vkey-app vkey_app.bin --proof hello_world_proof_app.bin
+</code></pre>
+<p>We have a proof! Note that it contains two fields, <code>proof</code> and
+<code>publics</code>.  The <code>proof</code> object contains the binary encoding of the proof
+points, and the <code>publics</code> object contains the public accumulator limbs that we
+need in order to verify the recursive proof.</p>
+<p>We can now verify the proof, using the <code>publics</code> object as input (your numbers will be different):</p>
+<pre><code class="language-console">powdr verify test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "snark_aggr" --params params.bin --vkey vkey.bin --proof hello_world_proof_aggr.bin --publics "269487626280642378794,9378970522278219882,62304027188881225691,811176493438944,234778270138968319485,3212529982775999134,171155758373806079356,207910400337448,188563849779606300850,155626297629081952942,194348356185923309508,433061951018270,34598221006207900280,283775241405787955338,79508596887913496910,354189825580534"
+</code></pre>
+<p>Since the goal of the recursive proof was to be able to verify it on Ethereum, let's do that!</p>
+<pre><code class="language-console">powdr export-verifier test_data/asm/book/hello_world.asm --field bn254 --backend halo2 --backend-options "snark_aggr" --params params.bin --vkey vkey.bin
+</code></pre>
+<p>A Solidity verifier is created in <code>verifier.sol</code>. The contract expects an array of the accumulators' limbs followed by a tightly packed proof, where each accumulator limb uses 32 bytes, and there is no function signature.</p>
+<p>Note that this verifier can be used to verify any recursive proof that verifies exactly one Poseidon proof of the given circuit.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="hello_world_ethereum.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="examples.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="hello_world_ethereum.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="examples.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

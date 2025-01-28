@@ -1,0 +1,368 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Expressions - powdr</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc.js"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">powdr</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="expressions"><a class="header" href="#expressions">Expressions</a></h1>
+<p>Depending on the context, powdr allows more or less features for expressions.</p>
+<p>Inside values for declarations, you can use a very flexible language which includes
+many different operators, function calls, lambda functions, tuple types, statement blocks,
+match statements and others.</p>
+<p>In statements and expressions that are required to evaluate to constraints / polynomial identities, only a much more restrictive
+language can be used. Expressions in that language are called Algebraic Expressions. While you can use
+the full language everywhere, in the context of a constraint, the result after function evaluation
+and constant propagation has to be an algebraic expression.</p>
+<h2 id="generic-expressions"><a class="header" href="#generic-expressions">Generic Expressions</a></h2>
+<p>The expression language allows the following operators, in order of increased precedence:</p>
+<ul>
+<li>lambda functions: <code>|params| body</code>. Examples: <code>|i| i</code> (the identity), <code>|a, b| a + b</code> (sum)</li>
+<li><code>||</code> - logical or</li>
+<li><code>&amp;&amp;</code> - logical and</li>
+<li><code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code>, <code>&gt;=</code>, <code>&gt;</code> - comparisons and <code>=</code> - identity operator</li>
+<li><code>|</code> - bitwise or</li>
+<li><code>^</code> - bitwise xor</li>
+<li><code>&amp;</code> - bitwise and</li>
+<li><code>&lt;&lt;</code>, <code>&gt;&gt;</code> - left and right shift</li>
+<li><code>+</code>, <code>-</code> - addition and subtraction (binary operator)</li>
+<li><code>*</code>, <code>/</code>, <code>%</code> - multiplication, division and modulo</li>
+<li><code>**</code> - exponentiation</li>
+<li><code>-</code>, <code>!</code> - numerical and logical negation (unary operators, prefix)</li>
+<li><code>'</code> - "next row" operator (suffix)</li>
+<li><code>[]</code>, <code>()</code> - array index access and function calls</li>
+</ul>
+<p>Elementary expressions are</p>
+<ul>
+<li>number literals (integers)</li>
+<li>string literals, written in double quotes, e.g. <code>"hello"</code></li>
+<li>array literals written in square brackets, e.g. <code>[1, 2, 3]</code></li>
+<li>tuples, having at least two elements, e.g. <code>(1, "abc")</code></li>
+<li>statement blocks (see below)</li>
+<li>match expressions (see below).</li>
+<li>if expressions (see below).</li>
+</ul>
+<p>Parentheses are allowed at any point to force precedence.</p>
+<h3 id="lambda-functions"><a class="header" href="#lambda-functions">Lambda Functions</a></h3>
+<p>The only way to declare a function in pil is by assigning a lambda function to a symbol.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let x = |i| i + 1;</code></pre>
+<p>If you want to specify the types of parameters or return values explicitly, you have to do it
+on the symbol, you cannot do it on the parameters:</p>
+<pre><code class="language-rust">let x: int -&gt; int = |i| i + 1;</code></pre>
+<p>It is possible to use <a href="./patterns.html">patterns</a> in the function parameters:</p>
+<pre><code class="language-rust">let y: (int, int), int -&gt; int = |(i, j), _| i + j;</code></pre>
+<p>If you use patterns, they have to be irrefutable, which means that the pattern has to
+be able to match any value of the given type.</p>
+<h3 id="statement-blocks"><a class="header" href="#statement-blocks">Statement Blocks</a></h3>
+<p>A <code>{</code>-<code>}</code>-delimited block can be used everywhere where an expression is expected.</p>
+<p>It has the form <code>{ &lt;statement&gt; ; &lt;statement&gt; ; ... ; &lt;expression&gt; }</code>,
+i.e. a sequence of statements followed by an expression.
+The statements can either be expressions (<code>f();</code>, only inside <a href="#constr-and-query-functions"><code>constr</code>-functions</a>)
+or let statements: <code>let x = ...;</code> / <code>let x;</code></p>
+<p>The value of the statement block is the value of the final expression.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let plus_one_squared = |x| { let y = x + 1; y * y };</code></pre>
+<p>Let statements with value can be used everywhere, they just bind an expression to a local variable
+and allow to avoid repeating the expression. You can use <a href="./patterns.html">patterns</a> for the
+left hand side of let statements to destructure values.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let f = |i| (i / 2, i % 2);
+let (quot, rem) = f(7);</code></pre>
+<p>The second let statement will create two local variables <code>x</code> and <code>y</code>. You can also ignore values using
+the <code>_</code> pattern element. For details, please see the <a href="./patterns.html">patterns</a> section.</p>
+<p>Let statements without value (<code>let x;</code>) create a new witness column and are only allowed inside <a href="#constr-and-query-functions"><code>constr</code>-functions</a>.</p>
+<p>Similarly, an expression at statement level (e.g. <code>x * (x - 1) = 0;</code>) can be used to create new constraints that are added to the global constraint set
+and this can only be done inside a <a href="#constr-and-query-functions"><code>constr</code>-functions</a>.</p>
+<p>Note that you can always create constraints and return them from a function, even in <a href="#constr-and-query-functions">pure function</a>.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let constrain_to_bool: expr -&gt; Constr = |x| x * (x - 1) = 0;</code></pre>
+<h3 id="match-expressions"><a class="header" href="#match-expressions">Match Expressions</a></h3>
+<p>Match expressions take the form <code>match &lt;value&gt; { &lt;pattern 1&gt; =&gt; &lt;value 1&gt;, &lt;pattern 2&gt; =&gt; &lt;value 2&gt;, _ =&gt; &lt;default value&gt; }</code>,
+with an arbitrary number of match arms.</p>
+<p>The semantics are that the first match arm where the pattern equals the value after the <code>match</code> keyword is evaluated.</p>
+<p>Patterns can be used to destructure more complex data types and to capture values inside new local variables.
+For more details, please see the <a href="./patterns.html">patterns</a> section.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let fib = |i| match i {
+    0 =&gt; 1,
+    1 =&gt; 1,
+    _ =&gt; fib(i - 2) + fib(i - 1),
+};</code></pre>
+<h3 id="if-expressions"><a class="header" href="#if-expressions">If Expressions</a></h3>
+<p>If expressions take the form <code>if &lt;condition&gt; { &lt;true value&gt; } else { &lt;false value&gt; }</code>, where the "else" part is not optional.</p>
+<p>If the condition evaluates to <code>true</code>, then <code>&lt;true value&gt;</code> is evaluated, otherwise <code>&lt;false value&gt;</code> is.</p>
+<p>Example:</p>
+<pre><code class="language-rust">let is_seven = |i| if i == 7 { 1 } else { 0 };</code></pre>
+<h2 id="algebraic-expressions"><a class="header" href="#algebraic-expressions">Algebraic Expressions</a></h2>
+<p>For constraints (or functions called at a place where a constraint is expected), the expression syntax is limited:
+After evaluating function calls and performing constant propagation, the resulting expression has to
+be an "algebraic expression". These are restricted in the following way:</p>
+<ul>
+<li>You can freely use the operators  <code>+</code>, <code>-</code>,<code>*</code>.</li>
+<li>The operator <code>**</code> must have a number as exponent.</li>
+<li>The operator <code>[i]</code> must have a column name on the left-hand side and the index must be a number.</li>
+<li>The operator <code>'</code> must have a column or <code>[i]</code> on the left-hand-side.</li>
+<li>No other operators are allowed.</li>
+</ul>
+<p>Arbitrary parentheses are allowed.</p>
+<p>The following example illustrates how you can still use the generic language:</p>
+<pre><code class="language-rust">namespace Main(16);
+    // Returns folder(...folder(folder(0, f(0)), f(1)) ..., f(length - 1))
+    // This is a generic function.
+    let&lt;T1, T2&gt; fold: int, (int -&gt; T1), T2, (T2, T1 -&gt; T2) -&gt; T2 =
+        |length, f, initial, folder| match length {
+            0 =&gt; initial,
+            _ =&gt; folder(fold(length - 1, f, initial, folder), f(length - 1))
+        };
+    // returns f(0) + f(1) + ... + f(length - 1)
+    let sum = |length, f| fold(length, f, 0, |acc, e| acc + e);
+    // This function takes an algebraic expression (a column or expression
+    // involving columns) and returns an identity that forces this expression
+    // to equal 20. Note that `=` is not an assignment but creates an identity constraint.
+    let equals_twenty: expr -&gt; Constr = |x| x = 20;
+    // This declares an array of 16 witness columns.
+    col witness wit[16];
+    // This expression has to evaluate to an identity, but we can still use
+    // higher order functions and all the flexibility of the language.
+    // The sub-expression `sum(16, |i| wit[i])` evaluates to the algebraic
+    // expression "wit[0] + wit[1] + ... + wit[15]", which is then
+    // turned into the identity by `equals_twenty`
+    // wit[0] + wit[1] + ... + wit[15] = 20.
+    equals_twenty(sum(16, |i| wit[i]));
+
+    // We constrained the sum to equal twenty, but there is no unique solution
+    // to that constraint. In order to fully constrain the system, we need to
+    // add something more: The first fifteen columns should all be one.
+
+    // returns [f(0), f(1), ..., f(length - 1)]
+    let make_array = |length, f| fold(length, f, [], |acc, e| acc + [e]);
+    // If an expression evaluates to an array of constraints, all the
+    // constraints in the array are added to the system.
+    make_array(15, |i| wit[i] = 1);</code></pre>
+<h2 id="constr-and-query-functions"><a class="header" href="#constr-and-query-functions">Constr and Query Functions</a></h2>
+<p>Every function in PIL is either a pure, a <code>constr</code> or a <code>query</code> function. They are denoted by</p>
+<ul>
+<li><code>|...| ...</code></li>
+<li><code>constr |...| ...</code></li>
+<li><code>query |...| ...</code></li>
+</ul>
+<p>Inside <code>constr</code> functions, it is possible to create new witness columns
+and add constraints to the set of constraints (see the <a href="#statement-blocks">Statement Blocks</a> section for details).</p>
+<p>Inside <code>query</code> functions, it is possible to evaluate the value of a column on the "current" row
+using the <code>std::prover::eval</code> function.</p>
+<p>Both actions require a certain context to be available, which is not the case for example when
+the values of a fixed column are computed.</p>
+<p>A <code>query</code> function can only be used in the query or hint part of a witness column while <code>constr</code> functions
+can only be evaluated in the constraint part of a namespace or machine.</p>
+<p>You can define and call new <code>constr</code> functions inside a <code>constr</code> function and you can call and define
+new <code>query</code> functions inside <code>query</code> functions, but as soon as you enter a pure function, this is not possible any more.</p>
+<p>Examples:</p>
+<pre><code class="language-rust">// This function creates and returns a new witness column.
+let new_wit = constr || { let x; x };
+// Queries the current value of a column and returns its square.
+let square_of = query |x| { let v = std::prover::eval(x); v * v };
+// Creates a new witness column, constrains it to be boolean and returns it.
+let new_bool = constr |x| { let x = new_wit(); x * (x - 1) = 0; x };
+// This is a pure function that only returns a constraint, but does not add it
+// to the global set of constraints.
+let bool_constraint: expr -&gt; Constr = |x| x * (x - 1) = 0;</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../pil/declarations.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../pil/patterns.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../pil/declarations.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../pil/patterns.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

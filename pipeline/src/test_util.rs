@@ -583,6 +583,8 @@ pub fn assert_proofs_fail_for_invalid_witnesses(file_name: &str, witness: &[(Str
     assert_proofs_fail_for_invalid_witnesses_estark(file_name, witness);
     #[cfg(feature = "halo2")]
     assert_proofs_fail_for_invalid_witnesses_halo2(file_name, witness);
+    #[cfg(feature = "stwo")]
+    assert_proofs_fail_for_invalid_witnesses_stwo(file_name, witness);
 }
 
 pub fn run_reparse_test(file: &str) {
@@ -651,6 +653,21 @@ pub fn assert_proofs_fail_for_invalid_witnesses_stwo(
         .is_err());
 }
 
+#[cfg(feature = "stwo")]
+pub fn test_stwo_pipeline(pipeline: Pipeline<Mersenne31Field>) {
+    let mut pipeline = pipeline.with_backend(powdr_backend::BackendType::Stwo, None);
+
+    let proof = pipeline.compute_proof().cloned().unwrap();
+    let publics: Vec<Mersenne31Field> = pipeline
+        .publics()
+        .clone()
+        .unwrap()
+        .iter()
+        .map(|(_name, v)| v.expect("all publics should be known since we created a proof"))
+        .collect();
+    pipeline.verify(&proof, &[publics]).unwrap();
+}
+
 #[cfg(not(feature = "stwo"))]
 pub fn assert_proofs_fail_for_invalid_witnesses_stwo(
     _file_name: &str,
@@ -660,3 +677,8 @@ pub fn assert_proofs_fail_for_invalid_witnesses_stwo(
 
 #[cfg(not(feature = "stwo"))]
 pub fn test_stwo(_file_name: &str, _inputs: Vec<u32>) {}
+
+#[cfg(not(feature = "stwo"))]
+use powdr_number::Mersenne31Field;
+#[cfg(not(feature = "stwo"))]
+pub fn test_stwo_pipeline(pipeline: Pipeline<Mersenne31Field>) {}

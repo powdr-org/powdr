@@ -6,8 +6,8 @@ use std::collections::HashSet;
 extern crate alloc;
 use alloc::collections::btree_map::BTreeMap;
 use powdr_ast::analyzed::{AlgebraicExpression, AlgebraicReference, Analyzed, Challenge, Identity};
-use powdr_number::{FieldElement, LargeInt};
 
+use crate::stwo::prover::{into_stwo_field, T};
 use powdr_ast::analyzed::{PolyID, PolynomialType};
 use stwo_prover::constraint_framework::preprocessed_columns::PreprocessedColumn;
 use stwo_prover::constraint_framework::{
@@ -20,14 +20,13 @@ use stwo_prover::core::poly::circle::{CircleDomain, CircleEvaluation};
 use stwo_prover::core::poly::BitReversedOrder;
 use stwo_prover::core::utils::{bit_reverse_index, coset_index_to_circle_domain_index};
 
-pub type PowdrComponent<'a, F> = FrameworkComponent<PowdrEval<F>>;
+pub type PowdrComponent = FrameworkComponent<PowdrEval>;
 
-pub fn gen_stwo_circle_column<T, B, F>(
+pub fn gen_stwo_circle_column<B, F>(
     domain: CircleDomain,
     slice: &[T],
 ) -> CircleEvaluation<B, BaseField, BitReversedOrder>
 where
-    T: FieldElement,
     B: FieldOps<M31> + ColumnOps<F>,
 
     F: ExtensionOf<BaseField>,
@@ -44,14 +43,14 @@ where
                 coset_index_to_circle_domain_index(i, slice.len().ilog2()),
                 slice.len().ilog2(),
             ),
-            v.to_integer().try_into_u32().unwrap().into(),
+            into_stwo_field(v),
         );
     });
 
     CircleEvaluation::new(domain, column)
 }
 
-pub struct PowdrEval<T> {
+pub struct PowdrEval {
     log_degree: u32,
     analyzed: Analyzed<T>,
     // the pre-processed are indexed in the whole proof, instead of in each component.
@@ -60,10 +59,17 @@ pub struct PowdrEval<T> {
     witness_columns: BTreeMap<PolyID, usize>,
     constant_shifted: BTreeMap<PolyID, usize>,
     constant_columns: BTreeMap<PolyID, usize>,
+    // stwo supports maximum 2 stages, challenges are only created after stage 0
+    pub challenges: BTreeMap<u64, T>,
 }
 
-impl<T: FieldElement> PowdrEval<T> {
-    pub fn new(analyzed: Analyzed<T>, preprocess_col_offset: usize, log_degree: u32) -> Self {
+impl PowdrEval {
+    pub fn new(
+        analyzed: Analyzed<T>,
+        preprocess_col_offset: usize,
+        log_degree: u32,
+        challenges: BTreeMap<u64, T>,
+    ) -> Self {
         let witness_columns: BTreeMap<PolyID, usize> = analyzed
             .definitions_in_source_order(PolynomialType::Committed)
             .flat_map(|(symbol, _)| symbol.array_elements())
@@ -95,6 +101,7 @@ impl<T: FieldElement> PowdrEval<T> {
             witness_columns,
             constant_shifted,
             constant_columns,
+            challenges,
         }
     }
 }
@@ -103,6 +110,8 @@ struct Data<'a, F> {
     witness_eval: &'a BTreeMap<PolyID, [F; 2]>,
     constant_shifted_eval: &'a BTreeMap<PolyID, F>,
     constant_eval: &'a BTreeMap<PolyID, F>,
+    // challenges for stage 1
+    challenges: &'a BTreeMap<u64, F>,
 }
 
 impl<F: Clone> TerminalAccess<F> for &Data<'_, F> {
@@ -124,12 +133,12 @@ impl<F: Clone> TerminalAccess<F> for &Data<'_, F> {
         unimplemented!("Public references are not supported in stwo yet")
     }
 
-    fn get_challenge(&self, _challenge: &Challenge) -> F {
-        unimplemented!("challenges are not supported in stwo yet")
+    fn get_challenge(&self, challenge: &Challenge) -> F {
+        self.challenges[&challenge.id].clone()
     }
 }
 
-impl<T: FieldElement> FrameworkEval for PowdrEval<T> {
+impl FrameworkEval for PowdrEval {
     fn log_size(&self) -> u32 {
         self.log_degree
     }
@@ -180,16 +189,22 @@ impl<T: FieldElement> FrameworkEval for PowdrEval<T> {
                 )
             })
             .collect();
+        let challenges = self
+            .challenges
+            .iter()
+            .map(|(k, v)| (*k, E::F::from(into_stwo_field(v))))
+            .collect();
 
         let intermediate_definitions = self.analyzed.intermediate_definitions();
         let data = Data {
             witness_eval: &witness_eval,
             constant_shifted_eval: &constant_shifted_eval,
             constant_eval: &constant_eval,
+            challenges: &challenges,
         };
         let mut evaluator =
             ExpressionEvaluator::new_with_custom_expr(&data, &intermediate_definitions, |v| {
-                E::F::from(v.to_integer().try_into_u32().unwrap().into())
+                E::F::from(into_stwo_field(v))
             });
 
         for id in &self.analyzed.identities {
@@ -217,7 +232,7 @@ impl<T: FieldElement> FrameworkEval for PowdrEval<T> {
 }
 
 // This function creates a list of the names of the constant polynomials that have next references constraint
-pub fn get_constant_with_next_list<T: FieldElement>(analyzed: &Analyzed<T>) -> HashSet<&String> {
+pub fn get_constant_with_next_list(analyzed: &Analyzed<T>) -> HashSet<&String> {
     let mut constant_with_next_list: HashSet<&String> = HashSet::new();
     analyzed.all_children().for_each(|e| {
         if let AlgebraicExpression::Reference(AlgebraicReference {

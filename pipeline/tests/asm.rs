@@ -7,7 +7,7 @@ use powdr_pipeline::{
     test_util::{
         asm_string_to_pil, make_prepared_pipeline, make_simple_prepared_pipeline,
         regular_test_all_fields, regular_test_gl, resolve_test_file, test_mock_backend,
-        test_pilcom, test_plonky3_pipeline, BackendVariant,
+        test_pilcom, test_plonky3_pipeline, test_stwo_pipeline, BackendVariant,
     },
     Pipeline,
 };
@@ -41,6 +41,8 @@ fn challenges_asm() {
     let pipeline = make_simple_prepared_pipeline::<GoldilocksField>(f, LinkerMode::Bus);
     test_mock_backend(pipeline.clone());
     test_plonky3_pipeline(pipeline);
+    let pipeline = make_simple_prepared_pipeline::<Mersenne31Field>(f, LinkerMode::Bus);
+    test_stwo_pipeline(pipeline);
 }
 
 #[test]

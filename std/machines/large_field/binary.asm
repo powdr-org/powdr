@@ -18,27 +18,31 @@ machine Binary(byte_binary: ByteBinary) with
     operation xor<2> A, B -> C;
 
     let operation_id;
-    unchanged_until(operation_id, latch);
+    let latch = 1;
 
-    let latch: col = |i| { if (i % 4) == 3 { 1 } else { 0 } };
-    let FACTOR: col = |i| { 1 << (((i + 1) % 4) * 8) };
-
-    let A_byte;
-    let B_byte;
-    let C_byte;
+    // We do not range check the bytes because the inputs are assumed 32-bits.
+    let A_byte0;
+    let A_byte1;
+    let A_byte2;
+    let A_byte3;
+    let B_byte0;
+    let B_byte1;
+    let B_byte2;
+    let B_byte3;
+    let C_byte0;
+    let C_byte1;
+    let C_byte2;
+    let C_byte3;
 
     let A;
+    A = A_byte0 + A_byte1 * 0x100 + A_byte2 * 0x10000 + A_byte3 * 0x1000000;
     let B;
+    B = B_byte0 + B_byte1 * 0x100 + B_byte2 * 0x10000 + B_byte3 * 0x1000000;
     let C;
+    C = C_byte0 + C_byte1 * 0x100 + C_byte2 * 0x10000 + C_byte3 * 0x1000000;
 
-    A' = A * (1 - latch) + A_byte * FACTOR;
-    B' = B * (1 - latch) + B_byte * FACTOR;
-    C' = C * (1 - latch) + C_byte * FACTOR;
-
-    // TODO: Currently, the bus linker does not support next references in operations and links.
-    //       We add an extra witness column to make the Goldilocks RISC-V machine work for now.
-    //       This will be fixed with #2140.
-    col witness operation_id_next;
-    operation_id' = operation_id_next;
-    link => C_byte = byte_binary.run(operation_id_next, A_byte, B_byte);
+    link => C_byte0 = byte_binary.run(operation_id, A_byte0, B_byte0);
+    link => C_byte1 = byte_binary.run(operation_id, A_byte1, B_byte1);
+    link => C_byte2 = byte_binary.run(operation_id, A_byte2, B_byte2);
+    link => C_byte3 = byte_binary.run(operation_id, A_byte3, B_byte3);
 }

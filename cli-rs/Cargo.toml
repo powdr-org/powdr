@@ -8,7 +8,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [features]
-default = ["plonky3"]
+default = ["plonky3", "stwo"]
 halo2 = ["powdr/halo2"]
 plonky3 = ["powdr/plonky3"]
 estark-starky = ["powdr/estark-starky"]

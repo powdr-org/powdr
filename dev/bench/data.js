@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738089535761,
+  "lastUpdate": 1738089621814,
   "repoUrl": "https://github.com/powdr-labs/powdr",
   "entries": {
     "Benchmarks": [
@@ -129913,6 +129913,168 @@ window.BENCHMARK_DATA = {
             "name": "executor-benchmark/keccak",
             "value": 14501045922,
             "range": "± 60434280",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "chris@ethereum.org",
+            "name": "chriseth",
+            "username": "chriseth"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7a758277119e484afa683fe093b1e7d76be0a14e",
+          "message": "Fix debug formatter. (#2398)\n\nThe debug formatter prints, for each identity, three lines of\nunsimplified expressions (i.e. `x * 0` explicitly printed):\nThe first line contains just the identity, the second known values and\nthe third known range constraints.\nThen it prints three more lines, with `x * 0` simplified as `0`. Again,\nthe first line with the simplified expression, the second with known\nvalues, the third with known range constraints, but of course just for\nthe remaining variables.\n\nFor the second triple, it did not print the separators in the first line\n(it did it properly for binary operators, though). Furthermore, it added\nspacing to align the second triple with the first, even though the idea\nis that this is not needed because the un-simplified version is often\nnot readable since it spans multpile lines.",
+          "timestamp": "2025-01-28T17:35:12Z",
+          "tree_id": "4ab516c3815e1faa90db5fade34685dffffa253e",
+          "url": "https://github.com/powdr-labs/powdr/commit/7a758277119e484afa683fe093b1e7d76be0a14e"
+        },
+        "date": 1738089621071,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "evaluator-benchmark/std::math::ff::inverse",
+            "value": 6912,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/std::math::ff::reduce",
+            "value": 586,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/std::math::ff::mul",
+            "value": 1127,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sqrt_879882356",
+            "value": 29282,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sqrt_1882356",
+            "value": 24558,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sqrt_1187956",
+            "value": 24436,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sqrt_56",
+            "value": 17274,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sort_33",
+            "value": 813737,
+            "range": "± 1438",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sort_100",
+            "value": 2816375,
+            "range": "± 4662",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sort_300",
+            "value": 9837240,
+            "range": "± 29329",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sort_900",
+            "value": 36055258,
+            "range": "± 143592",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sort_2700",
+            "value": 143951795,
+            "range": "± 573757",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sqrt_879882356",
+            "value": 2590,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sqrt_1882356",
+            "value": 2076,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sqrt_1187956",
+            "value": 2052,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sqrt_56",
+            "value": 1233,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sort_33",
+            "value": 72611,
+            "range": "± 87",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sort_100",
+            "value": 268671,
+            "range": "± 279",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sort_300",
+            "value": 1020668,
+            "range": "± 1230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sort_900",
+            "value": 4328775,
+            "range": "± 6663",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sort_2700",
+            "value": 20861285,
+            "range": "± 105661",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-witgen-benchmark/jit_witgen_benchmark",
+            "value": 31824537612,
+            "range": "± 185534574",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "executor-benchmark/keccak",
+            "value": 14971024492,
+            "range": "± 38389412",
             "unit": "ns/iter"
           }
         ]

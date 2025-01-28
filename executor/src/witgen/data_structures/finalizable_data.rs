@@ -273,6 +273,13 @@ impl<'a, T: FieldElement> FinalizableData<'a, T> {
         }
     }
 
+    /// Returns this data as a vector of rows in progress.
+    /// Panics if any data has been finalized already.
+    pub fn into_rows_in_progress(self) -> Vec<Row<T>> {
+        assert!(self.finalized_data.is_empty());
+        self.post_finalized_data
+    }
+
     pub fn extend(&mut self, other: Self) {
         assert!(other.finalized_data.is_empty());
         self.post_finalized_data.extend(other.post_finalized_data);

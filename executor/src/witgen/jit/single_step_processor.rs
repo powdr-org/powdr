@@ -1,17 +1,23 @@
-#![allow(dead_code)]
-
 use itertools::Itertools;
 use powdr_ast::analyzed::{
     AlgebraicExpression as Expression, AlgebraicReference, PolyID, PolynomialType,
 };
-use powdr_number::FieldElement;
+use powdr_number::{FieldElement, KnownField};
 
-use crate::witgen::{machines::MachineParts, FixedData};
+use crate::witgen::{
+    data_structures::{
+        finalizable_data::{ColumnLayout, CompactDataRef},
+        mutable_state::MutableState,
+    },
+    jit::compiler::compile_effects,
+    machines::MachineParts,
+    FixedData, QueryCallback,
+};
 
 use super::{
+    compiler::WitgenFunction,
     effect::Effect,
     processor::Processor,
-    prover_function_heuristics::decode_simple_prover_functions,
     variable::{Cell, Variable},
     witgen_inference::{CanProcessCall, FixedEvaluator, WitgenInference},
 };
@@ -23,17 +29,85 @@ const SINGLE_STEP_MACHINE_MAX_BRANCH_DEPTH: usize = 6;
 pub struct SingleStepProcessor<'a, T: FieldElement> {
     fixed_data: &'a FixedData<'a, T>,
     machine_parts: MachineParts<'a, T>,
+    column_layout: ColumnLayout,
+    single_step_function: Option<Option<WitgenFunction<T>>>,
 }
 
 impl<'a, T: FieldElement> SingleStepProcessor<'a, T> {
-    pub fn new(fixed_data: &'a FixedData<'a, T>, machine_parts: MachineParts<'a, T>) -> Self {
+    pub fn new(
+        fixed_data: &'a FixedData<'a, T>,
+        machine_parts: MachineParts<'a, T>,
+        column_layout: ColumnLayout,
+    ) -> Self {
         SingleStepProcessor {
             fixed_data,
             machine_parts,
+            column_layout,
+            single_step_function: None,
         }
     }
 
-    pub fn generate_code(
+    pub fn try_compile(&mut self, can_process: impl CanProcessCall<T>) -> bool {
+        if !matches!(T::known_field(), Some(KnownField::GoldilocksField)) {
+            // Currently, we only support the Goldilocks fields
+            // We could run the interpreter on other fields, though.
+            return false;
+        }
+
+        match self.single_step_function {
+            Some(None) => return false,
+            Some(Some(_)) => return true,
+            None => {}
+        }
+        match self.generate_code(can_process.clone()) {
+            Err(e) => {
+                // These errors can be pretty verbose and are quite common currently.
+                let e = e.to_string().lines().take(5).join("\n");
+                log::debug!("=> Error generating JIT code: {e}\n...");
+                false
+            }
+            Ok(code) => {
+                log::debug!("Generated code ({} steps)", code.len());
+                log::debug!("Compiling effects...");
+
+                let known_inputs = self
+                    .machine_parts
+                    .witnesses
+                    .iter()
+                    .map(|&id| self.cell(id, 0))
+                    .collect_vec();
+                self.single_step_function = Some(Some(
+                    compile_effects(
+                        self.column_layout.first_column_id,
+                        self.column_layout.column_count,
+                        &known_inputs,
+                        &code,
+                    )
+                    .unwrap(),
+                ));
+                log::trace!("Compilation done.");
+                true
+            }
+        }
+    }
+
+    /// Computes the next row from the previous row.
+    /// Due to fixed columns being evaluated, the caller must ensure that
+    /// neither the already known nor the to be computed row are the first or last row.
+    /// This means that the two first rows must be fully computed.
+    pub fn compute_next_row<'d, Q: QueryCallback<T>>(
+        &self,
+        mutable_state: &MutableState<'a, T, Q>,
+        data: CompactDataRef<'d, T>,
+    ) {
+        assert!(data.row_offset > 0);
+        let Some(Some(f)) = self.single_step_function.as_ref() else {
+            panic!("try_compile must be called first")
+        };
+        f.call(self.fixed_data, mutable_state, &mut [], data);
+    }
+
+    fn generate_code(
         &self,
         can_process: impl CanProcessCall<T>,
     ) -> Result<Vec<Effect<T, Variable>>, String> {
@@ -67,18 +141,18 @@ impl<'a, T: FieldElement> SingleStepProcessor<'a, T> {
             })
             .collect_vec();
 
-        let mut witgen =
+        let witgen =
             WitgenInference::new(self.fixed_data, self, known_variables, complete_identities);
 
-        let prover_assignments = decode_simple_prover_functions(&self.machine_parts)
-            .into_iter()
-            .map(|(col_name, value)| (self.column(&col_name), value))
-            .collect_vec();
+        // let prover_assignments = decode_simple_prover_functions(&self.machine_parts)
+        //     .into_iter()
+        //     .map(|(col_name, value)| (self.column(&col_name), value))
+        //     .collect_vec();
 
-        // TODO we should only do it if other methods fail, because it is "provide_if_unknown"
-        for (col, value) in &prover_assignments {
-            witgen.assign_constant(col, 1, *value);
-        }
+        // // TODO we should only do it if other methods fail, because it is "provide_if_unknown"
+        // for (col, value) in &prover_assignments {
+        //     witgen.assign_constant(col, 1, *value);
+        // }
 
         Processor::new(
             self.fixed_data,
@@ -87,8 +161,19 @@ impl<'a, T: FieldElement> SingleStepProcessor<'a, T> {
             requested_known,
             SINGLE_STEP_MACHINE_MAX_BRANCH_DEPTH,
         )
+        // We use a block size of two since we need two completed submachine calls,
+        // and we start out with all submachine calls on the first row already completed.
+        .with_block_size(2)
         .generate_code(can_process, witgen)
-        .map_err(|e| e.to_string())
+        .map_err(|e| {
+            let err_str = e.to_string();
+            log::trace!("\nCode generation faild for main machine:\n  {err_str}");
+            let shortened_error = err_str
+                .lines()
+                .take(10)
+                .format("\n  ");
+            format!("Code generation failed: {shortened_error}\nRun with RUST_LOG=trace to see the code generated so far.")
+        })
         .map(|r| r.code)
     }
 
@@ -100,6 +185,7 @@ impl<'a, T: FieldElement> SingleStepProcessor<'a, T> {
         })
     }
 
+    #[allow(unused)]
     fn column(&self, name: &str) -> Expression<T> {
         Expression::Reference(AlgebraicReference {
             name: name.to_string(),
@@ -129,7 +215,7 @@ mod test {
     use powdr_number::GoldilocksField;
 
     use crate::witgen::{
-        data_structures::mutable_state::MutableState,
+        data_structures::{finalizable_data::ColumnLayout, mutable_state::MutableState},
         global_constraints,
         jit::effect::{format_code, Effect},
         machines::KnownMachine,
@@ -166,7 +252,8 @@ mod test {
         let mutable_state = MutableState::new(machines.into_iter(), &|_| {
             Err("Query not implemented".to_string())
         });
-        SingleStepProcessor::new(&fixed_data, machine_parts)
+        let layout = ColumnLayout::from_id_list(machine_parts.witnesses.iter());
+        SingleStepProcessor::new(&fixed_data, machine_parts, layout)
             .generate_code(&mutable_state)
             .map_err(|e| e.to_string())
     }
@@ -206,12 +293,13 @@ namespace M(256);
         let err = generate_single_step(input, "M").err().unwrap();
         assert_eq!(
             err.to_string(),
-            "Unable to derive algorithm to compute required values: \
-            No variable available to branch on.\nThe following variables or values are still missing: M::Y[1]\n\
-            The following branch decisions were taken:\n\
-            \n\
-            Generated code so far:\n\
-            M::X[1] = M::X[0];"
+            "Code generation failed: Unable to derive algorithm to compute required values: No variable available to branch on.
+  The following variables or values are still missing: M::Y[1]
+  The following branch decisions were taken:
+  
+  Generated code so far:
+  M::X[1] = M::X[0];
+Run with RUST_LOG=trace to see the code generated so far."
         );
     }
 
@@ -325,12 +413,11 @@ VM::instr_mul[1] = 1;"
             Ok(_) => panic!("Expected error"),
             Err(e) => {
                 let expected = "\
-Main::is_arith $ [ Main::a, Main::b, Main::c ]
-     ???              2       ???      ???    
-                                              
-Main::is_arith        2     Main::b  Main::c  
-     ???                      ???      ???    
-                                          ";
+  Main::is_arith $ [ Main::a, Main::b, Main::c ]
+       ???              2       ???      ???    
+                                                
+  Main::is_arith        2     Main::b  Main::c  
+       ???                      ???      ???";
                 assert!(
                     e.contains(expected),
                     "Error did not contain expected substring. Error:\n{e}\nExpected substring:\n{expected}"

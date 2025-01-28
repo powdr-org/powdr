@@ -1,3 +1,4 @@
+#![allow(unused)]
 use powdr_ast::{
     analyzed::{Expression, PolynomialReference, Reference},
     parsed::{FunctionCall, FunctionKind, LambdaExpression, Number},

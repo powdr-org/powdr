@@ -552,47 +552,7 @@ impl<'a, T: FieldElement> FixedData<'a, T> {
         &self,
         expr: &impl AllChildren<AlgebraicExpression<T>>,
     ) -> HashSet<PolyID> {
-        let mut cache = BTreeMap::new();
-        self.polynomial_references_with_cache(expr, &mut cache)
-    }
-
-    /// Like [Self::polynomial_references], but with a cache for intermediate results.
-    /// This avoids visiting the same intermediate column multiple times, which can lead
-    /// to exponential complexity for some expressions.
-    fn polynomial_references_with_cache(
-        &self,
-        expr: &impl AllChildren<AlgebraicExpression<T>>,
-        intermediates_cache: &mut BTreeMap<AlgebraicReferenceThin, HashSet<PolyID>>,
-    ) -> HashSet<PolyID> {
-        expr.all_children()
-            .flat_map(|child| {
-                if let AlgebraicExpression::Reference(poly_ref) = child {
-                    match poly_ref.poly_id.ptype {
-                        PolynomialType::Committed | PolynomialType::Constant => {
-                            once(poly_ref.poly_id).collect()
-                        }
-                        PolynomialType::Intermediate => {
-                            let poly_ref = poly_ref.to_thin();
-                            intermediates_cache
-                                .get(&poly_ref)
-                                .cloned()
-                                .unwrap_or_else(|| {
-                                    let intermediate_expr =
-                                        &self.intermediate_definitions[&poly_ref];
-                                    let refs = self.polynomial_references_with_cache(
-                                        intermediate_expr,
-                                        intermediates_cache,
-                                    );
-                                    intermediates_cache.insert(poly_ref, refs.clone());
-                                    refs
-                                })
-                        }
-                    }
-                } else {
-                    HashSet::new()
-                }
-            })
-            .collect()
+        polynomial_references(expr, &self.intermediate_definitions)
     }
 }
 
@@ -687,4 +647,53 @@ impl<'a, T> WitnessColumn<'a, T> {
             stage,
         }
     }
+}
+
+/// Finds all referenced witness or fixed columns,
+/// including those referenced via intermediate columns.
+fn polynomial_references<T>(
+    expr: &impl AllChildren<AlgebraicExpression<T>>,
+    intermediate_definitions: &BTreeMap<AlgebraicReferenceThin, AlgebraicExpression<T>>,
+) -> HashSet<PolyID> {
+    let mut cache = BTreeMap::new();
+    polynomial_references_with_cache(expr, intermediate_definitions, &mut cache)
+}
+
+/// Like [polynomial_references], but with a cache for intermediate results.
+/// This avoids visiting the same intermediate column multiple times, which can lead
+/// to exponential complexity for some expressions.
+fn polynomial_references_with_cache<T>(
+    expr: &impl AllChildren<AlgebraicExpression<T>>,
+    intermediate_definitions: &BTreeMap<AlgebraicReferenceThin, AlgebraicExpression<T>>,
+    intermediates_cache: &mut BTreeMap<AlgebraicReferenceThin, HashSet<PolyID>>,
+) -> HashSet<PolyID> {
+    expr.all_children()
+        .flat_map(|child| {
+            if let AlgebraicExpression::Reference(poly_ref) = child {
+                match poly_ref.poly_id.ptype {
+                    PolynomialType::Committed | PolynomialType::Constant => {
+                        once(poly_ref.poly_id).collect()
+                    }
+                    PolynomialType::Intermediate => {
+                        let poly_ref = poly_ref.to_thin();
+                        intermediates_cache
+                            .get(&poly_ref)
+                            .cloned()
+                            .unwrap_or_else(|| {
+                                let intermediate_expr = &intermediate_definitions[&poly_ref];
+                                let refs = polynomial_references_with_cache(
+                                    intermediate_expr,
+                                    intermediate_definitions,
+                                    intermediates_cache,
+                                );
+                                intermediates_cache.insert(poly_ref, refs.clone());
+                                refs
+                            })
+                    }
+                }
+            } else {
+                HashSet::new()
+            }
+        })
+        .collect()
 }

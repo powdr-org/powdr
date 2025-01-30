@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     iter::once,
 };
 
@@ -7,13 +7,18 @@ use extension_field::ExtensionField;
 use fp2::Fp2;
 use fp4::Fp4;
 use itertools::Itertools;
-use powdr_ast::analyzed::{Analyzed, Identity, PhantomBusInteractionIdentity};
+use powdr_ast::{
+    analyzed::{AlgebraicExpression, Analyzed, Identity, PhantomBusInteractionIdentity},
+    parsed::visitor::AllChildren,
+};
 use powdr_executor_utils::{
     expression_evaluator::{ExpressionEvaluator, OwnedTerminalValues},
     VariablySizedColumn,
 };
 use powdr_number::{DegreeType, FieldElement, KnownField};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
+use super::polynomial_references;
 
 mod extension_field;
 mod fp2;
@@ -120,6 +125,60 @@ impl<'a, T: FieldElement, Ext: ExtensionField<T> + Sync> BusAccumulatorGenerator
     }
 
     pub fn generate(&self) -> Vec<(String, Vec<T>)> {
+        let second_stage_cols = self
+            .pil
+            .committed_polys_in_source_order()
+            .filter(|(symbol, _)| symbol.stage == Some(1))
+            .flat_map(|(symbol, _)| {
+                symbol
+                    .array_elements()
+                    .map(|(name, poly_id)| (poly_id, name))
+            })
+            .collect::<BTreeMap<_, _>>();
+        let intermediate_definitions = self.pil.intermediate_definitions();
+        let referenced_with_second_stage_cols = self
+            .pil
+            .identities
+            .iter()
+            .filter(|identity| {
+                identity.all_children().any(|expr| match expr {
+                    AlgebraicExpression::Reference(reference) => {
+                        second_stage_cols.contains_key(&reference.poly_id)
+                    }
+                    _ => false,
+                })
+            })
+            .map(|identity| polynomial_references(identity, &intermediate_definitions))
+            .collect::<Vec<_>>();
+
+        for bus_interaction in self.bus_interactions.iter() {
+            // TODO: This is broken, this does not identify the bus interaction uniquely.
+            let polys = polynomial_references(&bus_interaction.payload, &intermediate_definitions);
+            let folded_or_acc = referenced_with_second_stage_cols
+                .iter()
+                .filter(|referenced_cols| polys.iter().all(|p| referenced_cols.contains(p)))
+                .flatten()
+                .filter(|col| second_stage_cols.contains_key(col))
+                .collect::<BTreeSet<_>>();
+            let acc = referenced_with_second_stage_cols
+                .iter()
+                .filter(|referenced_cols| folded_or_acc.iter().all(|p| referenced_cols.contains(p)))
+                .flatten()
+                .filter(|col| second_stage_cols.contains_key(col))
+                .collect::<BTreeSet<_>>();
+            println!(
+                "\n\n{}\n  folded: {}\n  acc: {}",
+                bus_interaction,
+                folded_or_acc
+                    .iter()
+                    .map(|poly_id| &second_stage_cols[poly_id])
+                    .join(", "),
+                acc.iter()
+                    .map(|poly_id| &second_stage_cols[poly_id])
+                    .join(", ")
+            );
+        }
+
         let accumulators = self
             .bus_interactions
             .par_iter()

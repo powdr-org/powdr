@@ -8,7 +8,7 @@ use itertools::Itertools;
 use powdr_ast::{
     analyzed::{
         AlgebraicExpression as Expression, AlgebraicReference, AlgebraicReferenceThin, PolyID,
-        PolynomialType,
+        PolynomialIdentity, PolynomialType,
     },
     parsed::visitor::{AllChildren, Children},
 };
@@ -136,18 +136,15 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
             self.check_block_shape(&witgen);
         }
 
-        // Check that we could derive all requested variables.
-        let missing_variables = self
-            .requested_known_vars
-            .iter()
-            .filter(|var| !witgen.is_known(var))
-            // Sort to get deterministic code.
-            .sorted()
-            .cloned()
-            .collect_vec();
-
-        let incomplete_machine_calls = self.incomplete_machine_calls(&witgen);
-        if missing_variables.is_empty() && incomplete_machine_calls.is_empty() {
+        if self.is_finished(&witgen) {
+            // Set the requested known variables, so that potential output params are
+            // actually assigned. We can do that because `is_finished` guarantees that
+            // the remaining unknown variables are all unconstrained.
+            for v in &self.requested_known_vars {
+                if !witgen.is_known(v) {
+                    witgen.set_variable(v.clone(), 0.into()).unwrap();
+                }
+            }
             let range_constraints = self
                 .requested_range_constraints
                 .iter()
@@ -181,6 +178,14 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
             } else {
                 ErrorReason::MaxBranchDepthReached(self.max_branch_depth)
             };
+            let missing_variables = self
+                .requested_known_vars
+                .iter()
+                .filter(|var| !witgen.is_known(var))
+                // Sort to get deterministic code.
+                .sorted()
+                .cloned()
+                .collect_vec();
             let incomplete_identities = self
                 .identities
                 .iter()
@@ -281,6 +286,45 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
             );
         }
         Ok(())
+    }
+
+    fn is_finished(&self, witgen: &WitgenInference<'a, T, FixedEval>) -> bool {
+        if !self.incomplete_machine_calls(witgen).is_empty() {
+            return false;
+        }
+        // We completed all required submachine calls.
+        let missing_variables = self
+            .requested_known_vars
+            .iter()
+            .filter(|var| !witgen.is_known(var))
+            .collect_vec();
+        if missing_variables.is_empty() {
+            return true;
+        }
+
+        // Some variables are missing. Check if they are unconstrained.
+        let incomplete_poly_identities = self
+            .identities
+            .iter()
+            .filter(|(id, row)| !witgen.is_complete(id, *row))
+            .filter_map(|(id, row)| match id {
+                // We already know that all machine calls are completed,
+                // so only consider polynomial identities.
+                Identity::Polynomial(PolynomialIdentity { expression, .. }) => {
+                    Some((expression, row))
+                }
+                _ => None,
+            });
+        // If all incomplete identities only evaluate to known variables, we are done.
+        for (e, row) in incomplete_poly_identities {
+            let Some(e) = witgen.evaluate(e, *row) else {
+                return false;
+            };
+            if e.try_to_known().is_none() {
+                return false;
+            }
+        }
+        true
     }
 
     /// If any machine call could not be completed, that's bad because machine calls typically have side effects.

@@ -225,6 +225,17 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> WitgenInference<'a, T, F
         self.process_assignments().unwrap();
     }
 
+    /// Set the provided variable to a constant value.
+    pub fn set_variable(&mut self, variable: Variable, value: T) -> Result<Vec<Variable>, Error> {
+        self.ingest_effects(
+            ProcessResult {
+                effects: vec![Effect::Assignment(variable.clone(), value.into())],
+                complete: true,
+            },
+            None,
+        )
+    }
+
     /// Processes an equality constraint.
     /// If this returns an error, it means we have conflicting constraints.
     fn process_equality_on_row(

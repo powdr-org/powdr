@@ -62,7 +62,10 @@ impl<'a, T: FieldElement> BlockMachineProcessor<'a, T> {
             .collect::<HashSet<_>>();
         let mut witgen = WitgenInference::new(self.fixed_data, self, known_variables, []);
 
-        let prover_functions = decode_prover_functions(&self.machine_parts, self.fixed_data)?;
+        let prover_functions = decode_prover_functions(&self.machine_parts, self.fixed_data)?
+            .into_iter()
+            .flat_map(|f| (0..self.block_size).map(move |row| (f.clone(), row as i32)))
+            .collect_vec();
 
         // In the latch row, set the RHS selector to 1.
         let selector = &connection.right.selector;

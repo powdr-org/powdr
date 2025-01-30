@@ -38,7 +38,7 @@ pub struct Processor<'a, T: FieldElement, FixedEval> {
     occurrences: HashMap<Variable, Vec<(&'a Identity<T>, i32)>>,
     /// The prover functions, i.e. helpers to compute certain values that
     /// we cannot easily determine.
-    _prover_functions: Vec<ProverFunction<'a, T>>,
+    prover_functions: Vec<(ProverFunction<'a, T>, i32)>,
     /// The size of a block.
     block_size: usize,
     /// If the processor should check for correctly stackable block shapes.
@@ -75,7 +75,7 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
             fixed_evaluator,
             identities,
             occurrences,
-            _prover_functions: vec![],
+            prover_functions: vec![],
             block_size: 1,
             check_block_shape: false,
             requested_known_vars: requested_known_vars.into_iter().collect(),
@@ -106,9 +106,12 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
         self
     }
 
-    pub fn with_prover_functions(mut self, prover_functions: Vec<ProverFunction<'a, T>>) -> Self {
-        assert!(self._prover_functions.is_empty());
-        self._prover_functions = prover_functions;
+    pub fn with_prover_functions(
+        mut self,
+        prover_functions: Vec<(ProverFunction<'a, T>, i32)>,
+    ) -> Self {
+        assert!(self.prover_functions.is_empty());
+        self.prover_functions = prover_functions;
         self
     }
 
@@ -273,25 +276,39 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
         can_process: impl CanProcessCall<T>,
         witgen: &mut WitgenInference<'a, T, FixedEval>,
     ) -> Result<(), affine_symbolic_expression::Error> {
-        let mut identities_to_process: BTreeSet<_> = self
-            .identities
-            .iter()
-            .map(|(id, row)| IdentitySorter(id, *row))
-            .collect();
-        while let Some(IdentitySorter(identity, row_offset)) = identities_to_process.pop_first() {
-            let updated_vars =
-                witgen.process_identity(can_process.clone(), identity, row_offset)?;
-            identities_to_process.extend(
-                updated_vars
-                    .iter()
-                    .flat_map(|v| self.occurrences.get(v))
-                    .flatten()
-                    // Filter out the one we just processed.
-                    .filter(|(id, row)| (*id, *row) != (identity, row_offset))
-                    .map(|(id, row_offset)| IdentitySorter(id, *row_offset)),
-            );
+        let mut identities_to_process =
+            IdentitiesToProcess::new(&self.identities, &self.occurrences);
+
+        loop {
+            let identity = identities_to_process.next_identity();
+            let updated_vars = match identity {
+                Some((identity, row_offset)) => {
+                    witgen.process_identity(can_process.clone(), identity, row_offset)
+                }
+                _ => self.process_prover_functions(witgen),
+            }?;
+            if updated_vars.is_empty() && identity.is_none() {
+                // No identities to process and prover functions did not make any progress,
+                // we are done.
+                return Ok(());
+            }
+            identities_to_process.variables_updated(updated_vars, identity);
         }
-        Ok(())
+    }
+
+    /// Tries to process all prover functions until the first one is able to update a variable.
+    /// Returns the updated variables.
+    fn process_prover_functions(
+        &self,
+        witgen: &mut WitgenInference<'a, T, FixedEval>,
+    ) -> Result<Vec<Variable>, affine_symbolic_expression::Error> {
+        for (prover_function, row_offset) in &self.prover_functions {
+            let updated_vars = witgen.process_prover_function(prover_function, *row_offset)?;
+            if !updated_vars.is_empty() {
+                return Ok(updated_vars);
+            }
+        }
+        Ok(vec![])
     }
 
     /// If any machine call could not be completed, that's bad because machine calls typically have side effects.
@@ -510,6 +527,57 @@ fn references_in_expression<'a, T: FieldElement>(
             },
         )
         .unique()
+}
+
+/// Keeps track of identities that still need to be processed and
+/// updates this list based on the occurrence of updated variables
+/// in identities.
+struct IdentitiesToProcess<'a, 'b, T: FieldElement> {
+    identities: BTreeSet<IdentitySorter<'a, T>>,
+    occurrences: &'b HashMap<Variable, Vec<(&'a Identity<T>, i32)>>,
+}
+
+impl<'a, 'b, T: FieldElement> IdentitiesToProcess<'a, 'b, T> {
+    fn new(
+        all_identities: &[(&'a Identity<T>, i32)],
+        occurrences: &'b HashMap<Variable, Vec<(&'a Identity<T>, i32)>>,
+    ) -> Self {
+        Self {
+            identities: all_identities
+                .iter()
+                .map(|(id, row)| IdentitySorter(id, *row))
+                .collect(),
+            occurrences,
+        }
+    }
+
+    fn next_identity(&mut self) -> Option<(&'a Identity<T>, i32)> {
+        self.identities
+            .pop_first()
+            .map(|IdentitySorter(id, row)| (id, row))
+    }
+
+    fn is_empty(&self) -> bool {
+        self.identities.is_empty()
+    }
+
+    fn variables_updated(
+        &mut self,
+        variables: impl IntoIterator<Item = Variable>,
+        avoid_identity: Option<(&'a Identity<T>, i32)>,
+    ) {
+        self.identities.extend(
+            variables
+                .into_iter()
+                .flat_map(|var| self.occurrences.get(&var))
+                .flatten()
+                .filter(|(id, row)| match avoid_identity {
+                    Some((id2, row2)) => (id.id(), *row) != (id2.id(), row2),
+                    None => true,
+                })
+                .map(|(id, row)| IdentitySorter(id, *row)),
+        )
+    }
 }
 
 /// Sorts identities by row and then by ID.

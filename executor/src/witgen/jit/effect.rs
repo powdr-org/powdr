@@ -23,6 +23,8 @@ pub enum Effect<T: FieldElement, V> {
     Assertion(Assertion<T, V>),
     /// A call to a different machine, with identity ID, known inputs and argument variables.
     MachineCall(u64, BitVec, Vec<V>),
+    /// Compute one variable by executing a prover function (given by index) on the value of other variables.
+    ProverFunctionCall(V, usize, Vec<V>),
     /// A branch on a variable.
     Branch(BranchCondition<T, V>, Vec<Effect<T, V>>, Vec<Effect<T, V>>),
 }
@@ -41,6 +43,7 @@ impl<T: FieldElement> Effect<T, Variable> {
                     .zip_eq(known)
                     .flat_map(|(v, known)| (!known).then_some((v, true))),
             ),
+            Effect::ProverFunctionCall(var, _, _) => Box::new(iter::once((var, false))),
             Effect::Branch(_, first, second) => {
                 Box::new(first.iter().chain(second).flat_map(|e| e.written_vars()))
             }
@@ -49,6 +52,7 @@ impl<T: FieldElement> Effect<T, Variable> {
 }
 
 impl<T: FieldElement, V: Hash + Eq> Effect<T, V> {
+    /// Returns an iterator over all referenced variables, both read and written.
     pub fn referenced_variables(&self) -> impl Iterator<Item = &V> {
         let iter: Box<dyn Iterator<Item = &V>> = match self {
             Effect::Assignment(v, expr) => Box::new(iter::once(v).chain(expr.referenced_symbols())),
@@ -57,6 +61,7 @@ impl<T: FieldElement, V: Hash + Eq> Effect<T, V> {
                 Box::new(lhs.referenced_symbols().chain(rhs.referenced_symbols()))
             }
             Effect::MachineCall(_, _, args) => Box::new(args.iter()),
+            Effect::ProverFunctionCall(v, _, args) => Box::new(iter::once(v).chain(args)),
             Effect::Branch(branch_condition, first, second) => Box::new(
                 iter::once(&branch_condition.variable).chain(
                     [first, second]
@@ -143,6 +148,12 @@ pub fn format_code<T: FieldElement>(effects: &[Effect<T, Variable>]) -> String {
             }
             Effect::RangeConstraint(..) => {
                 panic!("Range constraints should not be part of the code.")
+            }
+            Effect::ProverFunctionCall(v, index, args) => {
+                format!(
+                    "{v} = prover_function_{index}([{}]);",
+                    args.iter().join(", ")
+                )
             }
             Effect::Branch(condition, first, second) => {
                 let first = format_code(first);

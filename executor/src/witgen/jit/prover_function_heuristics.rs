@@ -1,8 +1,8 @@
 use powdr_ast::{
     analyzed::{AlgebraicReference, Analyzed, Expression, PolyID, PolynomialReference, Reference},
     parsed::{
-        ArrayLiteral, FunctionCall, FunctionKind, LambdaExpression, Number, UnaryOperation,
-        UnaryOperator,
+        ArrayLiteral, BlockExpression, FunctionCall, FunctionKind, LambdaExpression, Number,
+        UnaryOperation, UnaryOperator,
     },
 };
 use powdr_number::{BigUint, FieldElement};
@@ -14,16 +14,19 @@ pub trait TryColumnByName: Copy {
 }
 
 #[allow(unused)]
+#[derive(Clone)]
 pub struct ProverFunctionComputeFrom<'a> {
+    pub index: usize,
     pub target_column: AlgebraicReference,
     pub input_columns: Vec<AlgebraicReference>,
     pub computation: &'a Expression,
 }
 
 #[allow(unused)]
+#[derive(Clone)]
 pub enum ProverFunction<'a, T> {
     /// query |i| std::prover::provide_if_unknown(Y, i, || <value>)
-    ProvideIfUnknown(AlgebraicReference, T),
+    ProvideIfUnknown(usize, AlgebraicReference, T),
     /// query |i| std::prover::compute_from(Y, i, [X, ...], f)
     ComputeFrom(ProverFunctionComputeFrom<'a>),
 }
@@ -39,17 +42,20 @@ pub fn decode_prover_functions<'a, T: FieldElement>(
     machine_parts
         .prover_functions
         .iter()
-        .map(|f| decode_prover_function(f, try_column_by_name))
+        .enumerate()
+        .map(|(index, f)| decode_prover_function(index, f, try_column_by_name))
         .collect()
 }
 
 fn decode_prover_function<T: FieldElement>(
+    index: usize,
     function: &Expression,
     try_column_by_name: impl TryColumnByName,
 ) -> Result<ProverFunction<'_, T>, String> {
     if let Some((name, value)) = try_decode_provide_if_unknown(function, try_column_by_name) {
-        Ok(ProverFunction::ProvideIfUnknown(name, value))
-    } else if let Some(compute_from) = try_decode_compute_from(function, try_column_by_name) {
+        Ok(ProverFunction::ProvideIfUnknown(index, name, value))
+    } else if let Some(compute_from) = try_decode_compute_from(index, function, try_column_by_name)
+    {
         Ok(ProverFunction::ComputeFrom(compute_from))
     } else {
         Err(format!("Unsupported prover function kind: {function}"))
@@ -76,6 +82,7 @@ fn try_decode_provide_if_unknown<T: FieldElement>(
 
 /// Decodes functions of the form `query |i| std::prover::compute_from(Y, i, [X], f)`.
 fn try_decode_compute_from(
+    index: usize,
     function: &Expression,
     try_column_by_name: impl TryColumnByName,
 ) -> Option<ProverFunctionComputeFrom> {
@@ -97,6 +104,7 @@ fn try_decode_compute_from(
         .map(|e| try_extract_algebraic_reference(e, try_column_by_name))
         .collect::<Option<Vec<_>>>()?;
     Some(ProverFunctionComputeFrom {
+        index,
         target_column,
         input_columns,
         computation,
@@ -108,7 +116,7 @@ fn is_reference_to(e: &Expression, name: &str) -> bool {
 }
 
 fn try_extract_reference(e: &Expression) -> Option<&str> {
-    match e {
+    match unpack(e) {
         Expression::Reference(_, Reference::Poly(PolynomialReference { name, .. })) => Some(name),
         _ => None,
     }
@@ -118,7 +126,7 @@ fn try_extract_algebraic_reference(
     e: &Expression,
     try_column_by_name: impl TryColumnByName,
 ) -> Option<AlgebraicReference> {
-    let (e, next) = match e {
+    let (e, next) = match unpack(e) {
         Expression::UnaryOperation(
             _,
             UnaryOperation {
@@ -138,18 +146,18 @@ fn try_extract_algebraic_reference(
 }
 
 fn is_local_var(e: &Expression, index: u64) -> bool {
-    matches!(e, Expression::Reference(_, Reference::LocalVar(i, _)) if *i == index)
+    matches!(unpack(e), Expression::Reference(_, Reference::LocalVar(i, _)) if *i == index)
 }
 
 fn try_as_number(e: &Expression) -> Option<&BigUint> {
-    match e {
+    match unpack(e) {
         Expression::Number(_, Number { value, .. }) => Some(value),
         _ => None,
     }
 }
 
 fn try_as_function_call(e: &Expression) -> Option<&FunctionCall<Expression>> {
-    match e {
+    match unpack(e) {
         Expression::FunctionCall(_, f) => Some(f),
         _ => None,
     }
@@ -172,20 +180,35 @@ fn try_as_lambda_expression(
     e: &Expression,
     requested_kind: Option<FunctionKind>,
 ) -> Option<&Expression> {
-    match e {
+    match unpack(e) {
         Expression::LambdaExpression(_, LambdaExpression { kind, body, .. })
             if requested_kind.map(|k| k == *kind).unwrap_or(true) =>
         {
-            Some(body)
+            Some(unpack(body))
         }
         _ => None,
     }
 }
 
 fn try_as_literal_array(e: &Expression) -> Option<&[Expression]> {
-    match e {
+    match unpack(e) {
         Expression::ArrayLiteral(_, ArrayLiteral { items }) => Some(items.as_slice()),
         _ => None,
+    }
+}
+
+/// If `e` is a block with just a single expression, returns this inner expression,
+/// otherwise returns `e` again.
+fn unpack(e: &Expression) -> &Expression {
+    match e {
+        Expression::BlockExpression(
+            _,
+            BlockExpression {
+                statements,
+                expr: Some(expr),
+            },
+        ) if statements.is_empty() => expr,
+        _ => e,
     }
 }
 
@@ -247,10 +270,12 @@ mod test {
         let (analyzed, _) = read_pil::<GoldilocksField>(input);
         assert_eq!(analyzed.prover_functions.len(), 1);
         let ProverFunctionComputeFrom {
+            index,
             target_column,
             input_columns,
             computation,
-        } = try_decode_compute_from(&analyzed.prover_functions[0], &analyzed).unwrap();
+        } = try_decode_compute_from(0, &analyzed.prover_functions[0], &analyzed).unwrap();
+        assert_eq!(index, 0);
         assert_eq!(target_column.name, "main::Y");
         assert!(!target_column.next);
         let [in_x, in_z] = input_columns.as_slice() else {

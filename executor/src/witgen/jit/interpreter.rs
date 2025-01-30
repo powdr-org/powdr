@@ -135,6 +135,10 @@ impl<T: FieldElement> EffectsInterpreter<T> {
                         .collect();
                     InterpreterAction::MachineCall(*id, arguments)
                 }
+                Effect::ProverFunctionCall(..) => {
+                    // TODO We cannot compile them here, but we should be able to use the PIL evaluator.
+                    unimplemented!("Prover function calls are not supported in the interpreter yet")
+                }
                 Effect::Branch(..) => {
                     unimplemented!("Branches are not supported in the interpreter yet")
                 }

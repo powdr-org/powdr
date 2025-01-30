@@ -350,6 +350,14 @@ fn format_effect<T: FieldElement>(effect: &Effect<T, Variable>, is_top_level: bo
                 "{var_decls}assert!(call_machine(mutable_state, {id}, MutSlice::from((&mut [{args}]).as_mut_slice())));"
             )
         }
+        Effect::ProverFunctionCall(var, function_index, args) => {
+            format!(
+                "{}{} = prover_function[{function_index}](&[{}]);",
+                if is_top_level { "let " } else { "" },
+                variable_to_string(var),
+                args.iter().map(variable_to_string).format(", ")
+            )
+        }
         Effect::Branch(condition, first, second) => {
             let var_decls = if is_top_level {
                 // We need to declare all assigned variables at top level,

@@ -18,7 +18,7 @@ use crate::witgen::{
 };
 
 use super::{
-    effect::{Assertion, BranchCondition, Effect},
+    effect::{Assertion, BranchCondition, Effect, ProverFunctionCall},
     symbolic_expression::{BinaryOperator, BitOperator, SymbolicExpression, UnaryOperator},
     variable::Variable,
 };
@@ -348,6 +348,19 @@ fn format_effect<T: FieldElement>(effect: &Effect<T, Variable>, is_top_level: bo
                 .format("");
             format!(
                 "{var_decls}assert!(call_machine(mutable_state, {id}, MutSlice::from((&mut [{args}]).as_mut_slice())));"
+            )
+        }
+        Effect::ProverFunctionCall(ProverFunctionCall {
+            target,
+            function_index,
+            row_offset,
+            inputs,
+        }) => {
+            format!(
+                "{}{} = prover_function_{function_index}(row_offset + {row_offset}, &[{}]);",
+                if is_top_level { "let " } else { "" },
+                variable_to_string(target),
+                inputs.iter().map(variable_to_string).format(", ")
             )
         }
         Effect::Branch(condition, first, second) => {

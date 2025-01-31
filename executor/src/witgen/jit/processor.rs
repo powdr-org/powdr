@@ -31,7 +31,7 @@ pub struct Processor<'a, T: FieldElement, FixedEval> {
     identities: Vec<(&'a Identity<T>, i32)>,
     /// The prover functions, i.e. helpers to compute certain values that
     /// we cannot easily determine.
-    _prover_functions: Vec<ProverFunction<'a, T>>,
+    prover_functions: Vec<(ProverFunction<'a, T>, i32)>,
     /// The size of a block.
     block_size: usize,
     /// If the processor should check for correctly stackable block shapes.
@@ -66,7 +66,7 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
             fixed_data,
             fixed_evaluator,
             identities,
-            _prover_functions: vec![],
+            prover_functions: vec![],
             block_size: 1,
             check_block_shape: false,
             requested_known_vars: requested_known_vars.into_iter().collect(),
@@ -97,9 +97,12 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
         self
     }
 
-    pub fn with_prover_functions(mut self, prover_functions: Vec<ProverFunction<'a, T>>) -> Self {
-        assert!(self._prover_functions.is_empty());
-        self._prover_functions = prover_functions;
+    pub fn with_prover_functions(
+        mut self,
+        prover_functions: Vec<(ProverFunction<'a, T>, i32)>,
+    ) -> Self {
+        assert!(self.prover_functions.is_empty());
+        self.prover_functions = prover_functions;
         self
     }
 
@@ -277,12 +280,37 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> Processor<'a, T, FixedEv
         witgen: &mut WitgenInference<'a, T, FixedEval>,
         identity_queue: &mut IdentityQueue<'a, T>,
     ) -> Result<(), affine_symbolic_expression::Error> {
-        while let Some((identity, row_offset)) = identity_queue.next() {
-            let updated_vars =
-                witgen.process_identity(can_process.clone(), identity, row_offset)?;
-            identity_queue.variables_updated(updated_vars, Some((identity, row_offset)));
+        loop {
+            let identity = identity_queue.next();
+            let updated_vars = match identity {
+                Some((identity, row_offset)) => {
+                    witgen.process_identity(can_process.clone(), identity, row_offset)
+                }
+                None => self.process_prover_functions(witgen),
+            }?;
+            if updated_vars.is_empty() && identity.is_none() {
+                // No identities to process and prover functions did not make any progress,
+                // we are done.
+                return Ok(());
+            }
+            identity_queue.variables_updated(updated_vars, identity);
         }
-        Ok(())
+    }
+
+    /// Tries to process all prover functions until the first one is able to update a variable.
+    /// Returns the updated variables.
+    fn process_prover_functions(
+        &self,
+        witgen: &mut WitgenInference<'a, T, FixedEval>,
+    ) -> Result<Vec<Variable>, affine_symbolic_expression::Error> {
+        for (prover_function, row_offset) in &self.prover_functions {
+            let updated_vars = witgen.process_prover_function(prover_function, *row_offset)?;
+            if !updated_vars.is_empty() {
+                return Ok(updated_vars);
+            }
+        }
+
+        Ok(vec![])
     }
 
     /// If any machine call could not be completed, that's bad because machine calls typically have side effects.

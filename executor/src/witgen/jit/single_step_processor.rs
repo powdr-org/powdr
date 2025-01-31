@@ -70,7 +70,11 @@ impl<'a, T: FieldElement> SingleStepProcessor<'a, T> {
         let witgen =
             WitgenInference::new(self.fixed_data, self, known_variables, complete_identities);
 
-        let prover_functions = decode_prover_functions(&self.machine_parts, self.fixed_data)?;
+        let prover_functions = decode_prover_functions(&self.machine_parts, self.fixed_data)?
+            .into_iter()
+            // Process prover functions only on the next row.
+            .map(|f| (f, 1))
+            .collect_vec();
 
         Processor::new(
             self.fixed_data,

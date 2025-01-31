@@ -21,7 +21,8 @@ use crate::witgen::{
 
 use super::{
     affine_symbolic_expression::{AffineSymbolicExpression, Error, ProcessResult},
-    effect::{BranchCondition, Effect},
+    effect::{BranchCondition, Effect, ProverFunctionCall},
+    prover_function_heuristics::ProverFunction,
     symbolic_expression::SymbolicExpression,
     variable::{Cell, MachineCallVariable, Variable},
 };
@@ -194,6 +195,47 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> WitgenInference<'a, T, F
             Identity::Connect(_) => ProcessResult::empty(),
         };
         self.ingest_effects(result, Some((id.id(), row_offset)))
+    }
+
+    /// Process a prover function on a row, i.e. determine if we can execute it and if it will
+    /// help us to compute the value of a previously unknown variable.
+    /// Returns the list of updated variables.
+    pub fn process_prover_function(
+        &mut self,
+        prover_function: &ProverFunction<'a, T>,
+        row_offset: i32,
+    ) -> Result<Vec<Variable>, Error> {
+        match prover_function {
+            ProverFunction::ProvideIfUnknown(..) => {
+                // We ignore them for now.
+            }
+            ProverFunction::ComputeFrom(compute_from) => {
+                let target = Variable::from_reference(&compute_from.target_column, row_offset);
+                if !self.is_known(&target) {
+                    let inputs = compute_from
+                        .input_columns
+                        .iter()
+                        .map(|c| Variable::from_reference(c, row_offset))
+                        .collect::<Vec<_>>();
+                    if inputs.iter().all(|v| self.is_known(v)) {
+                        let effect = Effect::ProverFunctionCall(ProverFunctionCall {
+                            target,
+                            function_index: compute_from.index,
+                            row_offset,
+                            inputs,
+                        });
+                        return self.ingest_effects(
+                            ProcessResult {
+                                effects: vec![effect],
+                                complete: true,
+                            },
+                            None,
+                        );
+                    }
+                }
+            }
+        }
+        Ok(vec![])
     }
 
     /// Process the constraint that the expression evaluated at the given offset equals the given value.
@@ -382,6 +424,21 @@ impl<'a, T: FieldElement, FixedEval: FixedEvaluator<T>> WitgenInference<'a, T, F
                     if self.record_known(variable.clone()) {
                         log::trace!("{variable} := {assignment}");
                         updated_variables.push(variable.clone());
+                        self.code.push(e);
+                    }
+                }
+                Effect::ProverFunctionCall(ProverFunctionCall {
+                    target,
+                    function_index,
+                    row_offset,
+                    inputs,
+                }) => {
+                    if self.record_known(target.clone()) {
+                        log::trace!(
+                            "{target} := prover_function_{function_index}({row_offset}, {})",
+                            inputs.iter().format(", ")
+                        );
+                        updated_variables.push(target.clone());
                         self.code.push(e);
                     }
                 }

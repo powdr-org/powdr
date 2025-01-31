@@ -23,6 +23,8 @@ pub enum Effect<T: FieldElement, V> {
     Assertion(Assertion<T, V>),
     /// A call to a different machine, with identity ID, known inputs and argument variables.
     MachineCall(u64, BitVec, Vec<V>),
+    /// Compute one variable by executing a prover function (given by index) on the value of other variables.
+    ProverFunctionCall(ProverFunctionCall<V>),
     /// A branch on a variable.
     Branch(BranchCondition<T, V>, Vec<Effect<T, V>>, Vec<Effect<T, V>>),
 }
@@ -41,6 +43,9 @@ impl<T: FieldElement> Effect<T, Variable> {
                     .zip_eq(known)
                     .flat_map(|(v, known)| (!known).then_some((v, true))),
             ),
+            Effect::ProverFunctionCall(ProverFunctionCall { target, .. }) => {
+                Box::new(iter::once((target, false)))
+            }
             Effect::Branch(_, first, second) => {
                 Box::new(first.iter().chain(second).flat_map(|e| e.written_vars()))
             }
@@ -49,6 +54,7 @@ impl<T: FieldElement> Effect<T, Variable> {
 }
 
 impl<T: FieldElement, V: Hash + Eq> Effect<T, V> {
+    /// Returns an iterator over all referenced variables, both read and written.
     pub fn referenced_variables(&self) -> impl Iterator<Item = &V> {
         let iter: Box<dyn Iterator<Item = &V>> = match self {
             Effect::Assignment(v, expr) => Box::new(iter::once(v).chain(expr.referenced_symbols())),
@@ -57,6 +63,9 @@ impl<T: FieldElement, V: Hash + Eq> Effect<T, V> {
                 Box::new(lhs.referenced_symbols().chain(rhs.referenced_symbols()))
             }
             Effect::MachineCall(_, _, args) => Box::new(args.iter()),
+            Effect::ProverFunctionCall(ProverFunctionCall { target, inputs, .. }) => {
+                Box::new(iter::once(target).chain(inputs))
+            }
             Effect::Branch(branch_condition, first, second) => Box::new(
                 iter::once(&branch_condition.variable).chain(
                     [first, second]
@@ -112,6 +121,18 @@ pub struct BranchCondition<T: FieldElement, V> {
     pub condition: RangeConstraint<T>,
 }
 
+#[derive(Clone, PartialEq, Eq)]
+pub struct ProverFunctionCall<V> {
+    /// Which variable to assign the result to.
+    pub target: V,
+    /// The index of the prover function in the list.
+    pub function_index: usize,
+    /// The row offset to supply to the prover function.
+    pub row_offset: i32,
+    /// The input variables, to be evaluated before calling the prover function.
+    pub inputs: Vec<V>,
+}
+
 /// Helper function to render a list of effects. Used for informational purposes only.
 pub fn format_code<T: FieldElement>(effects: &[Effect<T, Variable>]) -> String {
     effects
@@ -143,6 +164,17 @@ pub fn format_code<T: FieldElement>(effects: &[Effect<T, Variable>]) -> String {
             }
             Effect::RangeConstraint(..) => {
                 panic!("Range constraints should not be part of the code.")
+            }
+            Effect::ProverFunctionCall(ProverFunctionCall {
+                target,
+                function_index,
+                row_offset,
+                inputs,
+            }) => {
+                format!(
+                    "{target} = prover_function_{function_index}({row_offset}, [{}]);",
+                    inputs.iter().join(", ")
+                )
             }
             Effect::Branch(condition, first, second) => {
                 let first = format_code(first);

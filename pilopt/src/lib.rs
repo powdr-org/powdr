@@ -355,6 +355,14 @@ fn simplify_expression_single<T: FieldElement>(e: &mut AlgebraicExpression<T>) {
             return;
         }
     }
+
+    if let AlgebraicExpression::BinaryOperation(AlgebraicBinaryOperation { left, op, right }) = e {
+        if let Some(simplified) = try_simplify_associative_operation(left, right, *op) {
+            *e = simplified;
+            return;
+        }
+    }
+
     match e {
         AlgebraicExpression::BinaryOperation(AlgebraicBinaryOperation {
             left,
@@ -424,6 +432,86 @@ fn simplify_expression_single<T: FieldElement>(e: &mut AlgebraicExpression<T>) {
             }
         }
         _ => {}
+    }
+}
+
+/// Uses associative properties to simplify expressions by regrouping constant terms.
+fn try_simplify_associative_operation<T: FieldElement>(
+    left: &mut AlgebraicExpression<T>,
+    right: &mut AlgebraicExpression<T>,
+    op: AlgebraicBinaryOperator,
+) -> Option<AlgebraicExpression<T>> {
+    if op != AlgebraicBinaryOperator::Add {
+        return None;
+    }
+
+    // Find binary operation and other expression, handling both orderings:
+    // (X + C1) + Other
+    // Other + (X + C1)
+    let (x1, x2, other_expr) = match (left, right) {
+        (
+            AlgebraicExpression::BinaryOperation(AlgebraicBinaryOperation {
+                left: x1,
+                right: x2,
+                op: AlgebraicBinaryOperator::Add,
+            }),
+            other,
+        ) => (x1, x2, other),
+        (
+            other,
+            AlgebraicExpression::BinaryOperation(AlgebraicBinaryOperation {
+                left: x1,
+                right: x2,
+                op: AlgebraicBinaryOperator::Add,
+            }),
+        ) => (x1, x2, other),
+        _ => return None,
+    };
+
+    // Extract variable and constant from binary operation, handling both orderings:
+    // (X + C1) -> (X, C1)
+    // (C1 + X) -> (X, C1)
+    let (x, c1_val) = if let AlgebraicExpression::Number(val) = x1.as_ref() {
+        (x2.as_mut(), val)
+    } else if let AlgebraicExpression::Number(val) = x2.as_ref() {
+        (x1.as_mut(), val)
+    } else {
+        return None;
+    };
+
+    let x = std::mem::replace(x, AlgebraicExpression::Number(0.into()));
+    match other_expr {
+        // Case 1: Combining with a constant
+        // (X + C1) + C2 -> X + (C1 + C2)
+        AlgebraicExpression::Number(c2) => {
+            let result = *c1_val + *c2;
+            Some(AlgebraicExpression::BinaryOperation(
+                AlgebraicBinaryOperation {
+                    left: Box::new(x),
+                    op: AlgebraicBinaryOperator::Add,
+                    right: Box::new(AlgebraicExpression::Number(result)),
+                },
+            ))
+        }
+
+        // Case 2: Combining with any non-numeric expression
+        // (X + C1) + Y -> (X + Y) + C1
+        y => {
+            let y = std::mem::replace(y, AlgebraicExpression::Number(0.into()));
+            Some(AlgebraicExpression::BinaryOperation(
+                AlgebraicBinaryOperation {
+                    left: Box::new(AlgebraicExpression::BinaryOperation(
+                        AlgebraicBinaryOperation {
+                            left: Box::new(x),
+                            op: AlgebraicBinaryOperator::Add,
+                            right: Box::new(y),
+                        },
+                    )),
+                    op: AlgebraicBinaryOperator::Add,
+                    right: Box::new(AlgebraicExpression::Number(*c1_val)),
+                },
+            ))
+        }
     }
 }
 

@@ -123,7 +123,10 @@ impl<'a, T: FieldElement, Ext: ExtensionField<T> + Sync> BusAccumulatorGenerator
         let accumulators = self
             .bus_interactions
             .par_iter()
-            .flat_map(|bus_interaction| self.interaction_columns(bus_interaction))
+            .flat_map(|bus_interaction| {
+                let (folded, acc) = self.interaction_columns(bus_interaction);
+                folded.into_iter().chain(acc).collect::<Vec<_>>()
+            })
             .collect::<Vec<_>>();
 
         self.pil
@@ -137,7 +140,7 @@ impl<'a, T: FieldElement, Ext: ExtensionField<T> + Sync> BusAccumulatorGenerator
     fn interaction_columns(
         &self,
         bus_interaction: &PhantomBusInteractionIdentity<T>,
-    ) -> Vec<Vec<T>> {
+    ) -> (Vec<Vec<T>>, Vec<Vec<T>>) {
         let intermediate_definitions = self.pil.intermediate_definitions();
 
         let size = self.values.height();
@@ -171,19 +174,18 @@ impl<'a, T: FieldElement, Ext: ExtensionField<T> + Sync> BusAccumulatorGenerator
         }
 
         // Transpose from row-major to column-major & flatten.
-        let mut result = vec![Vec::with_capacity(size); Ext::size() * 2];
+        let mut folded = vec![Vec::with_capacity(size); Ext::size()];
+        let mut acc = vec![Vec::with_capacity(size); Ext::size()];
         for row_index in 0..size {
-            for (col_index, x) in folded_list[row_index]
-                .to_vec()
-                .into_iter()
-                .chain(acc_list[row_index].to_vec())
-                .enumerate()
-            {
-                result[col_index].push(x);
+            for (col_index, x) in folded_list[row_index].to_vec().into_iter().enumerate() {
+                folded[col_index].push(x);
+            }
+            for (col_index, x) in acc_list[row_index].to_vec().into_iter().enumerate() {
+                acc[col_index].push(x);
             }
         }
 
-        result
+        (folded, acc)
     }
 
     /// Fingerprints a tuples of field elements, using the pre-computed powers of alpha.

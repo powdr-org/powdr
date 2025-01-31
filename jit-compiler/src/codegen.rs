@@ -16,12 +16,25 @@ use powdr_ast::{
 };
 use powdr_number::{BigInt, BigUint, FieldElement, LargeInt};
 
-pub struct CodeGenerator<'a, T> {
-    analyzed: &'a Analyzed<T>,
+pub trait DefinitionFetcher {
+    fn get_definition(&self, symbol: &str) -> Option<&FunctionValueDefinition>;
+}
+
+impl<T> DefinitionFetcher for Analyzed<T> {
+    fn get_definition(&self, symbol: &str) -> Option<&FunctionValueDefinition> {
+        self.definitions
+            .get(symbol)
+            .and_then(|(_, def)| def.as_ref())
+    }
+}
+
+pub struct CodeGenerator<'a, T, Def: DefinitionFetcher> {
+    definitions: &'a Def,
     /// Symbols mapping to either their code or an error message explaining
     /// why they could not be compiled.
     /// While the code is still being generated, this contains `None`.
     symbols: HashMap<String, Result<Option<String>, String>>,
+    phantom: std::marker::PhantomData<T>,
 }
 
 pub fn escape_symbol(s: &str) -> String {
@@ -29,11 +42,12 @@ pub fn escape_symbol(s: &str) -> String {
     s.replace('.', "_").replace("::", "_")
 }
 
-impl<'a, T: FieldElement> CodeGenerator<'a, T> {
-    pub fn new(analyzed: &'a Analyzed<T>) -> Self {
+impl<'a, T: FieldElement, Def: DefinitionFetcher> CodeGenerator<'a, T, Def> {
+    pub fn new(definitions: &'a Def) -> Self {
         Self {
-            analyzed,
+            definitions,
             symbols: Default::default(),
+            phantom: Default::default(),
         }
     }
 
@@ -86,10 +100,8 @@ impl<'a, T: FieldElement> CodeGenerator<'a, T> {
         }
 
         let definition = self
-            .analyzed
             .definitions
-            .get(symbol)
-            .and_then(|(_, def)| def.as_ref())
+            .get_definition(symbol)
             .ok_or_else(|| format!("No definition for {symbol}."))?;
 
         match definition {
@@ -447,8 +459,7 @@ impl<'a, T: FieldElement> CodeGenerator<'a, T> {
         if is_builtin::<T>(symbol) {
             return format!("Callable::Fn({}{type_args})", escape_symbol(symbol));
         }
-        let (_, def) = self.analyzed.definitions.get(symbol).as_ref().unwrap();
-        match def.as_ref().unwrap() {
+        match self.definitions.get_definition(symbol).unwrap() {
             FunctionValueDefinition::Expression(typed_expr) => {
                 if matches!(typed_expr.e, Expression::LambdaExpression(..)) {
                     format!("Callable::Fn({}{type_args})", escape_symbol(symbol))
@@ -713,7 +724,7 @@ mod test {
 
     fn compile(input: &str, syms: &[&str]) -> String {
         let analyzed = analyze_string::<GoldilocksField>(input).unwrap();
-        let mut compiler = CodeGenerator::new(&analyzed);
+        let mut compiler = CodeGenerator::<GoldilocksField, _>::new(&analyzed);
         for s in syms {
             compiler.request_symbol(s, &[]).unwrap();
         }

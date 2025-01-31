@@ -1,0 +1,88 @@
+name: Nightly tests
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *' # run at 2 AM UTC
+
+env:
+    CARGO_TERM_COLOR: always
+    IS_NIGHTLY_TEST: true
+    POWDR_GENERATE_PROOFS: "true"
+
+jobs:
+  check_if_needs_running:
+    runs-on: ubuntu-24.04
+    outputs:
+      status: ${{ steps.count.outputs.status }}
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Count recent commits
+      id: count
+      run: echo "status=$(git log --oneline --since '24 hours ago' | wc -l)" >> $GITHUB_OUTPUT
+
+  udeps:
+    runs-on: ubuntu-22.04
+    needs: check_if_needs_running
+    if: needs.check_if_needs_running.outputs.status > 0
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+
+      - name: Run cargo-udeps
+        uses: aig787/cargo-udeps-action@v1
+        with:
+          version: 'latest'
+          args: '--all-targets'
+
+  test_release:
+    runs-on: ubuntu-24.04
+    needs: check_if_needs_running
+    if: needs.check_if_needs_running.outputs.status > 0
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: ⚡ Cache rust
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.toml') }}
+    - name: ⚡ Cache nodejs
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/pilcom/node_modules
+        key: ${{ runner.os }}-pilcom-node-modules
+    - name: Install Rust toolchain 1.81
+      run: rustup toolchain install 1.81-x86_64-unknown-linux-gnu
+    - name: Install nightly
+      run: rustup toolchain install nightly-2024-08-01-x86_64-unknown-linux-gnu
+    - name: Install std source
+      run: rustup component add rust-src --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+    - name: Install riscv target
+      run: rustup target add riscv32imac-unknown-none-elf --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+    - name: Install test dependencies
+      run: sudo apt-get update && sudo apt-get install -y binutils-riscv64-unknown-elf lld
+    - name: Install EStarkPolygon prover dependencies
+      run: sudo apt-get update && sudo apt-get install -y nlohmann-json3-dev libpqxx-dev nasm libgrpc++-dev libprotobuf-dev protobuf-compiler-grpc uuid-dev build-essential cmake pkg-config git
+    - name: Install pilcom
+      run: git clone https://github.com/0xPolygonHermez/pilcom.git  && cd pilcom && npm install
+    - name: Check without Halo2
+      run: cargo check --all --no-default-features
+    - name: Build
+      run: cargo build --all --release --all-features
+    - name: Run tests
+      # Number threads is set to 1 because the runner does not have enough memeory for more.
+      run: PILCOM=$(pwd)/pilcom/ cargo test --all --release --verbose --all-features -- --include-ignored --nocapture --test-threads=1

@@ -1,0 +1,315 @@
+name: PR tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - main
+
+# cancel any previous running workflows for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  POWDR_GENERATE_PROOFS: "true"
+  MAX_DEGREE_LOG: "20"
+
+jobs:
+  build:
+    runs-on: warp-ubuntu-2404-x64-8x
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: ⚡ Restore rust cache
+        id: cache
+        uses: WarpBuilds/cache/restore@v1
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            Cargo.lock
+          key: ${{ runner.os }}-cargo-pr-tests
+      - name: Date of the restored cache
+        run: cat target/cache-build-date.txt
+        continue-on-error: true
+
+      ##### The block below is shared between cache build and PR build workflows #####
+      - name: Install EStarkPolygon prover dependencies
+        run: sudo apt-get update && sudo apt-get install -y nlohmann-json3-dev libpqxx-dev nasm libgrpc++-dev uuid-dev
+      - name: Install Rust toolchain nightly-2024-12-17 (with clippy and rustfmt)
+        run: rustup toolchain install nightly-2024-12-17-x86_64-unknown-linux-gnu && rustup component add clippy --toolchain nightly-2024-12-17-x86_64-unknown-linux-gnu && rustup component add rustfmt --toolchain nightly-2024-12-17-x86_64-unknown-linux-gnu
+      - name: Install Rust toolchain 1.81 (stable)
+        run: rustup toolchain install 1.81-x86_64-unknown-linux-gnu
+      - name: Set cargo to perform shallow clones
+        run: echo "CARGO_NET_GIT_FETCH_WITH_CLI=true" >> $GITHUB_ENV
+      - name: Cargo check with Rust 1.81 (default features)
+        run: cargo +1.81-x86_64-unknown-linux-gnu check --all-targets
+      - name: Lint no default features
+        run: cargo clippy --all --all-targets --no-default-features --profile pr-tests --verbose -- -D warnings
+      - name: Lint all features
+        run: cargo clippy --all --all-targets --all-features --profile pr-tests --verbose -- -D warnings
+      - name: Format
+        run: cargo fmt --all --check --verbose
+      - name: Build
+        run: cargo build --all-targets --all --all-features --profile pr-tests --verbose
+      ###############################################################################
+
+      - uses: taiki-e/install-action@nextest
+      - name: Archive EStarkPolygon prover built dependencies
+        run: tar --zstd -cf pil-stark-prover-deps.tar.zst target/pr-tests/build/pil-stark-prover-*/out
+      - name: Create tests archive
+        run: cargo nextest archive --archive-file tests.tar.zst --cargo-profile pr-tests --workspace --all-features
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests_archive
+          path: |
+            tests.tar.zst
+            pil-stark-prover-deps.tar.zst
+
+  test_quick:
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        test:
+          - "1"
+          - "2"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tests_archive
+      - name: ⚡ Cache nodejs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/pilcom/node_modules
+          key: ${{ runner.os }}-pilcom-node-modules
+      - name: Install Rust toolchain nightly-2024-12-17 (with clippy and rustfmt)
+        run: rustup toolchain install nightly-2024-12-17-x86_64-unknown-linux-gnu && rustup component add clippy --toolchain nightly-2024-12-17-x86_64-unknown-linux-gnu && rustup component add rustfmt --toolchain nightly-2024-12-17-x86_64-unknown-linux-gnu
+      - name: Install nightly-2024-08-01
+        run: rustup toolchain install nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install std source
+        run: rustup component add rust-src --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install riscv target
+        run: rustup target add riscv32imac-unknown-none-elf --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install test dependencies
+        run: sudo apt-get update && sudo apt-get install -y binutils-riscv64-unknown-elf lld
+      - name: Install pilcom
+        run: git clone https://github.com/0xPolygonHermez/pilcom.git  && cd pilcom && npm install
+      - uses: taiki-e/install-action@nextest
+      - name: Run default tests
+        run: cargo nextest run --archive-file tests.tar.zst --workspace-remap . --verbose --partition count:"${{ matrix.test }}"/2
+        env:
+          PILCOM: ${{ github.workspace }}/pilcom/
+          POWDR_STD: ${{ github.workspace }}/std/
+
+  run_examples:
+    runs-on: warp-ubuntu-2404-x64-4x
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: ⚡ Restore rust cache
+        id: cache
+        uses: WarpBuilds/cache/restore@v1
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            Cargo.lock
+          key: ${{ runner.os }}-cargo-pr-tests
+      - name: Install Rust toolchain nightly-2024-12-17 (with clippy and rustfmt)
+        run: rustup toolchain install nightly-2024-12-17-x86_64-unknown-linux-gnu && rustup component add clippy --toolchain nightly-2024-12-17-x86_64-unknown-linux-gnu && rustup component add rustfmt --toolchain nightly-2024-12-17-x86_64-unknown-linux-gnu
+      - name: Install nightly
+        run: rustup toolchain install nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install std source
+        run: rustup component add rust-src --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install riscv target
+        run: rustup target add riscv32imac-unknown-none-elf --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install test dependencies
+        run: sudo apt-get update && sudo apt-get install -y binutils-riscv64-unknown-elf lld
+      - name: Run examples that cargo accepts as examples
+        run: cargo run --profile pr-tests --example hello_world && cargo run --profile pr-tests --example sqrt_with_publics
+      - name: Run crate example serialized_inputs with the given branch
+        run: cd powdr-test/examples/serialized-inputs && cargo run -r
+      - name: Run crate example fibonacci with the given branch
+        run: cd powdr-test/examples/fibonacci && cargo run -r
+      - name: Run crate example fibonacci with the latest powdr release
+        run: cd examples/fibonacci && cargo run -r
+
+  test_estark_polygon:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tests_archive
+      - name: ⚡ Cache nodejs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/pilcom/node_modules
+          key: ${{ runner.os }}-pilcom-node-modules
+      - name: Install Rust toolchain nightly-2024-12-17(with clippy and rustfmt)
+        run: rustup toolchain install nightly-2024-12-17-x86_64-unknown-linux-gnu && rustup component add clippy --toolchain nightly-2024-12-17-x86_64-unknown-linux-gnu && rustup component add rustfmt --toolchain nightly-2024-12-17-x86_64-unknown-linux-gnu
+      - name: Install nightly-2024-08-01
+        run: rustup toolchain install nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install std source
+        run: rustup component add rust-src --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install riscv target
+        run: rustup target add riscv32imac-unknown-none-elf --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install pilcom
+        run: git clone https://github.com/0xPolygonHermez/pilcom.git  && cd pilcom && npm install
+      - name: Install EStarkPolygon prover system dependency
+        run: sudo apt-get update && sudo apt-get install -y nlohmann-json3-dev
+      - uses: taiki-e/install-action@nextest
+      - name: Unpack EStarkPolygon built dependencies
+        run: tar --zstd -xf pil-stark-prover-deps.tar.zst
+      - name: Run EStark Polygon test
+        run: cargo nextest run --archive-file tests.tar.zst --workspace-remap . --verbose --run-ignored=ignored-only --no-capture -E "test(=vec_median_estark_polygon)"
+        env:
+          PILCOM: ${{ github.workspace }}/pilcom/
+          POWDR_STD: ${{ github.workspace }}/std/
+
+  test_slow:
+    strategy:
+      matrix:
+        test:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+          - "5"
+          - "6"
+          - "7"
+          - "8"
+    needs: build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tests_archive
+      - name: ⚡ Cache nodejs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/pilcom/node_modules
+          key: ${{ runner.os }}-pilcom-node-modules
+      - name: Install Rust toolchain nightly-2024-12-17 (with clippy and rustfmt)
+        run: rustup toolchain install nightly-2024-12-17-x86_64-unknown-linux-gnu && rustup component add clippy --toolchain nightly-2024-12-17-x86_64-unknown-linux-gnu && rustup component add rustfmt --toolchain nightly-2024-12-17-x86_64-unknown-linux-gnu
+      - name: Install test dependencies
+        run: sudo apt-get update && sudo apt-get install -y binutils-riscv64-unknown-elf lld
+      - name: Install nightly-2024-08-01
+        run: rustup toolchain install nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install std source
+        run: rustup component add rust-src --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install riscv target
+        run: rustup target add riscv32imac-unknown-none-elf --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install pilcom
+        run: git clone https://github.com/0xPolygonHermez/pilcom.git  && cd pilcom && npm install
+      - uses: taiki-e/install-action@nextest
+      - name: Run slow tests
+        # Number threads is set to 2 because the runner does not have enough memory for more.
+        run: |
+          NIGHTLY_TESTS=$(cat .github/workflows/nightly_tests_list.txt)
+          cargo nextest run --archive-file tests.tar.zst --workspace-remap . --verbose --run-ignored=ignored-only -E "!($NIGHTLY_TESTS)" --test-threads 2 --partition hash:"${{ matrix.test }}"/8
+        shell: bash
+        env:
+          PILCOM: ${{ github.workspace }}/pilcom/
+          POWDR_STD: ${{ github.workspace }}/std/
+
+  bench:
+    runs-on: warp-ubuntu-2404-x64-4x
+    permissions:
+      contents: write
+      deployments: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: ⚡ Restore rust cache
+        id: cache
+        uses: WarpBuilds/cache/restore@v1
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            Cargo.lock
+          key: ${{ runner.os }}-cargo-pr-tests
+      - name: Install Rust toolchain 1.81
+        run: rustup toolchain install 1.81-x86_64-unknown-linux-gnu
+      - name: Install nightly
+        run: rustup toolchain install nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install std source
+        run: rustup component add rust-src --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install riscv target
+        run: rustup target add riscv32imac-unknown-none-elf --toolchain nightly-2024-08-01-x86_64-unknown-linux-gnu
+      - name: Install test dependencies
+        run: sudo apt-get update && sudo apt-get install -y binutils-riscv64-unknown-elf lld
+      - name: Install EStarkPolygon prover dependencies
+        run: sudo apt-get update && sudo apt-get install -y nlohmann-json3-dev libpqxx-dev nasm libgrpc++-dev libprotobuf-dev protobuf-compiler-grpc uuid-dev build-essential cmake pkg-config git
+      - name: Install pilcom
+        run: git clone https://github.com/0xPolygonHermez/pilcom.git  && cd pilcom && npm install
+      - name: Run benchmarks
+        # we add `|| exit 1` to make sure the step fails if `cargo bench` fails
+        run: cargo bench --workspace --all-features -- --output-format bencher | tee output.txt || exit 1
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Benchmarks
+          tool: "cargo"
+          output-file-path: output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: "120%"
+          comment-on-alert: true
+          summary-always: true
+
+  udeps:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+
+      - name: Run cargo-udeps
+        uses: aig787/cargo-udeps-action@v1
+        with:
+          version: "latest"
+          args: "--all-targets"

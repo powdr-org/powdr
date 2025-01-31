@@ -1,0 +1,51 @@
+name: Generate rust cache for PR builds
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *' # run at 2 AM UTC
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: warp-ubuntu-2404-x64-4x
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    ##### The block below is shared between cache build and PR build workflows #####
+    - name: Install EStarkPolygon prover dependencies
+      run: sudo apt-get update && sudo apt-get install -y nlohmann-json3-dev libpqxx-dev nasm libgrpc++-dev libprotobuf-dev protobuf-compiler-grpc uuid-dev build-essential cmake pkg-config git
+    - name: Install Rust toolchain nightly-2024-09-21 (with clippy and rustfmt)
+      run: rustup toolchain install nightly-2024-09-21-x86_64-unknown-linux-gnu && rustup component add clippy --toolchain nightly-2024-09-21-x86_64-unknown-linux-gnu && rustup component add rustfmt --toolchain nightly-2024-09-21-x86_64-unknown-linux-gnu
+    - name: Install Rust toolchain 1.81 (stable)
+      run: rustup toolchain install 1.81-x86_64-unknown-linux-gnu
+    - name: Set cargo to perform shallow clones
+      run: echo "CARGO_NET_GIT_FETCH_WITH_CLI=true" >> $GITHUB_ENV
+    - name: Cargo check with Rust 1.81 (default features)
+      run: cargo +1.81-x86_64-unknown-linux-gnu check --all-targets
+    - name: Lint no default features
+      run: cargo clippy --all --all-targets --no-default-features --profile pr-tests --verbose -- -D warnings
+    - name: Lint all features
+      run: cargo clippy --all --all-targets --all-features --profile pr-tests --verbose -- -D warnings
+    - name: Format
+      run: cargo fmt --all --check --verbose
+    - name: Build
+      run: cargo build --all-targets --all --all-features --profile pr-tests --verbose
+    ###############################################################################
+
+    - name: Save date of cache build
+      run: date -R -u > target/cache-build-date.txt
+    - name: ⚡ Save rust cache
+      uses: WarpBuilds/cache/save@v1
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+          Cargo.lock
+        key: ${{ runner.os }}-cargo-pr-tests

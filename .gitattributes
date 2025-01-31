@@ -1,0 +1,2 @@
+**/*.asm linguist-language=Rust
+**/*.pil linguist-language=Rust

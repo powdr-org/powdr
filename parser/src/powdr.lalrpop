@@ -719,7 +719,7 @@ PatternList: Vec<Pattern> = {
 // ---------------------------- Trait/Impl Declaration -----------------------------
 
 TraitDeclaration: TraitDeclaration<Expression> = {
-    "trait" <name:Identifier> <type_vars:("<" <TraitVars> ">")> "{" <functions:TraitFunctions> "}" => TraitDeclaration { name, type_vars, functions }
+    <start:@L> "trait" <name:Identifier> <type_vars:("<" <TraitVars> ">")> "{" <functions:TraitFunctions> "}" <end:@R> => TraitDeclaration { name, source_ref: ctx.source_ref(start, end), type_vars, functions }
 }
 
 TraitVars: Vec<String> = {

@@ -677,6 +677,7 @@ where
             .collect();
         let trait_decl = TraitDeclaration {
             name: self.driver.resolve_decl(&trait_decl.name),
+            source_ref: trait_decl.source_ref,
             type_vars: trait_decl.type_vars,
             functions,
         };

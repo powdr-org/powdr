@@ -383,6 +383,8 @@ impl PILAnalyzer {
             .collect();
         let mut trait_solver = TraitsResolver::new(all_traits, &self.trait_impls);
 
+        trait_solver.validate_trait_implementations(&self.definitions)?;
+
         // TODO building this impl map should be different from checking that all trait references
         // have an implementation.
         // The reason is that for building the map, we need to unfold all generic functions,

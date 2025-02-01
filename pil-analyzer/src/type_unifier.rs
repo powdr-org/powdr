@@ -18,6 +18,14 @@ pub struct Unifier {
 }
 
 impl Unifier {
+    pub fn new() -> Self {
+        Self {
+            type_var_bounds: HashMap::new(),
+            substitutions: HashMap::new(),
+            last_type_var: 0,
+        }
+    }
+
     pub fn type_var_bounds(&self, type_var: &String) -> HashSet<String> {
         self.type_var_bounds
             .get(type_var)

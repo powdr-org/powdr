@@ -23,6 +23,8 @@ let<T> unwrap_or_else: Option<T>, (-> T) -> T = |o, f| match o {
     Option::Some(x) => x,
 };
 
+let<T> unwrap: Option<T> -> T = |o| unwrap_or_else(o, || std::check::panic("unwrap called on None"));
+
 /// Evaluates to a constraint that forces the witness column `c` to stay constant
 /// until `latch` is 1. In the row following the row where `latch` is 1,
 /// `c` is allowed to change.

@@ -27,6 +27,9 @@ let<T1, T2> map_enumerated: T1[], (int, T1 -> T2) -> T2[] = |arr, f| new(len(arr
 /// Computes folder(...folder(folder(initial, arr[0]), arr[1]) ..., arr[len(arr) - 1])
 let<T1, T2> fold: T1[], T2, (T2, T1 -> T2) -> T2 = |arr, initial, folder| std::utils::fold(len(arr), |i| arr[i], initial, folder);
 
+/// Turns an array of arrays into a single array by concatenating the arrays.
+let<T> flatten: T[][] -> T[] = |arr| fold(arr, [], |a, b| a + b);
+
 /// Returns the sum of the array elements.
 // TODO: Should make use of the Default or Zero trait instead of FromLiteral (then we can also
 // use this function to flatten an array of arrays.

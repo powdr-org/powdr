@@ -15,13 +15,13 @@ use std::{
 
 use auto_enums::auto_enum;
 use derive_more::Display;
-use powdr_number::{BigInt, BigUint, DegreeType};
+use powdr_number::{BigInt, BigUint, DegreeType, FieldElement};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use powdr_parser_util::SourceRef;
 
-use crate::analyzed::Reference;
+use crate::analyzed::{AlgebraicExpression, PolynomialReference, Reference};
 
 use self::{
     asm::{Part, SymbolPath},
@@ -738,6 +738,30 @@ impl<Ref> From<u32> for Expression<Ref> {
         BigUint::from(value).into()
     }
 }
+
+impl<T: FieldElement> From<AlgebraicExpression<T>> for Expression<Reference> {
+    fn from(e: AlgebraicExpression<T>) -> Self {
+        match e {
+            AlgebraicExpression::Reference(algebraic_reference) => Expression::Reference(
+                SourceRef::unknown(),
+                Reference::Poly(PolynomialReference {
+                    name: algebraic_reference.name,
+                    type_args: None,
+                }),
+            ),
+            AlgebraicExpression::PublicReference(_) => todo!(),
+            AlgebraicExpression::Challenge(_) => todo!(),
+            AlgebraicExpression::Number(n) => Number {
+                value: n.to_arbitrary_integer(),
+                type_: Some(Type::Expr),
+            }
+            .into(),
+            AlgebraicExpression::BinaryOperation(_) => todo!(),
+            AlgebraicExpression::UnaryOperation(_) => todo!(),
+        }
+    }
+}
+
 pub type ExpressionPrecedence = u64;
 
 impl<Ref> Expression<Ref> {

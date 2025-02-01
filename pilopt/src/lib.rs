@@ -7,12 +7,12 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use itertools::Itertools;
 use powdr_ast::analyzed::{
     AlgebraicBinaryOperation, AlgebraicBinaryOperator, AlgebraicExpression, AlgebraicReference,
-    AlgebraicUnaryOperation, AlgebraicUnaryOperator, Analyzed, ConnectIdentity, Expression,
-    FunctionValueDefinition, Identity, LookupIdentity, PermutationIdentity, PhantomLookupIdentity,
-    PhantomPermutationIdentity, PolyID, PolynomialIdentity, PolynomialReference, PolynomialType,
-    Reference, StatementIdentifier, Symbol, SymbolKind,
+    AlgebraicReferenceThin, AlgebraicUnaryOperation, AlgebraicUnaryOperator, Analyzed,
+    ConnectIdentity, Expression, FunctionValueDefinition, Identity, LookupIdentity,
+    PermutationIdentity, PhantomLookupIdentity, PhantomPermutationIdentity, PolyID,
+    PolynomialIdentity, PolynomialReference, PolynomialType, Reference, StatementIdentifier,
+    Symbol, SymbolKind,
 };
-use powdr_ast::parsed::types::Type;
 use powdr_ast::parsed::visitor::{AllChildren, Children, ExpressionVisitable};
 use powdr_ast::parsed::Number;
 use powdr_number::{BigUint, FieldElement};
@@ -30,6 +30,9 @@ pub fn optimize<T: FieldElement>(mut pil_file: Analyzed<T>) -> Analyzed<T> {
         deduplicate_fixed_columns(&mut pil_file);
         simplify_identities(&mut pil_file);
         extract_constant_lookups(&mut pil_file);
+        println!("before {pil_file}");
+        replace_linear_witness_columns(&mut pil_file);
+        println!("after {pil_file}");
         remove_constant_witness_columns(&mut pil_file);
         remove_constant_intermediate_columns(&mut pil_file);
         simplify_identities(&mut pil_file);
@@ -237,7 +240,10 @@ fn remove_constant_fixed_columns<T: FieldElement>(pil_file: &mut Analyzed<T>) {
                 "Determined fixed column {} to be constant {value}. Removing.",
                 poly.absolute_name
             );
-            Some(((poly.absolute_name.clone(), poly.into()), value))
+            Some((
+                (poly.absolute_name.clone(), poly.into()),
+                T::from(value).into(),
+            ))
         })
         .collect::<Vec<((String, PolyID), _)>>();
 
@@ -492,6 +498,76 @@ fn extract_constant_lookups<T: FieldElement>(pil_file: &mut Analyzed<T>) {
     }
 }
 
+/// Identifies witness columns that are constrained to a (multi)linear expression, replaces the witness column by an intermediate polynomial
+fn replace_linear_witness_columns<T: FieldElement>(pil_file: &mut Analyzed<T>) {
+    let intermediate_definitions = pil_file.intermediate_definitions();
+
+    let mut linear_polys = pil_file
+        .identities
+        .iter()
+        .enumerate()
+        .filter_map(|(index, id)| {
+            if let Identity::Polynomial(PolynomialIdentity { expression: e, .. }) = id {
+                Some((index, e))
+            } else {
+                None
+            }
+        })
+        .filter_map(|(index, identity)| {
+            constrained_to_linear(identity, &intermediate_definitions).map(|e| (index, e))
+        })
+        .collect::<Vec<(usize, ((String, PolyID), _))>>();
+
+    let in_publics: HashSet<_> = pil_file
+        .public_declarations
+        .values()
+        .map(|pubd| pubd.polynomial.name.clone())
+        .collect();
+    // We cannot remove arrays or array elements, so filter them out.
+    // Also, we filter out columns that are used in public declarations.
+    let columns = pil_file
+        .committed_polys_in_source_order()
+        .filter(|&(s, _)| !s.is_array() && !in_publics.contains(&s.absolute_name))
+        .map(|(s, _)| s.into())
+        .collect::<HashSet<PolyID>>();
+    linear_polys.retain(|(_, ((_, id), _))| columns.contains(id));
+
+    let (identities_to_remove, intermediate_polys): (BTreeSet<_>, Vec<_>) = linear_polys
+        .iter()
+        .filter_map(|(index, ((name, poly_id), expression))| {
+            // Remove the definition. If this fails, we have already replaced it by an intermediate column.
+            pil_file
+                .definitions
+                .remove(name)
+                .map(|(mut new_symbol, _)| {
+                    let new_poly_id = PolyID {
+                        ptype: PolynomialType::Intermediate,
+                        ..*poly_id
+                    };
+                    new_symbol.kind = SymbolKind::Poly(PolynomialType::Intermediate);
+                    // Add the definition to the intermediate columns
+                    pil_file
+                        .intermediate_columns
+                        .insert(name.clone(), (new_symbol, vec![expression.clone()]));
+                    // Note: the `statement_order` does not need to be updated, since we are still declaring the same symbol
+                    let r = AlgebraicReference {
+                        name: name.clone(),
+                        poly_id: new_poly_id,
+                        next: false,
+                    };
+                    (
+                        index,
+                        ((name.clone(), *poly_id), AlgebraicExpression::Reference(r)),
+                    )
+                })
+        })
+        .unzip();
+    // we remove the identities by hand here, because they do *not* become trivial by applying this optimization
+    pil_file.remove_identities(&identities_to_remove);
+    // we substitute the references to the witnesses by references to the intermediate columns
+    substitute_polynomial_references(pil_file, intermediate_polys);
+}
+
 /// Identifies witness columns that are constrained to a single value, replaces every
 /// reference to this column by the value and deletes the column.
 fn remove_constant_witness_columns<T: FieldElement>(pil_file: &mut Analyzed<T>) {
@@ -506,6 +582,7 @@ fn remove_constant_witness_columns<T: FieldElement>(pil_file: &mut Analyzed<T>) 
             }
         })
         .filter_map(constrained_to_constant)
+        .map(|(k, v)| (k, T::from(v).into()))
         .collect::<Vec<((String, PolyID), _)>>();
 
     let in_publics: HashSet<_> = pil_file
@@ -541,7 +618,7 @@ fn remove_constant_intermediate_columns<T: FieldElement>(pil_file: &mut Analyzed
                             log::debug!(
                                 "Determined intermediate column {name} to be constant {value}. Removing.",
                             );
-                            Some(((name.clone(), poly_id), value.to_arbitrary_integer()))
+                            Some(((name.clone(), poly_id), (*value).into()))
                         }
                         _ => None,
                     }
@@ -553,10 +630,10 @@ fn remove_constant_intermediate_columns<T: FieldElement>(pil_file: &mut Analyzed
     substitute_polynomial_references(pil_file, intermediate_polys);
 }
 
-/// Substitutes all references to certain polynomials by the given field elements.
+/// Substitutes all references to certain polynomials by the given non-shifted expressions.
 fn substitute_polynomial_references<T: FieldElement>(
     pil_file: &mut Analyzed<T>,
-    substitutions: Vec<((String, PolyID), BigUint)>,
+    substitutions: Vec<((String, PolyID), AlgebraicExpression<T>)>,
 ) {
     let substitutions_by_id = substitutions
         .iter()
@@ -573,18 +650,19 @@ fn substitute_polynomial_references<T: FieldElement>(
         ) = e
         {
             if let Some(value) = substitutions_by_name.get(name) {
-                *e = Number {
-                    value: (*value).clone(),
-                    type_: Some(Type::Expr),
-                }
-                .into();
+                *e = value.clone().into();
             }
         }
     });
     pil_file.post_visit_expressions_in_identities_mut(&mut |e: &mut AlgebraicExpression<_>| {
-        if let AlgebraicExpression::Reference(AlgebraicReference { poly_id, .. }) = e {
+        if let AlgebraicExpression::Reference(AlgebraicReference { poly_id, next, .. }) = e {
             if let Some(value) = substitutions_by_id.get(poly_id) {
-                *e = AlgebraicExpression::Number(T::checked_from((*value).clone()).unwrap());
+                let value = if *next {
+                    value.clone().next().unwrap()
+                } else {
+                    value.clone()
+                };
+                *e = value;
             }
         }
     });
@@ -618,6 +696,67 @@ fn constrained_to_constant<T: FieldElement>(
         _ => {}
     }
     None
+}
+
+/// Identifies witness columns that are constrained to a (multi)linear expression.
+fn constrained_to_linear<T: FieldElement>(
+    identity: &AlgebraicExpression<T>,
+    intermediate_columns: &BTreeMap<AlgebraicReferenceThin, AlgebraicExpression<T>>,
+) -> Option<((String, PolyID), AlgebraicExpression<T>)> {
+    // We require the constraint to be of the form `left = right`, represented as `left - right`
+    let (left, right) = if let AlgebraicExpression::BinaryOperation(AlgebraicBinaryOperation {
+        left,
+        op: AlgebraicBinaryOperator::Sub,
+        right,
+    }) = identity
+    {
+        (left, right)
+    } else {
+        return None;
+    };
+
+    // We require `left` to be a single, non-shifted, witness column `w`
+    let w = if let AlgebraicExpression::Reference(
+        r @ AlgebraicReference {
+            poly_id:
+                PolyID {
+                    ptype: PolynomialType::Committed,
+                    ..
+                },
+            next: false,
+            ..
+        },
+    ) = left.as_ref()
+    {
+        r
+    } else {
+        return None;
+    };
+
+    // we require `y` to be a multi-linear expression over non-shifted columns
+    if right.contains_next_ref()
+        || right.degree_with_cache(intermediate_columns, &mut Default::default()) != 1
+    {
+        return None;
+    }
+
+    // we require `y` not to be a single, non-shifted, witness column, because this case is already covered and does not require an intermediate column
+    // TODO: maybe we should avoid this edge case by removing the other optimizer, see xxx
+    if matches!(
+        right.as_ref(),
+        AlgebraicExpression::Reference(AlgebraicReference {
+            poly_id: PolyID {
+                ptype: PolynomialType::Committed,
+                ..
+            },
+            next: false,
+            ..
+        })
+    ) {
+        return None;
+    }
+
+    Some(((w.name.clone(), w.poly_id), *right.clone()))
 }
 
 /// Removes identities that evaluate to zero (including constraints of the form "X = X") and lookups with empty columns.

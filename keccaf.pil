@@ -1,0 +1,119 @@
+    let PI: int[] = [10, 7, 11, 17, 18, 3, 5, 16, 8, 21, 24, 4, 15, 23, 19, 13, 12, 2, 20, 14, 22, 9, 6, 1];
+    let PI_INVERSE: int[] = [0, 24, 18, 6, 12, 7, 23, 2, 9, 22, 1, 3, 17, 16, 20, 13, 8, 4, 5, 15, 19, 10, 21, 14, 11];
+    let RC: int[] = [1, 32898, 9223372036854808714, 9223372039002292224, 32907, 2147483649, 9223372039002292353, 9223372036854808585, 138, 136, 2147516425, 2147483658, 2147516555, 9223372036854775947, 9223372036854808713, 9223372036854808579, 9223372036854808578, 9223372036854775936, 32778, 9223372039002259466, 9223372039002292353, 9223372036854808704, 2147483649, 9223372039002292232];
+    let RHO: int[] = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 2, 14, 27, 41, 56, 8, 25, 43, 62, 18, 39, 61, 20, 44];
+    let chi: int[], (int, int -> int), (int, int -> int), (int -> int) -> int[] = (|st, xor, and, not| std::array::map_enumerated(st, (|idx, elem| {
+        let i = (idx / 5);
+        let j = (idx % 5);
+        xor(elem, and(not(st[((i * 5) + ((j + 1) % 5))]), st[((i * 5) + ((j + 2) % 5))]))
+    })));
+    let concrete: int, int[], int -> (int, int[], int, (int, int -> int), (int, int -> int), (int, int -> int), (int -> int)) = (|W, input, delim| (W, input, delim, (|x, y| (x | y)), (|x, y| (x & y)), (|x, y| (x ^ y)), (|x| x)));
+    let concrete_routine: int, int[], int -> int[] = (|W, input, delim| routine(concrete(W, input, delim)));
+    let from_bytes: int[] -> int[] = (|input| std::array::new(25, (|i| std::utils::fold(8, (|j| j), 0, (|acc, idx| (acc + (input[((i * 8) + idx)] * (1 << (8 * idx)))))))));
+    let iota: int[], int, (int, int -> int) -> int[] = (|st, r, xor| std::array::map_enumerated(st, (|idx, elem| if (idx == 0) { xor(elem, RC[r]) } else { elem })));
+    let keccakf: int[], (int, int -> int), (int, int -> int), (int, int -> int), (int -> int) -> int[] = (|st, xor, and, or, not| swap_u64_loop(r_loop(swap_u64_loop(st, or, and), xor, and, or, not), or, and));
+    let r_loop: int[], (int, int -> int), (int, int -> int), (int, int -> int), (int -> int) -> int[] = (|st, xor, and, or, not| std::utils::fold(24, (|i| i), st, (|acc, r| iota(chi(rho_pi_rearrange(rho_pi_loop(theta_st(acc, xor, or), or)), xor, and, not), r, xor))));
+    let rho_pi: int[], int, (int, int -> int) -> int = (|st, i, or| {
+        let p = if (i == 0) { 23 } else { (i - 1) };
+        rotl64(st[PI[p]], RHO[i], or)
+    });
+    let rho_pi_loop: int[], (int, int -> int) -> int[] = (|st, or| std::array::new(25, (|i| if (i == 0) { st[0] } else { rho_pi(st, (i - 1), or) })));
+    let rho_pi_rearrange: int[] -> int[] = (|st| std::array::new(25, (|i| st[PI_INVERSE[i]])));
+    let rotl64: int, int, (int, int -> int) -> int = (|x, n, or| or((x << n), (x >> (64 - n))));
+    let routine: int, int[], int, (int, int -> int), (int, int -> int), (int, int -> int), (int -> int) -> int[] = (|W, input, delim, or, and, xor, not| {
+        let b = std::array::new(200, (|i| 0));
+        let rate = (200 - (2 * W));
+        let b_finalized = update_finalize_b(input, b, rate, delim, xor, and, or, not);
+        if ((3 * W) <= 200) { std::array::new(W, (|i| b_finalized[i])) } else { b_finalized }
+    });
+    let swap_u64: int, (int, int -> int), (int, int -> int) -> int = (|x, or, and| {
+        let val = or(and((x << 8), 18374966859414961920), and((x >> 8), 71777214294589695));
+        let val_2 = or(and((val << 16), 18446462603027742720), and((val >> 16), 281470681808895));
+        or((val_2 << 32), (val_2 >> 32))
+    });
+    let swap_u64_loop: int[], (int, int -> int), (int, int -> int) -> int[] = (|st, or, and| std::array::new(25, (|i| swap_u64(st[i], or, and))));
+    let theta_bc: int[], int, (int, int -> int) -> int = (|st, i, xor| xor_mult([st[i], st[(i + 5)], st[(i + 10)], st[(i + 15)], st[(i + 20)]], xor));
+    let theta_st: int[], (int, int -> int), (int, int -> int) -> int[] = (|st, xor, or| std::array::map_enumerated(st, (|idx, elem| {
+        let i = (idx % 5);
+        let j = (idx / 5);
+        let t = xor(theta_bc(st, ((i + 4) % 5), xor), rotl64(theta_bc(st, ((i + 1) % 5), xor), 1, or));
+        xor(elem, t)
+    })));
+    let to_bytes: int[] -> int[] = (|input| std::array::fold(input, [], (|acc, elem| {
+        let new_bytes = std::array::new(8, (|i| ((elem % (1 << ((8 * i) + 8))) / (1 << (8 * i)))));
+        (acc + new_bytes)
+    })));
+    let update_finalize_b: int[], int[], int, int, (int, int -> int), (int, int -> int), (int, int -> int), (int -> int) -> int[] = (|input, b, rate, delim, xor, and, or, not| {
+        let num_loop = (std::array::len(input) / rate);
+        let num_remaining = (std::array::len(input) % rate);
+        let b_delim_idx = ((num_remaining + 1) % rate);
+        let b_keccak = std::utils::fold(num_loop, (|i| i), b, (|acc, idx| {
+            let new_b = std::array::zip(std::array::new(rate, (|i| acc[i])), std::array::new(rate, (|i| input[((idx * rate) + i)])), xor);
+            to_bytes(keccakf(from_bytes(new_b), xor, and, or, not))
+        }));
+        let b_update = std::array::new(rate, (|i| if (i < num_remaining) { xor(b_keccak[i], input[((num_loop * rate) + i)]) } else { if (i == num_remaining) { if (i == (rate - 1)) { xor_mult([b_keccak[i], delim, 128], xor) } else { xor(b_keccak[i], delim) } } else { if (i == (rate - 1)) { xor(b_keccak[i], 128) } else { b_keccak[i] } } }));
+        to_bytes(keccakf(from_bytes(b_update), xor, and, or, not))
+    });
+    let xor_mult: int[], (int, int -> int) -> int = (|input, xor| std::array::fold(input, 0, (|x, y| xor(x, y))));
+namespace std::array(1024);
+    let<T1, T2> fold: T1[], T2, (T2, T1 -> T2) -> T2 = (|arr, initial, folder| std::utils::fold(std::array::len(arr), (|i| arr[i]), initial, folder));
+    let<T> len: T[] -> int = [];
+    let<T1, T2> map: T1[], (T1 -> T2) -> T2[] = (|arr, f| std::array::new(std::array::len(arr), (|i| f(arr[i]))));
+    let<T1, T2> map_enumerated: T1[], (int, T1 -> T2) -> T2[] = (|arr, f| std::array::new(std::array::len(arr), (|i| f(i, arr[i]))));
+    let<T> new: int, (int -> T) -> T[] = (|length, f| std::utils::fold(length, f, [], (|acc, e| (acc + [e]))));
+    let<T: Add + FromLiteral> sum: T[] -> T = (|arr| std::array::fold(arr, 0, (|a, b| (a + b))));
+    let<T1, T2, T3> zip: T1[], T2[], (T1, T2 -> T3) -> T3[] = (|array1, array2, fn| std::array::new(std::array::len(array1), (|i| fn(array1[i], array2[i]))));
+namespace std::check(1024);
+    let assert: bool, (-> string) -> constr[] = (|condition, reason| if !condition { std::check::panic(reason()) } else { [] });
+    let panic: string -> ! = [];
+namespace std::convert(1024);
+    let expr = [];
+    let fe = [];
+    let int = [];
+namespace std::debug(1024);
+    let print: string -> constr[] = [];
+    let println: string -> constr[] = (|msg| std::debug::print((msg + "\n")));
+namespace std::field(1024);
+    let modulus: -> int = [];
+namespace std::math::ff(1024);
+    let add = (|x, y, modulus| std::math::ff::reduce((x + y), modulus));
+    let div = (|x, y, modulus| std::math::ff::mul(x, std::math::ff::inverse(y, modulus), modulus));
+    let extended_gcd = (|a, b| if (b == 0) { if (a == 1) { [1, 0] } else { std::check::panic("Inputs are not co-prime, inverse does not exist.") } } else { {
+        let r = std::math::ff::extended_gcd(b, (a % b));
+        [r[1], (r[0] - ((a / b) * r[1]))]
+    } });
+    let inverse = (|x, modulus| if ((x <= 0) || (x >= modulus)) { if (x == 0) { std::check::panic("Tried to compute the inverse of zero.") } else { std::check::panic("Tried to compute the inverse of a negative number or a number outside the field.") } } else { std::math::ff::reduce(std::math::ff::extended_gcd(x, modulus)[0], modulus) });
+    let mul = (|x, y, modulus| std::math::ff::reduce((x * y), modulus));
+    let reduce = (|x, modulus| if (x < 0) { ((modulus - (-x % modulus)) % modulus) } else { (x % modulus) });
+    let sub = (|x, y, modulus| std::math::ff::reduce((x - y), modulus));
+namespace std::prover(1024);
+    enum Query {
+        Input(int),
+        PrintChar(int),
+        Hint(fe),
+        DataIdentifier(int, int),
+    }
+    let challenge: int, int -> expr = [];
+    let eval: expr -> fe = [];
+namespace std::utils(1024);
+    let cross_product: int[] -> (int -> int)[] = (|sizes| std::utils::cross_product_internal(1, 0, sizes));
+    let cross_product_internal: int, int, int[] -> (int -> int)[] = (|cycle_len, pos, sizes| if (pos >= std::array::len(sizes)) { [] } else { ([(|i| ((i / cycle_len) % sizes[pos]))] + std::utils::cross_product_internal((cycle_len * sizes[pos]), (pos + 1), sizes)) });
+    let<T1, T2> fold: int, (int -> T1), T2, (T2, T1 -> T2) -> T2 = (|length, f, initial, folder| if (length <= 0) { initial } else { folder(std::utils::fold((length - 1), f, initial, folder), f((length - 1))) });
+    let force_bool: expr -> constr = (|c| ((c * (1 - c)) = 0));
+    let is_zero: expr -> expr = (constr |x| {
+        let x_is_zero;
+        std::utils::force_bool(x_is_zero);
+        let x_inv;
+        (x_is_zero = (1 - (x * x_inv)));
+        ((x_is_zero * x) = 0);
+        x_is_zero
+    });
+    let new_bool: -> expr = (constr || {
+        let x;
+        std::utils::force_bool(x);
+        x
+    });
+    let<T: Add + FromLiteral> sum: int, (int -> T) -> T = (|length, f| std::utils::fold(length, f, 0, (|acc, e| (acc + e))));
+    let unchanged_until: expr, expr -> constr = (|c, latch| (((c' - c) * (1 - latch)) = 0));
+namespace main(1024);
+    let x;

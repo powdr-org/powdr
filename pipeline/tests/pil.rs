@@ -265,6 +265,12 @@ fn add() {
 }
 
 #[test]
+fn stwo_challenges() {
+    let f = "pil/challenges.pil";
+    test_stwo(f, Default::default());
+}
+
+#[test]
 fn stwo_fibonacci() {
     let f = "pil/fibo_no_publics.pil";
     test_stwo(f, Default::default());

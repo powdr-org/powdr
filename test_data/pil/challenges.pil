@@ -1,0 +1,8 @@
+let N: int = 8;
+        
+namespace Global(N);
+    let alpha: expr = std::prelude::challenge(0, 41);
+    let beta: expr = std::prelude::challenge(0, 42);
+    col witness x;
+    col witness stage(1) y;
+    x = y + beta * alpha;

@@ -802,7 +802,11 @@ fn to_constraint<T: FieldElement>(
                 _ => panic!("Expected array, got {:?}", fields[2]),
             }),
             latch: to_expr(&fields[3]),
-            accumulator_columns: match fields[4].as_ref() {
+            folded_expressions: ExpressionList(match fields[4].as_ref() {
+                Value::Array(fields) => fields.iter().map(|f| to_expr(f)).collect(),
+                _ => panic!("Expected array, got {:?}", fields[4]),
+            }),
+            accumulator_columns: match fields[5].as_ref() {
                 Value::Array(fields) => fields
                     .iter()
                     .map(|f| match to_expr(f) {
@@ -813,7 +817,7 @@ fn to_constraint<T: FieldElement>(
                         _ => panic!("Expected reference, got {f:?}"),
                     })
                     .collect(),
-                _ => panic!("Expected array, got {:?}", fields[2]),
+                _ => panic!("Expected array, got {:?}", fields[5]),
             },
         }
         .into(),

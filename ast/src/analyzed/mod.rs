@@ -1016,6 +1016,7 @@ pub struct PhantomBusInteractionIdentity<T> {
     pub bus_id: AlgebraicExpression<T>,
     pub payload: ExpressionList<T>,
     pub latch: AlgebraicExpression<T>,
+    pub folded_expressions: ExpressionList<T>,
     pub accumulator_columns: Vec<AlgebraicReference>,
 }
 

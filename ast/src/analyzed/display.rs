@@ -436,7 +436,11 @@ impl<T: Display> Display for PhantomBusInteractionIdentity<T> {
             self.bus_id,
             self.payload.0.iter().map(ToString::to_string).format(", "),
             self.latch,
-            self.folded_expressions.0.iter().map(ToString::to_string).format(", "),
+            self.folded_expressions
+                .0
+                .iter()
+                .map(ToString::to_string)
+                .format(", "),
             self.accumulator_columns
                 .iter()
                 .map(ToString::to_string)

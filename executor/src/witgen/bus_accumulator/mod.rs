@@ -7,7 +7,9 @@ use extension_field::ExtensionField;
 use fp2::Fp2;
 use fp4::Fp4;
 use itertools::Itertools;
-use powdr_ast::analyzed::{Analyzed, Identity, PhantomBusInteractionIdentity};
+use powdr_ast::analyzed::{
+    AlgebraicExpression, Analyzed, Identity, PhantomBusInteractionIdentity, PolyID,
+};
 use powdr_executor_utils::{
     expression_evaluator::{ExpressionEvaluator, OwnedTerminalValues},
     VariablySizedColumn,
@@ -120,24 +122,29 @@ impl<'a, T: FieldElement, Ext: ExtensionField<T> + Sync> BusAccumulatorGenerator
     }
 
     pub fn generate(&self) -> Vec<(String, Vec<T>)> {
-        let accumulators = self
+        let mut columns = self
             .bus_interactions
             .par_iter()
-            .flat_map(|bus_interaction| self.interaction_columns(bus_interaction))
-            .collect::<Vec<_>>();
+            .flat_map(|bus_interaction| {
+                let (folded, acc) = self.interaction_columns(bus_interaction);
+                collect_folded_columns(bus_interaction, folded)
+                    .chain(collect_acc_columns(bus_interaction, acc))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<BTreeMap<_, _>>();
 
         self.pil
             .committed_polys_in_source_order()
             .filter(|(symbol, _)| symbol.stage == Some(1))
-            .flat_map(|(symbol, _)| symbol.array_elements().map(|(name, _)| name))
-            .zip_eq(accumulators)
+            .flat_map(|(symbol, _)| symbol.array_elements())
+            .map(|(name, poly_id)| (name, columns.remove(&poly_id).unwrap()))
             .collect()
     }
 
     fn interaction_columns(
         &self,
         bus_interaction: &PhantomBusInteractionIdentity<T>,
-    ) -> Vec<Vec<T>> {
+    ) -> (Vec<Vec<T>>, Vec<Vec<T>>) {
         let intermediate_definitions = self.pil.intermediate_definitions();
 
         let size = self.values.height();
@@ -171,19 +178,18 @@ impl<'a, T: FieldElement, Ext: ExtensionField<T> + Sync> BusAccumulatorGenerator
         }
 
         // Transpose from row-major to column-major & flatten.
-        let mut result = vec![Vec::with_capacity(size); Ext::size() * 2];
+        let mut folded = vec![Vec::with_capacity(size); Ext::size()];
+        let mut acc = vec![Vec::with_capacity(size); Ext::size()];
         for row_index in 0..size {
-            for (col_index, x) in folded_list[row_index]
-                .to_vec()
-                .into_iter()
-                .chain(acc_list[row_index].to_vec())
-                .enumerate()
-            {
-                result[col_index].push(x);
+            for (col_index, x) in folded_list[row_index].to_vec().into_iter().enumerate() {
+                folded[col_index].push(x);
+            }
+            for (col_index, x) in acc_list[row_index].to_vec().into_iter().enumerate() {
+                acc[col_index].push(x);
             }
         }
 
-        result
+        (folded, acc)
     }
 
     /// Fingerprints a tuples of field elements, using the pre-computed powers of alpha.
@@ -205,4 +211,33 @@ fn powers_of_alpha<T, Ext: ExtensionField<T>>(alpha: Ext, n: usize) -> Vec<Ext> 
             Some(result)
         })
         .collect::<Vec<_>>()
+}
+
+fn collect_folded_columns<T>(
+    bus_interaction: &PhantomBusInteractionIdentity<T>,
+    folded: Vec<Vec<T>>,
+) -> impl Iterator<Item = (PolyID, Vec<T>)> + '_ {
+    bus_interaction
+        .folded_expressions
+        .0
+        .iter()
+        .zip_eq(folded)
+        .filter_map(|(expr, column)| match expr {
+            AlgebraicExpression::Reference(col_reference) if col_reference.is_witness() => {
+                Some((col_reference.poly_id, column))
+            }
+            // If the folded payload is not persisted as witness columns, we skip it.
+            _ => None,
+        })
+}
+
+fn collect_acc_columns<T>(
+    bus_interaction: &PhantomBusInteractionIdentity<T>,
+    acc: Vec<Vec<T>>,
+) -> impl Iterator<Item = (PolyID, Vec<T>)> + '_ {
+    bus_interaction
+        .accumulator_columns
+        .iter()
+        .zip_eq(acc)
+        .map(|(column_reference, column)| (column_reference.poly_id, column))
 }

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738543927516,
+  "lastUpdate": 1738545629356,
   "repoUrl": "https://github.com/powdr-labs/powdr",
   "entries": {
     "Benchmarks": [
@@ -142929,6 +142929,164 @@ window.BENCHMARK_DATA = {
             "name": "executor-benchmark/keccak",
             "value": 14302029447,
             "range": "± 42204323",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "powdr-labs",
+            "username": "powdr-labs"
+          },
+          "committer": {
+            "name": "powdr-labs",
+            "username": "powdr-labs"
+          },
+          "id": "ce16650496975aec8d0480652377f039da813b9a",
+          "message": "Manual Bus Witgen: Output folded columns only if they exist",
+          "timestamp": "2025-01-31T18:23:35Z",
+          "url": "https://github.com/powdr-labs/powdr/pull/2428/commits/ce16650496975aec8d0480652377f039da813b9a"
+        },
+        "date": 1738545628592,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "evaluator-benchmark/std::math::ff::inverse",
+            "value": 6861,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/std::math::ff::reduce",
+            "value": 590,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/std::math::ff::mul",
+            "value": 1091,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sqrt_879882356",
+            "value": 29225,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sqrt_1882356",
+            "value": 24460,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sqrt_1187956",
+            "value": 24441,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sqrt_56",
+            "value": 17292,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sort_33",
+            "value": 801012,
+            "range": "± 1174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sort_100",
+            "value": 2775185,
+            "range": "± 3769",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sort_300",
+            "value": 9663468,
+            "range": "± 14078",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sort_900",
+            "value": 35594055,
+            "range": "± 233399",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "evaluator-benchmark/sort_2700",
+            "value": 140536752,
+            "range": "± 196516",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sqrt_879882356",
+            "value": 2662,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sqrt_1882356",
+            "value": 2113,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sqrt_1187956",
+            "value": 2094,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sqrt_56",
+            "value": 1261,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sort_33",
+            "value": 69742,
+            "range": "± 85",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sort_100",
+            "value": 258316,
+            "range": "± 448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sort_300",
+            "value": 999927,
+            "range": "± 1645",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sort_900",
+            "value": 4274484,
+            "range": "± 5178",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-benchmark/sort_2700",
+            "value": 20448579,
+            "range": "± 67325",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "jit-witgen-benchmark/jit_witgen_benchmark",
+            "value": 31805497769,
+            "range": "± 35349543",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "executor-benchmark/keccak",
+            "value": 13976336290,
+            "range": "± 93629603",
             "unit": "ns/iter"
           }
         ]

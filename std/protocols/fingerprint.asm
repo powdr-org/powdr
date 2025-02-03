@@ -37,6 +37,10 @@ let fingerprint_inter: expr[], Ext<expr> -> Ext<expr> = |expr_array, alpha| if l
 
     // Recursively compute the fingerprint as expr_array[0] + alpha * fingerprint(expr_array[1:], alpha)
     let intermediate_fingerprint = match fingerprint_inter(array::sub_array(expr_array, 1, len(expr_array) - 1), alpha) {
+        Ext::Fp(a) => {
+            let intermediate_fingerprint: inter = a;
+            Ext::Fp(intermediate_fingerprint)
+        },
         Ext::Fp2(std::math::fp2::Fp2::Fp2(a0, a1)) => {
             let intermediate_fingerprint_0: inter = a0;
             let intermediate_fingerprint_1: inter = a1;
@@ -70,6 +74,7 @@ mod test {
     let assert_fingerprint_equal: fe[], expr, fe -> () = query |tuple, challenge, expected| {
         let result = fingerprint(tuple, from_base(challenge));
         match result {
+            Ext::Fp(actual) => assert(expected == actual, || "expected != actual"),
             Ext::Fp2(std::math::fp2::Fp2::Fp2(actual, zero)) => {
                 assert(zero == 0, || "Returned an extension field element");
                 assert(expected == actual, || "expected != actual");

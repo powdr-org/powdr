@@ -141,13 +141,9 @@ let<T> unpack_ext_array: Fp2<T> -> T[] = |a| match a {
 };
 
 /// Constructs an extension field element `a0 + a1 * X` from either `[a0, a1]` or `[a0]` (setting `a1`to zero in that case)
-let<T: FromLiteral> from_array: T[] -> Fp2<T> = |arr| match len(arr) {
-    1 => {
-        let _ = assert(!needs_extension(), || "The field is too small and needs to move to the extension field. Pass two elements instead!");
-        from_base(arr[0])
-    },
+let<T> from_array: T[] -> Fp2<T> = |arr| match len(arr) {
     2 => Fp2::Fp2(arr[0], arr[1]),
-    _ => panic("Expected array of length 1 or 2")
+    _ => panic("Expected array of length 2")
 };
 
 mod test {

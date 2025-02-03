@@ -54,8 +54,12 @@ enum Constr {
     ///   would be in an equivalent lookup or permutation:
     ///   - It should always evaluate to a binary value.
     ///   - If it evaluates to zero, the multiplicity must be zero.
+    /// - A list of expressions that evaluate to the value of the folded payload,
+    ///   i.e., `beta - fingerprint_with_id(id, payload, alpha)`
+    ///   Note that this could refer to witness columns, intermediate columns, or
+    ///   in-lined expressions.
     /// - The list of accumulator columns.
-    PhantomBusInteraction(expr, expr, expr[], expr, expr[])
+    PhantomBusInteraction(expr, expr, expr[], expr, expr[], expr[])
 }
 
 /// This is the result of the "$" operator. It can be used as the left and

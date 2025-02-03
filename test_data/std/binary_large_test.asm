@@ -2,7 +2,7 @@ use std::machines::binary::ByteBinary;
 use std::machines::large_field::binary::Binary;
 
 let main_degree: int = 2**7;
-let binary_degree: int = 2**7;
+let binary_degree: int = 2**5;
 
 machine Main with degree: main_degree {
     reg pc[@pc];
